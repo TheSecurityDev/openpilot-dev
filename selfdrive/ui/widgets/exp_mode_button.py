@@ -11,6 +11,8 @@ class ExperimentalModeButton(Widget):
     self.img_width = 80
     self.horizontal_padding = 50
     self.button_height = 125
+    self.rounded_corners = 0.20
+    self.background_color = rl.Color(255, 0, 0, 150) # Color of the background behind the button
 
     self.params = Params()
     self.experimental_mode = self.params.get_bool("ExperimentalMode")
@@ -45,11 +47,12 @@ class ExperimentalModeButton(Widget):
       # TODO: Opening settings for ExperimentalMode
       self.params.put_bool("ExperimentalMode", self.experimental_mode)
 
-    rl.draw_rectangle_rounded(rect, 0.08, 20, rl.Color(255, 255, 255, 255))
-
     rl.begin_scissor_mode(int(rect.x), int(rect.y), int(rect.width), int(rect.height))
     self._draw_gradient_background(rect)
     rl.end_scissor_mode()
+
+    # HACK: Hide the square corners of the rectangle by drawing a thick rounded rectangle border the same color as the background
+    rl.draw_rectangle_rounded_lines_ex(rect, self.rounded_corners, 20, 5, self.background_color)
 
     # Draw vertical separator line
     line_x = rect.x + rect.width - self.img_width - (2 * self.horizontal_padding)
