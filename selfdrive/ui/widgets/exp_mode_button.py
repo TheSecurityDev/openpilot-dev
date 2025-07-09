@@ -52,7 +52,7 @@ class ExperimentalModeButton(Widget):
     rl.end_scissor_mode()
 
     # HACK: Hide the square corners of the rectangle by drawing a thick rounded rectangle border the same color as the background
-    rl.draw_rectangle_rounded_lines_ex(rect, self.rounded_corners, 20, 5, self.background_color)
+    rl.draw_rectangle_rounded_lines_ex(rect, self.rounded_corners, 20, 10, self.background_color)
 
     # Draw vertical separator line
     line_x = rect.x + rect.width - self.img_width - (2 * self.horizontal_padding)
