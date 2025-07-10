@@ -1,5 +1,6 @@
 import atexit
 import cffi
+import json
 import os
 import time
 import pyray as rl
@@ -11,6 +12,7 @@ from enum import IntEnum
 from typing import NamedTuple
 from importlib.resources import as_file, files
 from openpilot.common.swaglog import cloudlog
+from openpilot.common.basedir import BASEDIR
 from openpilot.system.hardware import HARDWARE, PC
 from openpilot.common.realtime import Ratekeeper
 
@@ -311,6 +313,23 @@ class GuiApplication:
   def height(self):
     return self._height
 
+  def _get_all_chars(self):
+    """Returns a string of all characters that are used in the UI. Used for determining which font characters to load."""
+    all_chars = set()
+
+    # Add characters from the keyboard layouts
+    from openpilot.system.ui.widgets.keyboard import KEYBOARD_LAYOUTS
+    for layout in KEYBOARD_LAYOUTS.values():
+      all_chars.update(key for row in layout for key in row)
+
+    # TODO: We'll also need all the characters from the translations
+
+    # Add some additional characters that are used in the UI
+    all_chars.update("–✓°")
+
+    # Return set as a string
+    return "".join(all_chars)
+
   def _load_fonts(self):
     font_files = (
       "Inter-Thin.ttf",
@@ -324,16 +343,9 @@ class GuiApplication:
       "Inter-Black.ttf",
     )
 
-    # Create a character set from our keyboard layouts
-    from openpilot.system.ui.widgets.keyboard import KEYBOARD_LAYOUTS
-    all_chars = set()
-    for layout in KEYBOARD_LAYOUTS.values():
-      all_chars.update(key for row in layout for key in row)
-    all_chars = "".join(all_chars)
-    all_chars += "–✓°"
-
+    all_chars_str = self._get_all_chars()
     codepoint_count = rl.ffi.new("int *", 1)
-    codepoints = rl.load_codepoints(all_chars, codepoint_count)
+    codepoints = rl.load_codepoints(all_chars_str, codepoint_count)
 
     for index, font_file in enumerate(font_files):
       with as_file(FONT_DIR.joinpath(font_file)) as fspath:
