@@ -39,7 +39,7 @@ class Colors:
 
 
 NETWORK_TYPES = {
-  NetworkType.none: "Offline",
+  NetworkType.none: "--",
   NetworkType.wifi: "WiFi",
   NetworkType.cell2G: "2G",
   NetworkType.cell3G: "3G",
