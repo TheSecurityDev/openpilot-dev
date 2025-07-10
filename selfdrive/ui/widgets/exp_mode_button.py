@@ -11,7 +11,7 @@ class ExperimentalModeButton(Widget):
     self.img_width = 80
     self.horizontal_padding = 50
     self.button_height = 125
-    self.rounded_corners = 0.20
+    self.rounded_corners = 0.2
     self.background_color = rl.Color(0, 0, 0, 255) # Color of the background behind the button
 
     self.params = Params()
