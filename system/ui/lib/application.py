@@ -322,6 +322,16 @@ class GuiApplication:
     for layout in KEYBOARD_LAYOUTS.values():
       all_chars.update(key for row in layout for key in row)
 
+    # Add characters from languages.json
+    try:
+      languages_file = os.path.join(BASEDIR, "selfdrive/ui/translations/languages.json")
+      with open(languages_file, encoding='utf-8') as f:
+        languages = json.load(f)
+        for language in languages.keys():
+          all_chars.update(language)
+    except FileNotFoundError:
+      pass
+
     # TODO: We'll also need all the characters from the translations
 
     # Add some additional characters that are used in the UI
