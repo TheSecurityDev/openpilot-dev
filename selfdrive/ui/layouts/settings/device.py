@@ -67,9 +67,11 @@ class DeviceLayout(Widget):
       with open(languages_file, encoding='utf-8') as f:
         languages = json.load(f)
 
-      self._select_language_dialog = MultiOptionDialog("Select a language", languages)
+      current_language = self._params.get("LanguageSetting")
+      self._select_language_dialog = MultiOptionDialog("Select a language", languages, current_language)
       gui_app.set_modal_overlay(self._select_language_dialog, callback=self._handle_language_selection)
     except FileNotFoundError:
+      # TODO: We should show something at least
       pass
 
   def _handle_language_selection(self, result: int):
