@@ -10,14 +10,14 @@ from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 
 
 class PrimeType(IntEnum):
-  UNKNOWN = -2,
-  UNPAIRED = -1,
-  NONE = 0,
-  MAGENTA = 1,
-  LITE = 2,
-  BLUE = 3,
-  MAGENTA_NEW = 4,
-  PURPLE = 5,
+  UNKNOWN = -2
+  UNPAIRED = -1
+  NONE = 0
+  MAGENTA = 1
+  LITE = 2
+  BLUE = 3
+  MAGENTA_NEW = 4
+  PURPLE = 5
 
 
 class PrimeState:
