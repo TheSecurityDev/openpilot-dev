@@ -6,21 +6,33 @@ from openpilot.system.ui.widgets.scroller import Scroller
 # Description constants
 DESCRIPTIONS = {
   "OpenpilotEnabledToggle": (
-    "Use the openpilot system for adaptive cruise control and lane keep driver assistance. " +
-    "Your attention is required at all times to use this feature."
+    "Use the openpilot system for adaptive cruise control and lane keep driver assistance. Your attention is required at all times to use this feature."
+  ),
+  "ExperimentalMode": (
+    '<p>openpilot defaults to driving in "chill mode".'
+    + " Experimental mode enables alpha-level features that aren't ready for chill mode."
+    + " Experimental features are listed below:</p>\n"
+    + "<h4>End-to-End Longitudinal Control</h4>\n"
+    + "<p>Let the driving model control the gas and brakes."
+    + " openpilot will drive as it thinks a human would, including stopping for red lights and stop signs."
+    + " Since the driving model decides the speed to drive, the set speed will only act as an upper bound."
+    + " This is an alpha quality feature; mistakes should be expected.</p>\n"
+    + "<h4>New Driving Visualization</h4>\n"
+    + "<p>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns."
+    + " The Experimental mode logo will also be shown in the top right corner.</p>\n"
   ),
   "DisengageOnAccelerator": "When enabled, pressing the accelerator pedal will disengage openpilot.",
   "LongitudinalPersonality": (
-    "Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. " +
-    "In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with " +
-    "your steering wheel distance button."
+    "Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. "
+    + "In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with "
+    + "your steering wheel distance button."
   ),
   "IsLdwEnabled": (
-    "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line " +
-    "without a turn signal activated while driving over 31 mph (50 km/h)."
+    "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line "
+    + "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
   "AlwaysOnDM": "Enable driver monitoring even when openpilot is not engaged.",
-  'RecordFront': "Upload data from the driver facing camera and help improve the driver monitoring algorithm.",
+  "RecordFront": "Upload data from the driver facing camera and help improve the driver monitoring algorithm.",
   "IsMetric": "Display speed in km/h instead of mph.",
   "RecordAudio": "Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect.",
 }
@@ -39,6 +51,7 @@ class TogglesLayout(Widget):
       ),
       toggle_item(
         "Experimental Mode",
+        DESCRIPTIONS["ExperimentalMode"],
         initial_state=self._params.get_bool("ExperimentalMode"),
         icon="experimental_white.png",
       ),
@@ -55,7 +68,7 @@ class TogglesLayout(Widget):
         button_width=255,
         callback=self._set_longitudinal_personality,
         selected_index=self._params.get("LongitudinalPersonality", return_default=True),
-        icon="speed_limit.png"
+        icon="speed_limit.png",
       ),
       toggle_item(
         "Enable Lane Departure Warnings",
@@ -81,9 +94,7 @@ class TogglesLayout(Widget):
         self._params.get_bool("RecordAudio"),
         icon="microphone.png",
       ),
-      toggle_item(
-        "Use Metric System", DESCRIPTIONS["IsMetric"], self._params.get_bool("IsMetric"), icon="metric.png"
-      ),
+      toggle_item("Use Metric System", DESCRIPTIONS["IsMetric"], self._params.get_bool("IsMetric"), icon="metric.png"),
     ]
 
     self._scroller = Scroller(items, line_separator=True, spacing=0)
