@@ -166,7 +166,7 @@ class TestUI:
     if not full_screenshot:
       raise Exception("failed to capture screenshot")
     prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
-    prev.save(SCREENSHOTS_DIR / f"{name}_0.png")
+    prev.save(SCREENSHOTS_DIR / f"{name}.png")
 
     for i in range(1, max_pages):
       # pyautogui.scroll(-300, x=self.ui.left + center_x, y=self.ui.top + center_y)
