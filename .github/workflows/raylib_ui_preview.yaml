@@ -3,13 +3,20 @@ on:
   push:
     branches:
       - master
-  pull_request:
+  pull_request_target:
     types: [assigned, opened, synchronize, reopened, edited]
     branches:
       - 'master'
-    paths:
-      - 'selfdrive/ui/**'
-      - 'system/ui/**'
+    # paths:
+    #   - 'selfdrive/ui/**'
+    #   - 'system/ui/**'
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - master
+    # paths:
+    #   - 'selfdrive/ui/**'
+    #   - 'system/ui/**'
   workflow_dispatch:
 
 env:
