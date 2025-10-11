@@ -160,12 +160,6 @@ class TestUI:
     cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
 
-  def screenshot_with_suffix(self, name: str, suffix: str):
-    """Save a screenshot with an added suffix before the extension."""
-    full_screenshot = pyautogui.screenshot()
-    cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
-    cropped.save(SCREENSHOTS_DIR / f"{name}_{suffix}.png")
-
   def capture_scrollable(self, name: str, max_pages: int = 8):
     """Capture a scrollable page by taking screenshots and scrolling until content stops changing."""
     # center point inside UI where content is likely present
