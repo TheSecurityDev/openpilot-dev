@@ -7,7 +7,6 @@ import pathlib
 from collections import namedtuple
 from collections.abc import Callable
 from typing import NotRequired, TypedDict
-import logging
 
 import pyautogui
 from PIL import ImageChops
@@ -27,8 +26,7 @@ TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
 DEFAULT_SCROLL_AMOUNT = -20  # Good for most full screen scrollers
-
-logger = logging.getLogger("raylib_screenshots")
+MAX_SCREENSHOTS_PER_CASE = 8  # Maximum screenshots to generate while scrolling
 
 
 # Offroad alerts to test
@@ -164,30 +162,20 @@ class TestUI:
     cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
 
-  def capture_scrollable(self, name: str, scroll_clicks: int, max_screenshots=8):
-    # # center point inside UI where content is likely present
-    # center_x = int(self.ui.width * 0.5)
-    # center_y = int(self.ui.height * 0.5)
-
-    # take first screenshot
+  def capture_scrollable(self, name: str, scroll_clicks: int, max_screenshots=MAX_SCREENSHOTS_PER_CASE):
+    # Take first screenshot
     full_screenshot = pyautogui.screenshot()
-    if not full_screenshot:
-      raise Exception("failed to capture screenshot")
     prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     prev.save(SCREENSHOTS_DIR / f"{name}.png")
 
+    # Scroll until there are no more changes or we reach the limit
     for i in range(1, max_screenshots):
-      # pyautogui.moveTo(self.ui.left + center_x, self.ui.top + center_y)
-      # time.sleep(0.01)
-      # 20 clicks is about a full page, but for smaller scroll panels we should use less
       self.vscroll(scroll_clicks, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
       time.sleep(1.5)  # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
       full_screenshot = pyautogui.screenshot()
-      if not full_screenshot:
-        raise Exception(f"failed to capture screenshot on page {i}")
       curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
 
-      # check for difference
+      # Check for difference
       try:
         # This might need to be more robust to allow for small pixel diffs in case scrolling isn't consistent, but so far it seems to work
         diff = ImageChops.difference(prev.convert('RGB'), curr.convert('RGB'))
@@ -198,7 +186,7 @@ class TestUI:
         print(f"error comparing screenshots: {e}")
         break
 
-      # save the current page
+      # Save the current page
       curr.save(SCREENSHOTS_DIR / f"{name}_{i}.png")
 
       prev = curr
@@ -211,19 +199,15 @@ class TestUI:
   def vscroll(self, clicks: int, delay=100):
     """Perform vertical scroll using xdotool.
 
-    clicks > 0: scroll up
-    clicks < 0: scroll down
+    clicks: number of scroll clicks to perform (negative means scroll down)
 
-    delay: delay between clicks in milliseconds
+    delay: delay between scroll clicks in milliseconds
     """
     clicks = int(clicks)
     if clicks == 0:
       return
-    elif clicks > 0:
-      button = 4  # scroll up
-    else:
-      button = 5  # scroll down
-    # send xdotool events
+    button = 4 if clicks > 0 else 5  # 4=up, 5=down
+    # Run xdotool command to scroll
     result = os.system(f"xdotool click --repeat {abs(clicks)} --delay {delay} {button}")
     if result != 0:
       raise Exception("xdotool command failed (ensure xdotool is installed)")
@@ -231,11 +215,11 @@ class TestUI:
   @with_processes(["ui"])
   def test_ui(self, name: str, setup_case: SetupFunction, config: CaseConfig | None = None):
     self.setup()
-    time.sleep(UI_DELAY)  # wait for UI to start
+    time.sleep(UI_DELAY)  # Wait for UI to start
     setup_case(self.click, self.pm)
     config = config or {}
 
-    # If scrolling disabled for this case, just take a screenshot
+    # Just take a screenshot if scrolling is disabled
     scroll_enabled = config.get("scroll_enabled", True)
     if not scroll_enabled:
       self.screenshot(name)
@@ -244,8 +228,8 @@ class TestUI:
     try:
       scroll_clicks = config.get("scroll_amount", DEFAULT_SCROLL_AMOUNT)
       self.capture_scrollable(name, scroll_clicks=scroll_clicks)
-    except Exception:
-      logger.exception("failed capturing scrollable page, falling back to single screenshot")
+    except Exception as e:
+      print(f"failed capturing scrollable page, falling back to single screenshot: {e}")
       self.screenshot(name)
 
 
