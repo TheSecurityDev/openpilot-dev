@@ -117,10 +117,12 @@ def setup_software_release_notes(click, pm: PubMaster):
   click(588, 110)  # expand description for current version
 
 
-SetupFunction = Callable[[Callable[..., None], PubMaster], None]
 class CaseConfig(TypedDict):
   scroll_amount: NotRequired[int]
   scroll_enabled: NotRequired[bool]
+
+
+SetupFunction = Callable[[Callable[..., None], PubMaster], None]
 CaseValue = SetupFunction | tuple[SetupFunction, CaseConfig | None]
 
 # Value can be the setup function, or tuple of (setup func, config)
@@ -134,11 +136,12 @@ CASES: dict[str, CaseValue] = {
   "settings_developer": setup_settings_developer,
   "keyboard": (setup_keyboard, {"scroll_enabled": False}),  # The blinking cursor makes it think there was a change when scrolling
   "pair_device": setup_pair_device,
-  "offroad_alert": (setup_offroad_alert, {"scroll_amount": -12}),
-  "homescreen_update_available": (setup_homescreen_update_available, {"scroll_amount": -12}),
+  "offroad_alert": (setup_offroad_alert, {"scroll_amount": -12}),  # smaller scrollable area
+  "homescreen_update_available": (setup_homescreen_update_available, {"scroll_amount": -12}),  # smaller scrollable area
   "confirmation_dialog": setup_confirmation_dialog,
   "software_release_notes": setup_software_release_notes,
 }
+
 
 class TestUI:
   def __init__(self):
@@ -171,13 +174,13 @@ class TestUI:
     # Scroll until there are no more changes or we reach the limit
     for i in range(1, max_screenshots):
       self.vscroll(scroll_clicks, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
-      time.sleep(1.5)  # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
+      time.sleep(1.5)  # 1.0 didn't seem to be enough (font edge pixel diffs)
       full_screenshot = pyautogui.screenshot()
       curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
 
       # Check for difference
       try:
-        # This might need to be more robust to allow for small pixel diffs in case scrolling isn't consistent, but so far it seems to work
+        # TODO: This might need to be more robust to allow for small pixel diffs in case scrolling isn't consistent, but so far it seems to work
         diff = ImageChops.difference(prev.convert('RGB'), curr.convert('RGB'))
         if diff.getbbox() is None:
           # no changes -> reached end
