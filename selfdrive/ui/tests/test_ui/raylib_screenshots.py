@@ -222,7 +222,9 @@ class TestUI:
     else:
       button = 5  # scroll down
     # send xdotool events
-    os.system(f"xdotool click --repeat {abs(clicks)} --delay {delay} {button}")
+    result = os.system(f"xdotool click --repeat {abs(clicks)} --delay {delay} {button}")
+    if result != 0:
+      raise Exception("xdotool command failed (ensure xdotool is installed)")
 
   @with_processes(["ui"])
   def test_ui(self, name, setup_case):
