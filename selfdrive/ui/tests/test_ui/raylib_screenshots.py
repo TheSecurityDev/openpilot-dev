@@ -156,9 +156,9 @@ class TestUI:
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
 
   def capture_scrollable(self, name: str, max_pages: int = 8):
-    # center point inside UI where content is likely present
-    center_x = int(self.ui.width * 0.5)
-    center_y = int(self.ui.height * 0.5)
+    # # center point inside UI where content is likely present
+    # center_x = int(self.ui.width * 0.5)
+    # center_y = int(self.ui.height * 0.5)
 
     # take first screenshot
     full_screenshot = pyautogui.screenshot()
