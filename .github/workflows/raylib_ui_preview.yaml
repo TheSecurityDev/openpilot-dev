@@ -5,8 +5,8 @@ on:
       - master
   pull_request_target:
     types: [assigned, opened, synchronize, reopened, edited]
-    # branches:
-    #   - 'master'
+    branches:
+      - 'master'
     # paths:
     #   - 'selfdrive/ui/**'
     #   - 'system/ui/**'
