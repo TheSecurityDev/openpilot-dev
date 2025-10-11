@@ -3,10 +3,10 @@ on:
   push:
     branches:
       - '**'
-  pull_request_target:
-    types: [assigned, opened, synchronize, reopened, edited]
-    branches:
-      - '**'
+  # pull_request_target:
+  #   types: [assigned, opened, synchronize, reopened, edited]
+  #   branches:
+  #     - '**'
     # paths:
     #   - 'selfdrive/ui/**'
     #   - 'system/ui/**'
