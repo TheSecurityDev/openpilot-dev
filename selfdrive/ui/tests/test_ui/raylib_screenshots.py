@@ -25,6 +25,7 @@ TEST_DIR = pathlib.Path(__file__).parent
 TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
+SCROLL_DELAY = 1.5  # Delay screenshot by this many seconds after scrolling (to allow scroll to settle)
 DEFAULT_SCROLL_AMOUNT = -20  # Good for most full screen scrollers
 MAX_SCREENSHOTS_PER_CASE = 8  # Maximum screenshots to generate while scrolling
 
@@ -176,8 +177,8 @@ class TestUI:
 
     # Scroll until there are no more changes or we reach the limit
     for i in range(1, max_screenshots):
-      self.vscroll(scroll_clicks, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
-      time.sleep(1.5)  # 1.0 didn't seem to be enough (font edge pixel diffs)
+      self.vscroll(scroll_clicks, delay=50)  # 50ms between scroll clicks; 20ms didn't work well for larger scrolls
+      time.sleep(SCROLL_DELAY)
       curr = self.screenshot()
 
       # Check for difference
