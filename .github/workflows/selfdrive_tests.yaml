@@ -32,12 +32,7 @@ env:
 jobs:
   build_release:
     name: build release
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     env:
       STRIPPED_DIR: /tmp/releasepilot
     steps:
@@ -65,23 +60,17 @@ jobs:
         cd $STRIPPED_DIR
         ${{ env.RUN }} "release/check-dirty.sh"
     - name: Check submodules
-      if: github.repository == 'commaai/openpilot'
       timeout-minutes: 3
       run: release/check-submodules.sh
 
   build:
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
     - name: Setup docker push
-      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request' && github.repository == 'commaai/openpilot'
+      if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
       run: |
         echo "PUSH_IMAGE=true" >> "$GITHUB_ENV"
         $DOCKER_LOGIN
@@ -89,47 +78,42 @@ jobs:
     - uses: ./.github/workflows/compile-openpilot
       timeout-minutes: 30
 
-  build_mac:
-    name: build macOS
-    runs-on: ${{ ((github.repository == 'commaai/openpilot') && ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))) && 'namespace-profile-macos-8x14' || 'macos-latest' }}
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-    - run: echo "CACHE_COMMIT_DATE=$(git log -1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H:%M')" >> $GITHUB_ENV
-    - name: Homebrew cache
-      uses: ./.github/workflows/auto-cache
-      with:
-        path: ~/Library/Caches/Homebrew
-        key: brew-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
-        restore-keys: |
-          brew-macos-${{ env.CACHE_COMMIT_DATE }}
-          brew-macos
-    - name: Install dependencies
-      run: ./tools/mac_setup.sh
-      env:
-        PYTHONWARNINGS: default  # package install has DeprecationWarnings
-        HOMEBREW_DISPLAY_INSTALL_TIMES: 1
-    - run: git lfs pull
-    - name: Getting scons cache
-      uses: ./.github/workflows/auto-cache
-      with:
-        path: /tmp/scons_cache
-        key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
-        restore-keys: |
-          scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
-          scons-${{ runner.arch }}-macos
-    - name: Building openpilot
-      run: . .venv/bin/activate && scons -j$(nproc)
+  # build_mac:
+  #   name: build macOS
+  #   runs-on: macos-latest
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #     with:
+  #       submodules: true
+  #   - run: echo "CACHE_COMMIT_DATE=$(git log -1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H:%M')" >> $GITHUB_ENV
+  #   - name: Homebrew cache
+  #     uses: ./.github/workflows/auto-cache
+  #     with:
+  #       path: ~/Library/Caches/Homebrew
+  #       key: brew-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+  #       restore-keys: |
+  #         brew-macos-${{ env.CACHE_COMMIT_DATE }}
+  #         brew-macos
+  #   - name: Install dependencies
+  #     run: ./tools/mac_setup.sh
+  #     env:
+  #       PYTHONWARNINGS: default  # package install has DeprecationWarnings
+  #       HOMEBREW_DISPLAY_INSTALL_TIMES: 1
+  #   - run: git lfs pull
+  #   - name: Getting scons cache
+  #     uses: ./.github/workflows/auto-cache
+  #     with:
+  #       path: /tmp/scons_cache
+  #       key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+  #       restore-keys: |
+  #         scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
+  #         scons-${{ runner.arch }}-macos
+  #   - name: Building openpilot
+  #     run: . .venv/bin/activate && scons -j$(nproc)
 
   static_analysis:
     name: static analysis
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     env:
       PYTHONWARNINGS: default
     steps:
@@ -143,12 +127,7 @@ jobs:
 
   unit_tests:
     name: unit tests
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
       with:
@@ -170,12 +149,7 @@ jobs:
 
   process_replay:
     name: process replay
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     steps:
     - uses: actions/checkout@v4
       with:
@@ -219,12 +193,7 @@ jobs:
 
   simulator_driving:
     name: simulator driving
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     if: false  # FIXME: Started to timeout recently
     steps:
     - uses: actions/checkout@v4
@@ -245,12 +214,7 @@ jobs:
   create_ui_report:
     # This job name needs to be the same as UI_JOB_NAME in ui_preview.yaml
     name: Create UI Report
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     if: false  # FIXME: FrameReader is broken on CI runners
     steps:
       - uses: actions/checkout@v4
@@ -280,12 +244,7 @@ jobs:
 
   create_raylib_ui_report:
     name: Create raylib UI Report
-    runs-on: ${{
-      (github.repository == 'commaai/openpilot') &&
-      ((github.event_name != 'pull_request') ||
-      (github.event.pull_request.head.repo.full_name == 'commaai/openpilot'))
-      && fromJSON('["namespace-profile-amd64-8x16", "namespace-experiments:docker.builds.local-cache=separate"]')
-      || fromJSON('["ubuntu-24.04"]') }}
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -294,8 +253,9 @@ jobs:
       - name: Build openpilot
         run: ${{ env.RUN }} "scons -j$(nproc)"
       - name: Create raylib UI Report
-        run: >
-          ${{ env.RUN }} "PYTHONWARNINGS=ignore &&
+        run: |
+          ${{ env.RUN }} "apt-get update && apt-get install -y xdotool &&
+                          PYTHONWARNINGS=ignore &&
                           source selfdrive/test/setup_xvfb.sh &&
                           python3 selfdrive/ui/tests/test_ui/raylib_screenshots.py"
       - name: Upload Raylib UI Report
