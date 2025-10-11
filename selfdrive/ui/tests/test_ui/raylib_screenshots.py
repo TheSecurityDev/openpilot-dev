@@ -178,7 +178,19 @@ class TestUI:
     prev.save(SCREENSHOTS_DIR / f"{name}_0.png")
 
     for i in range(1, max_pages):
-      pyautogui.scroll(-5000, x=self.ui.left + center_x, y=self.ui.top + center_y)
+      # perform a click-and-drag to simulate scrolling (drag upwards to move content down)
+      try:
+        start_x = self.ui.left + center_x
+        start_y = self.ui.top + center_y
+        # move to start, press, drag up and release
+        pyautogui.moveTo(start_x, start_y)
+        pyautogui.mouseDown()
+        drag_amount = -int(self.ui.height * 0.5)  # drag up by ~50% of UI height
+        pyautogui.dragRel(0, drag_amount, duration=0.25)
+        pyautogui.mouseUp()
+      except Exception as e:
+        logger.exception(f"failed to perform drag scroll: {e}")
+
       time.sleep(1)
       full_screenshot = pyautogui.screenshot()
       curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
