@@ -168,16 +168,11 @@ class TestUI:
     prev.save(SCREENSHOTS_DIR / f"{name}.png")
 
     for i in range(1, max_pages):
-      # pyautogui.scroll(-300, x=self.ui.left + center_x, y=self.ui.top + center_y)
-      start_x = self.ui.left + center_x
-      start_y = self.ui.top + center_y + int(self.ui.height * 0.5)
-      end_y = self.ui.top + center_y - int(self.ui.height)
-      pyautogui.mouseDown(start_x, start_y)
-      time.sleep(0.01)
-      pyautogui.moveTo(start_x, end_y, duration=0.35)
-      time.sleep(0.01)
-      pyautogui.mouseUp(start_x, end_y)
-      time.sleep(1.5) # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
+      # pyautogui.moveTo(self.ui.left + center_x, self.ui.top + center_y)
+      # time.sleep(0.01)
+      # 20 clicks is about a full page, but for smaller scroll panels we should use less
+      self.vscroll(-15, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
+      time.sleep(1.5)  # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
       full_screenshot = pyautogui.screenshot()
       if not full_screenshot:
         raise Exception(f"failed to capture screenshot on page {i}")
@@ -203,6 +198,24 @@ class TestUI:
     pyautogui.mouseDown(self.ui.left + x, self.ui.top + y, *args, **kwargs)
     time.sleep(0.01)
     pyautogui.mouseUp(self.ui.left + x, self.ui.top + y, *args, **kwargs)
+
+  def vscroll(self, clicks: int, delay=100):
+    """Perform vertical scroll using xdotool.
+
+    clicks > 0: scroll up
+    clicks < 0: scroll down
+
+    delay: delay between clicks in milliseconds
+    """
+    clicks = int(clicks)
+    if clicks == 0:
+      return
+    elif clicks > 0:
+      button = 4  # scroll up
+    else:
+      button = 5  # scroll down
+    # send xdotool events
+    os.system(f"xdotool click --repeat {abs(clicks)} --delay {delay} {button}")
 
   @with_processes(["ui"])
   def test_ui(self, name, setup_case):
