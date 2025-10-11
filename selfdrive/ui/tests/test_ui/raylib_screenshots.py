@@ -169,8 +169,7 @@ class TestUI:
     prev.save(SCREENSHOTS_DIR / f"{name}_0.png")
 
     for i in range(1, max_pages):
-      # pyautogui.scroll(-300, x=self.ui.left + center_x, y=self.ui.top + center_y)
-      self.click(center_x, center_y)
+      pyautogui.scroll(-300, x=self.ui.left + center_x, y=self.ui.top + center_y)
       time.sleep(1)
       full_screenshot = pyautogui.screenshot()
       if not full_screenshot:
