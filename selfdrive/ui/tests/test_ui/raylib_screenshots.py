@@ -5,6 +5,8 @@ import shutil
 import time
 import pathlib
 from collections import namedtuple
+from collections.abc import Callable
+from typing import NotRequired, TypedDict
 import logging
 
 import pyautogui
@@ -117,7 +119,14 @@ def setup_software_release_notes(click, pm: PubMaster):
   click(588, 110)  # expand description for current version
 
 
-CASES = {
+SetupFunction = Callable[[Callable[..., None], PubMaster], None]
+class CaseConfig(TypedDict):
+  scroll_amount: NotRequired[int]
+  scroll_enabled: NotRequired[bool]
+CaseValue = SetupFunction | tuple[SetupFunction, CaseConfig | None]
+
+# Value can be the setup function, or tuple of (setup func, config)
+CASES: dict[str, CaseValue] = {
   "homescreen": setup_homescreen,
   "settings_device": setup_settings,
   "settings_network": setup_settings_network,
@@ -127,18 +136,11 @@ CASES = {
   "settings_developer": setup_settings_developer,
   "keyboard": setup_keyboard,
   "pair_device": setup_pair_device,
-  "offroad_alert": setup_offroad_alert,
-  "homescreen_update_available": setup_homescreen_update_available,
+  "offroad_alert": (setup_offroad_alert, {"scroll_amount": -12}),
+  "homescreen_update_available": (setup_homescreen_update_available, {"scroll_amount": -12}),
   "confirmation_dialog": setup_confirmation_dialog,
   "software_release_notes": setup_software_release_notes,
 }
-
-# per-case scroll amount overrides (negative -> scroll down, positive -> scroll up)
-SCROLL_AMOUNT_OVERRIDES = {
-  "offroad_alert": -12,
-  "homescreen_update_available": -12,
-}
-
 
 class TestUI:
   def __init__(self):
@@ -227,12 +229,20 @@ class TestUI:
       raise Exception("xdotool command failed (ensure xdotool is installed)")
 
   @with_processes(["ui"])
-  def test_ui(self, name, setup_case):
+  def test_ui(self, name: str, setup_case: SetupFunction, config: CaseConfig | None = None):
     self.setup()
     time.sleep(UI_DELAY)  # wait for UI to start
     setup_case(self.click, self.pm)
+    config = config or {}
+
+    # If scrolling disabled for this case, just take a screenshot
+    scroll_enabled = config.get("scroll_enabled", True)
+    if not scroll_enabled:
+      self.screenshot(name)
+      return
+
     try:
-      scroll_clicks = SCROLL_AMOUNT_OVERRIDES.get(name, DEFAULT_SCROLL_AMOUNT)
+      scroll_clicks = config.get("scroll_amount", DEFAULT_SCROLL_AMOUNT)
       self.capture_scrollable(name, scroll_clicks=scroll_clicks)
     except Exception:
       logger.exception("failed capturing scrollable page, falling back to single screenshot")
@@ -249,7 +259,11 @@ def create_screenshots():
     params = Params()
     params.put("DongleId", "123456789012345")
     for name, setup in CASES.items():
-      t.test_ui(name, setup)
+      if isinstance(setup, tuple):
+        setup_fn, cfg = setup
+      else:
+        setup_fn, cfg = setup, None
+      t.test_ui(name, setup_fn, cfg)
 
 
 if __name__ == "__main__":
