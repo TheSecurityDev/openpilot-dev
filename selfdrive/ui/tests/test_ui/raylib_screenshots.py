@@ -176,7 +176,7 @@ class TestUI:
       pyautogui.mouseDown(start_x, start_y)
       pyautogui.moveTo(start_x, end_y, duration=0.35)
       pyautogui.mouseUp(start_x, end_y)
-      time.sleep(1)
+      time.sleep(1.5)
       full_screenshot = pyautogui.screenshot()
       if not full_screenshot:
         raise Exception(f"failed to capture screenshot on page {i}")
