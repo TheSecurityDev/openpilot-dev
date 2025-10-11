@@ -26,7 +26,7 @@ TEST_DIR = pathlib.Path(__file__).parent
 TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
-DEFAULT_SCROLL_AMOUNT = -20  # Perfect for most full screen scrollers
+DEFAULT_SCROLL_AMOUNT = -20  # Good for most full screen scrollers
 
 logger = logging.getLogger("raylib_screenshots")
 
@@ -134,7 +134,7 @@ CASES: dict[str, CaseValue] = {
   "settings_software": setup_settings_software,
   "settings_firehose": setup_settings_firehose,
   "settings_developer": setup_settings_developer,
-  "keyboard": setup_keyboard,
+  "keyboard": (setup_keyboard, {"scroll_enabled": False}),  # The blinking cursor makes it think there was a change when scrolling
   "pair_device": setup_pair_device,
   "offroad_alert": (setup_offroad_alert, {"scroll_amount": -12}),
   "homescreen_update_available": (setup_homescreen_update_available, {"scroll_amount": -12}),
