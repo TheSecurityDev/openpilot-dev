@@ -160,23 +160,25 @@ class TestUI:
     time.sleep(0.5)
     self.ui = namedtuple("bb", ["left", "top", "width", "height"])(0, 0, 2160, 1080)
 
-  def screenshot(self, name: str):
+  def screenshot(self):
     full_screenshot = pyautogui.screenshot()
     cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
-    cropped.save(SCREENSHOTS_DIR / f"{name}.png")
+    return cropped
+
+  def screenshot_and_save(self, name: str):
+    screenshot = self.screenshot()
+    screenshot.save(SCREENSHOTS_DIR / f"{name}.png")
+    return screenshot
 
   def capture_scrollable(self, name: str, scroll_clicks: int, max_screenshots=MAX_SCREENSHOTS_PER_CASE):
     # Take first screenshot
-    full_screenshot = pyautogui.screenshot()
-    prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
-    prev.save(SCREENSHOTS_DIR / f"{name}.png")
+    prev = self.screenshot_and_save(name)
 
     # Scroll until there are no more changes or we reach the limit
     for i in range(1, max_screenshots):
       self.vscroll(scroll_clicks, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
       time.sleep(1.5)  # 1.0 didn't seem to be enough (font edge pixel diffs)
-      full_screenshot = pyautogui.screenshot()
-      curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
+      curr = self.screenshot()
 
       # Check for difference
       try:
@@ -225,7 +227,7 @@ class TestUI:
     # Just take a screenshot if scrolling is disabled
     scroll_enabled = config.get("scroll_enabled", True)
     if not scroll_enabled:
-      self.screenshot(name)
+      self.screenshot_and_save(name)
       return
 
     try:
@@ -233,7 +235,7 @@ class TestUI:
       self.capture_scrollable(name, scroll_clicks=scroll_clicks)
     except Exception as e:
       print(f"failed capturing scrollable page, falling back to single screenshot: {e}")
-      self.screenshot(name)
+      self.screenshot_and_save(name)
 
 
 def create_screenshots():
