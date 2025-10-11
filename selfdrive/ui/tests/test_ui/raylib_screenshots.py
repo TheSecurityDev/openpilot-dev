@@ -156,7 +156,6 @@ class TestUI:
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
 
   def capture_scrollable(self, name: str, max_pages: int = 8):
-    """Capture a scrollable page by taking screenshots and saving progression diffs between pages."""
     # center point inside UI where content is likely present
     center_x = int(self.ui.width * 0.5)
     center_y = int(self.ui.height * 0.5)
@@ -178,7 +177,7 @@ class TestUI:
       pyautogui.moveTo(start_x, end_y, duration=0.35)
       time.sleep(0.01)
       pyautogui.mouseUp(start_x, end_y)
-      time.sleep(1.5)
+      time.sleep(1.5) # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
       full_screenshot = pyautogui.screenshot()
       if not full_screenshot:
         raise Exception(f"failed to capture screenshot on page {i}")
@@ -186,6 +185,7 @@ class TestUI:
 
       # check for difference
       try:
+        # This might need to be more robust to allow for small pixel diffs in case scrolling isn't consistent, but so far it seems to work
         diff = ImageChops.difference(prev.convert('RGB'), curr.convert('RGB'))
         if diff.getbbox() is None:
           # no changes -> reached end
