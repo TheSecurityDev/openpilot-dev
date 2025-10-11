@@ -24,6 +24,7 @@ TEST_DIR = pathlib.Path(__file__).parent
 TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
+DEFAULT_SCROLL_AMOUNT = -20  # Perfect for most full screen scrollers
 
 logger = logging.getLogger("raylib_screenshots")
 
@@ -132,6 +133,12 @@ CASES = {
   "software_release_notes": setup_software_release_notes,
 }
 
+# per-case scroll amount overrides (negative -> scroll down, positive -> scroll up)
+SCROLL_AMOUNT_OVERRIDES = {
+  "offroad_alert": -12,
+  "homescreen_update_available": -12,
+}
+
 
 class TestUI:
   def __init__(self):
@@ -155,7 +162,7 @@ class TestUI:
     cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
 
-  def capture_scrollable(self, name: str, max_pages: int = 8):
+  def capture_scrollable(self, name: str, scroll_clicks: int, max_screenshots=8):
     # # center point inside UI where content is likely present
     # center_x = int(self.ui.width * 0.5)
     # center_y = int(self.ui.height * 0.5)
@@ -167,11 +174,11 @@ class TestUI:
     prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     prev.save(SCREENSHOTS_DIR / f"{name}.png")
 
-    for i in range(1, max_pages):
+    for i in range(1, max_screenshots):
       # pyautogui.moveTo(self.ui.left + center_x, self.ui.top + center_y)
       # time.sleep(0.01)
       # 20 clicks is about a full page, but for smaller scroll panels we should use less
-      self.vscroll(-15, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
+      self.vscroll(scroll_clicks, delay=50)  # 20ms didn't work well for larger scrolls; 50 seems fine
       time.sleep(1.5)  # 1.0 didn't seem to be enough (caused small font pixel differences); if that happens again, try increasing this
       full_screenshot = pyautogui.screenshot()
       if not full_screenshot:
@@ -222,15 +229,12 @@ class TestUI:
     self.setup()
     time.sleep(UI_DELAY)  # wait for UI to start
     setup_case(self.click, self.pm)
-    # For pages that can scroll (toggles) capture multiple pages
-    # if name == "settings_toggles":
     try:
-      self.capture_scrollable(name)
+      scroll_clicks = SCROLL_AMOUNT_OVERRIDES.get(name, DEFAULT_SCROLL_AMOUNT)
+      self.capture_scrollable(name, scroll_clicks=scroll_clicks)
     except Exception:
       logger.exception("failed capturing scrollable page, falling back to single screenshot")
       self.screenshot(name)
-    # else:
-    #   self.screenshot(name)
 
 
 def create_screenshots():
