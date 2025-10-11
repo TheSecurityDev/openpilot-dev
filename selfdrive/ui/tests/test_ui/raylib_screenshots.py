@@ -20,7 +20,6 @@ from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.test.helpers import with_processes
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.system.updated.updated import parse_release_notes
-from pathlib import Path
 
 TEST_DIR = pathlib.Path(__file__).parent
 TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
