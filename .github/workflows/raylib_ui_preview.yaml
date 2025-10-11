@@ -16,55 +16,56 @@ env:
   UI_JOB_NAME: "Create raylib UI Report"
   REPORT_NAME: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && 'master' || github.event.number }}
   SHA: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.sha || github.event.pull_request.head.sha }}
-  BRANCH_NAME: "openpilot/pr-${{ github.event.number }}-raylib-ui"
+  BRANCH_NAME: "openpilot/pr-${{ github.event.number }}-raylib"
+  CI_ARTIFACTS_OWNER: ${{ github.repository_owner }}
+  CI_ARTIFACTS_REPO: openpilot-ci-artifacts
 
 jobs:
   preview:
-    if: github.repository == 'commaai/openpilot'
-    name: preview
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      pull-requests: write
-      actions: read
-    steps:
-      - name: Waiting for ui generation to start
-        run: sleep 30
+     name: preview
+     runs-on: ubuntu-latest
+     timeout-minutes: 20
+     permissions:
+       contents: read
+       pull-requests: write
+       actions: read
+     steps:
+       - name: Waiting for ui generation to start
+         run: sleep 30
 
-      - name: Waiting for ui generation to end
-        uses: lewagon/wait-on-check-action@v1.3.4
-        with:
-          ref: ${{ env.SHA }}
-          check-name: ${{ env.UI_JOB_NAME }}
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          allowed-conclusions: success
-          wait-interval: 20
+       - name: Waiting for ui generation to end
+         uses: lewagon/wait-on-check-action@v1.3.4
+         with:
+           ref: ${{ env.SHA }}
+           check-name: ${{ env.UI_JOB_NAME }}
+           repo-token: ${{ secrets.GITHUB_TOKEN }}
+           allowed-conclusions: success
+           wait-interval: 20
 
-      - name: Getting workflow run ID
-        id: get_run_id
-        run: |
-          echo "run_id=$(curl https://api.github.com/repos/${{ github.repository }}/commits/${{ env.SHA }}/check-runs | jq -r '.check_runs[] | select(.name == "${{ env.UI_JOB_NAME }}") | .html_url | capture("(?<number>[0-9]+)") | .number')" >> $GITHUB_OUTPUT
+       - name: Getting workflow run ID
+         id: get_run_id
+         run: |
+           echo "run_id=$(curl https://api.github.com/repos/${{ github.repository }}/commits/${{ env.SHA }}/check-runs | jq -r '.check_runs[] | select(.name == "${{ env.UI_JOB_NAME }}") | .html_url | capture("(?<number>[0-9]+)") | .number')" >> $GITHUB_OUTPUT
 
-      - name: Getting proposed ui
-        id: download-artifact
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ steps.get_run_id.outputs.run_id }}
-          search_artifacts: true
-          name: raylib-report-1-${{ env.REPORT_NAME }}
-          path: ${{ github.workspace }}/pr_ui
+       - name: Getting proposed ui
+         id: download-artifact
+         uses: dawidd6/action-download-artifact@v6
+         with:
+           github_token: ${{ secrets.GITHUB_TOKEN }}
+           run_id: ${{ steps.get_run_id.outputs.run_id }}
+           search_artifacts: true
+           name: raylib-report-1-${{ env.REPORT_NAME }}
+           path: ${{ github.workspace }}/pr_ui
 
-      - name: Getting master ui
-        uses: actions/checkout@v4
-        with:
-          repository: commaai/ci-artifacts
-          ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
-          path: ${{ github.workspace }}/master_ui_raylib
-          ref: openpilot_master_ui_raylib
+       - name: Getting master ui
+         uses: actions/checkout@v4
+         with:
+           repository: ${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}
+           ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
+           path: ${{ github.workspace }}/master_ui_raylib
+           ref: openpilot_master_ui_raylib
 
-      - name: Saving new master ui
+       - name: Saving new master ui
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         working-directory: ${{ github.workspace }}/master_ui_raylib
         run: |
@@ -102,7 +103,7 @@ jobs:
               DIFF="${DIFF}<table>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+              DIFF="${DIFF}  <td> <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}</table>"
@@ -119,13 +120,13 @@ jobs:
               DIFF="${DIFF}<table>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> master <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_master_ref.png\"> </td>"
-              DIFF="${DIFF}  <td> proposed <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+              DIFF="${DIFF}  <td> master <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_master_ref.png\"> </td>"
+              DIFF="${DIFF}  <td> proposed <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> diff <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_diff.png\"> </td>"
-              DIFF="${DIFF}  <td> composite diff <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_diff.gif\"> </td>"
+              DIFF="${DIFF}  <td> diff <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_diff.png\"> </td>"
+              DIFF="${DIFF}  <td> composite diff <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_diff.gif\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}</table>"
@@ -138,7 +139,7 @@ jobs:
             if [[ $INDEX -eq 0 ]]; then
               TABLE="${TABLE}<tr>"
             fi
-            TABLE="${TABLE}  <td> <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+            TABLE="${TABLE}  <td> <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
             if [[ $INDEX -eq 1 || $(($i + 1)) -eq ${#A[*]} ]]; then
               TABLE="${TABLE}</tr>"
             fi
