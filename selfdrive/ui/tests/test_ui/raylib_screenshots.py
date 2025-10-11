@@ -149,11 +149,7 @@ class TestUI:
       ds.clear_write_flag()
       time.sleep(0.05)
     time.sleep(0.5)
-    try:
-      self.ui = pywinctl.getWindowsWithTitle("UI")[0]
-    except Exception as e:
-      logger.warning(f"failed to find ui window, assuming that it's in the top left (for Xvfb) {e}")
-      self.ui = namedtuple("bb", ["left", "top", "width", "height"])(0, 0, 2160, 1080)
+    self.ui = namedtuple("bb", ["left", "top", "width", "height"])(0, 0, 2160, 1080)
 
   def screenshot(self, name: str):
     full_screenshot = pyautogui.screenshot()
@@ -168,6 +164,8 @@ class TestUI:
 
     # take first screenshot
     full_screenshot = pyautogui.screenshot()
+    if not full_screenshot:
+      raise Exception("failed to capture screenshot")
     prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     prev.save(SCREENSHOTS_DIR / f"{name}_0.png")
 
@@ -175,6 +173,8 @@ class TestUI:
       pyautogui.scroll(-300, x=self.ui.left + center_x, y=self.ui.top + center_y)
       time.sleep(1)
       full_screenshot = pyautogui.screenshot()
+      if not full_screenshot:
+        raise Exception(f"failed to capture screenshot on page {i}")
       curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
 
       # check for difference
