@@ -5,9 +5,11 @@ import shutil
 import time
 import pathlib
 from collections import namedtuple
+import logging
 
 import pyautogui
 import pywinctl
+from PIL import ImageChops
 
 from cereal import log
 from cereal import messaging
@@ -18,11 +20,15 @@ from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.test.helpers import with_processes
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.system.updated.updated import parse_release_notes
+from pathlib import Path
 
 TEST_DIR = pathlib.Path(__file__).parent
 TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
+
+logger = logging.getLogger("raylib_screenshots")
+
 
 # Offroad alerts to test
 OFFROAD_ALERTS = ['Offroad_IsTakingSnapshot']
@@ -147,13 +153,48 @@ class TestUI:
     try:
       self.ui = pywinctl.getWindowsWithTitle("UI")[0]
     except Exception as e:
-      print(f"failed to find ui window, assuming that it's in the top left (for Xvfb) {e}")
+      logger.warning(f"failed to find ui window, assuming that it's in the top left (for Xvfb) {e}")
       self.ui = namedtuple("bb", ["left", "top", "width", "height"])(0, 0, 2160, 1080)
 
   def screenshot(self, name: str):
     full_screenshot = pyautogui.screenshot()
     cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
     cropped.save(SCREENSHOTS_DIR / f"{name}.png")
+
+  def screenshot_with_suffix(self, name: str, suffix: str):
+    """Save a screenshot with an added suffix before the extension."""
+    full_screenshot = pyautogui.screenshot()
+    cropped = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
+    cropped.save(SCREENSHOTS_DIR / f"{name}_{suffix}.png")
+
+  def capture_scrollable(self, name: str, max_pages: int = 8):
+    """Capture a scrollable page by taking screenshots and scrolling until content stops changing."""
+    # center point inside UI where content is likely present
+    center_x = int(self.ui.width * 0.5)
+    center_y = int(self.ui.height * 0.5)
+
+    # take first screenshot
+    full_screenshot = pyautogui.screenshot()
+    prev = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
+    prev.save(SCREENSHOTS_DIR / f"{name}_0.png")
+
+    for i in range(1, max_pages):
+      pyautogui.scroll(-15, x=self.ui.left + center_x, y=self.ui.top + center_y)
+      time.sleep(2)
+      full_screenshot = pyautogui.screenshot()
+      curr = full_screenshot.crop((self.ui.left, self.ui.top, self.ui.left + self.ui.width, self.ui.top + self.ui.height))
+
+      # check for difference
+      try:
+        diff = ImageChops.difference(prev.convert('RGBA'), curr.convert('RGBA'))
+        if diff.getbbox() is None:
+          # no changes -> reached end
+          break
+      except Exception as e:
+        print(f"error comparing screenshots: {e}")
+
+      curr.save(SCREENSHOTS_DIR / f"{name}_{i}.png")
+      prev = curr
 
   def click(self, x: int, y: int, *args, **kwargs):
     pyautogui.mouseDown(self.ui.left + x, self.ui.top + y, *args, **kwargs)
@@ -165,7 +206,15 @@ class TestUI:
     self.setup()
     time.sleep(UI_DELAY)  # wait for UI to start
     setup_case(self.click, self.pm)
-    self.screenshot(name)
+    # For pages that can scroll (toggles) capture multiple pages
+    # if name == "settings_toggles":
+    try:
+      self.capture_scrollable(name)
+    except Exception:
+      logger.exception("failed capturing scrollable page, falling back to single screenshot")
+      self.screenshot(name)
+    # else:
+    #   self.screenshot(name)
 
 
 def create_screenshots():
