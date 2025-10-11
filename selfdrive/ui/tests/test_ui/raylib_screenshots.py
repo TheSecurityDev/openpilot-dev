@@ -8,7 +8,7 @@ from collections import namedtuple
 import logging
 
 import pyautogui
-from PIL import Image, ImageChops
+from PIL import ImageChops
 
 from cereal import log
 from cereal import messaging
@@ -196,20 +196,6 @@ class TestUI:
 
       # save the current page
       curr.save(SCREENSHOTS_DIR / f"{name}_{i}.png")
-
-      # # create a visual progression diff: red overlay where pixels changed
-      # try:
-      #   # threshold the diff to create a mask
-      #   mask = diff.convert('L').point(lambda p: 255 if p > 20 else 0)
-      #   overlay = Image.new('RGBA', curr.size, (255, 0, 0, 120))
-      #   curr_rgba = curr.convert('RGBA')
-      #   progression = curr_rgba.copy()
-      #   progression.paste(overlay, (0, 0), mask)
-      #   progression.save(SCREENSHOTS_DIR / f"{name}_{i}_progression.png")
-      #   # also save the raw diff for debugging if desired
-      #   diff.save(SCREENSHOTS_DIR / f"{name}_{i}_rawdiff.png")
-      # except Exception as e:
-      #   print(f"failed to build progression diff for {name} page {i}: {e}")
 
       prev = curr
 
