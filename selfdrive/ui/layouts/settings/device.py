@@ -61,7 +61,7 @@ class DeviceLayout(Widget):
       button_item("Review Training Guide", "REVIEW", DESCRIPTIONS['review_guide'], self._on_review_training_guide),
       regulatory_btn := button_item("Regulatory", "VIEW", callback=self._on_regulatory),
       button_item("Change Language", "CHANGE", callback=self._show_language_selection, enabled=ui_state.is_offroad),
-      dual_button_item("Reboot", "Power Off", left_callback=self._reboot_prompt, right_callback=self._power_off_prompt),
+      dual_button_item("REBOOT", "Power Off!", left_callback=self._reboot_prompt, right_callback=self._power_off_prompt),
     ]
     regulatory_btn.set_visible(TICI)
     return items
@@ -156,8 +156,7 @@ class DeviceLayout(Widget):
         cloudlog.exception("invalid LiveTorqueParameters")
 
     desc += "<br><br>"
-    desc += ("openpilot is continuously calibrating, resetting is rarely required. " +
-             "Resetting calibration will restart openpilot if the car is powered on.")
+    desc += "openpilot is continuously calibrating, resetting is rarely required. " + "Resetting calibration will restart openpilot if the car is powered on."
 
     self._reset_calib_btn.set_description(desc)
 
@@ -197,7 +196,9 @@ class DeviceLayout(Widget):
 
   def _on_review_training_guide(self):
     if not self._training_guide:
+
       def completed_callback():
         gui_app.set_modal_overlay(None)
+
       self._training_guide = TrainingGuide(completed_callback=completed_callback)
     gui_app.set_modal_overlay(self._training_guide)
