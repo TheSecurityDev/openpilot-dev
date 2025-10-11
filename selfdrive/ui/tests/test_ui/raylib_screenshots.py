@@ -259,10 +259,7 @@ def create_screenshots():
     params = Params()
     params.put("DongleId", "123456789012345")
     for name, setup in CASES.items():
-      if isinstance(setup, tuple):
-        setup_fn, cfg = setup
-      else:
-        setup_fn, cfg = setup, None
+      setup_fn, cfg = setup if isinstance(setup, tuple) else (setup, None)
       t.test_ui(name, setup_fn, cfg)
 
 
