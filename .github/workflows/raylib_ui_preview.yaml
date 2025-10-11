@@ -7,9 +7,16 @@ on:
     types: [assigned, opened, synchronize, reopened, edited]
     branches:
       - 'master'
-    paths:
-      - 'selfdrive/ui/**'
-      - 'system/ui/**'
+    # paths:
+    #   - 'selfdrive/ui/**'
+    #   - 'system/ui/**'
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+    branches:
+      - master
+    # paths:
+    #   - 'selfdrive/ui/**'
+    #   - 'system/ui/**'
   workflow_dispatch:
 
 env:
@@ -17,10 +24,11 @@ env:
   REPORT_NAME: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && 'master' || github.event.number }}
   SHA: ${{ github.event_name == 'push' && github.ref == 'refs/heads/master' && github.sha || github.event.pull_request.head.sha }}
   BRANCH_NAME: "openpilot/pr-${{ github.event.number }}-raylib-ui"
+  CI_ARTIFACTS_OWNER: ${{ github.repository_owner }}
+  CI_ARTIFACTS_REPO: openpilot-ci-artifacts
 
 jobs:
   preview:
-    if: github.repository == 'commaai/openpilot'
     name: preview
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -59,7 +67,7 @@ jobs:
       - name: Getting master ui
         uses: actions/checkout@v4
         with:
-          repository: commaai/ci-artifacts
+          repository: ${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}
           ssh-key: ${{ secrets.CI_ARTIFACTS_DEPLOY_KEY }}
           path: ${{ github.workspace }}/master_ui_raylib
           ref: openpilot_master_ui_raylib
@@ -102,7 +110,7 @@ jobs:
               DIFF="${DIFF}<table>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+              DIFF="${DIFF}  <td> <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}</table>"
@@ -119,13 +127,13 @@ jobs:
               DIFF="${DIFF}<table>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> master <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_master_ref.png\"> </td>"
-              DIFF="${DIFF}  <td> proposed <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+              DIFF="${DIFF}  <td> master <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_master_ref.png\"> </td>"
+              DIFF="${DIFF}  <td> proposed <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}<tr>"
-              DIFF="${DIFF}  <td> diff <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_diff.png\"> </td>"
-              DIFF="${DIFF}  <td> composite diff <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}_diff.gif\"> </td>"
+              DIFF="${DIFF}  <td> diff <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_diff.png\"> </td>"
+              DIFF="${DIFF}  <td> composite diff <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}_diff.gif\"> </td>"
               DIFF="${DIFF}</tr>"
 
               DIFF="${DIFF}</table>"
@@ -138,7 +146,7 @@ jobs:
             if [[ $INDEX -eq 0 ]]; then
               TABLE="${TABLE}<tr>"
             fi
-            TABLE="${TABLE}  <td> <img src=\"https://raw.githubusercontent.com/commaai/ci-artifacts/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
+            TABLE="${TABLE}  <td> <img src=\"https://raw.githubusercontent.com/${{ env.CI_ARTIFACTS_OWNER }}/${{ env.CI_ARTIFACTS_REPO }}/${{ env.BRANCH_NAME }}/${A[$i]}.png\"> </td>"
             if [[ $INDEX -eq 1 || $(($i + 1)) -eq ${#A[*]} ]]; then
               TABLE="${TABLE}</tr>"
             fi
