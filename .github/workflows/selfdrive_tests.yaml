@@ -253,7 +253,9 @@ jobs:
       - name: Build openpilot
         run: ${{ env.RUN }} "scons -j$(nproc)"
       - name: Create raylib UI Report
-        run: >
+        run: |
+          # install xdotool on the runner so xdotool is available inside the test runtime when possible
+          sudo apt-get update && sudo apt-get install -y xdotool
           ${{ env.RUN }} "PYTHONWARNINGS=ignore &&
                           source selfdrive/test/setup_xvfb.sh &&
                           python3 selfdrive/ui/tests/test_ui/raylib_screenshots.py"
