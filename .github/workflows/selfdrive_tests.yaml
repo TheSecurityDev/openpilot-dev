@@ -94,10 +94,10 @@ jobs:
         restore-keys: |
           brew-macos-${{ env.CACHE_COMMIT_DATE }}
           brew-macos
-    - name: Force relink openssl@3
-      run: |
-        brew unlink openssl@3 || true
-        brew link --overwrite openssl@3
+    # - name: Force relink openssl@3
+    #   run: |
+    #     brew unlink openssl@3 || true
+    #     brew link --overwrite openssl@3
     - name: Install dependencies
       run: ./tools/mac_setup.sh
       env:
