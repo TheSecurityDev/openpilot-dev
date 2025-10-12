@@ -78,38 +78,38 @@ jobs:
     - uses: ./.github/workflows/compile-openpilot
       timeout-minutes: 30
 
-  # build_mac:
-  #   name: build macOS
-  #   runs-on: macos-latest
-  #   steps:
-  #   - uses: actions/checkout@v4
-  #     with:
-  #       submodules: true
-  #   - run: echo "CACHE_COMMIT_DATE=$(git log -1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H:%M')" >> $GITHUB_ENV
-  #   - name: Homebrew cache
-  #     uses: ./.github/workflows/auto-cache
-  #     with:
-  #       path: ~/Library/Caches/Homebrew
-  #       key: brew-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
-  #       restore-keys: |
-  #         brew-macos-${{ env.CACHE_COMMIT_DATE }}
-  #         brew-macos
-  #   - name: Install dependencies
-  #     run: ./tools/mac_setup.sh
-  #     env:
-  #       PYTHONWARNINGS: default  # package install has DeprecationWarnings
-  #       HOMEBREW_DISPLAY_INSTALL_TIMES: 1
-  #   - run: git lfs pull
-  #   - name: Getting scons cache
-  #     uses: ./.github/workflows/auto-cache
-  #     with:
-  #       path: /tmp/scons_cache
-  #       key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
-  #       restore-keys: |
-  #         scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
-  #         scons-${{ runner.arch }}-macos
-  #   - name: Building openpilot
-  #     run: . .venv/bin/activate && scons -j$(nproc)
+  build_mac:
+    name: build macOS
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+    - run: echo "CACHE_COMMIT_DATE=$(git log -1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H:%M')" >> $GITHUB_ENV
+    - name: Homebrew cache
+      uses: ./.github/workflows/auto-cache
+      with:
+        path: ~/Library/Caches/Homebrew
+        key: brew-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+        restore-keys: |
+          brew-macos-${{ env.CACHE_COMMIT_DATE }}
+          brew-macos
+    - name: Install dependencies
+      run: ./tools/mac_setup.sh
+      env:
+        PYTHONWARNINGS: default  # package install has DeprecationWarnings
+        HOMEBREW_DISPLAY_INSTALL_TIMES: 1
+    - run: git lfs pull
+    - name: Getting scons cache
+      uses: ./.github/workflows/auto-cache
+      with:
+        path: /tmp/scons_cache
+        key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+        restore-keys: |
+          scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
+          scons-${{ runner.arch }}-macos
+    - name: Building openpilot
+      run: . .venv/bin/activate && scons -j$(nproc)
 
   static_analysis:
     name: static analysis
