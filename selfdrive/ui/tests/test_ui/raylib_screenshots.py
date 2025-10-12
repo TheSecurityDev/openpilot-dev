@@ -26,7 +26,7 @@ TEST_OUTPUT_DIR = TEST_DIR / "raylib_report"
 SCREENSHOTS_DIR = TEST_OUTPUT_DIR / "screenshots"
 UI_DELAY = 0.2
 SCROLL_DELAY = 1.5  # Delay screenshot by this many seconds after scrolling (to allow scroll to settle)
-DEFAULT_SCROLL_AMOUNT = -20  # Good for most full screen scrollers
+DEFAULT_SCROLL_AMOUNT = -10  # Good for most full screen scrollers
 MAX_SCREENSHOTS_PER_CASE = 8  # Maximum screenshots to generate while scrolling
 
 
