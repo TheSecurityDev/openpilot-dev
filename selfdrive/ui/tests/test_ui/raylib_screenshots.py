@@ -77,7 +77,7 @@ def setup_settings_firehose(click, scroll, pm: PubMaster):
 
 def setup_settings_developer(click, scroll, pm: PubMaster):
   CP = car.CarParams()
-  CP.alphaLongitudinalAvailable = True
+  CP.alphaLongitudinalAvailable = True  # show alpha long control toggle
   Params().put("CarParamsPersistent", CP.to_bytes())
 
   setup_settings(click, scroll, pm)
