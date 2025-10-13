@@ -11,7 +11,7 @@ from typing import NotRequired, TypedDict
 import pyautogui
 from PIL import ImageChops
 
-from cereal import log
+from cereal import car, log
 from cereal import messaging
 from cereal.messaging import PubMaster
 from openpilot.common.basedir import BASEDIR
@@ -76,6 +76,10 @@ def setup_settings_firehose(click, scroll, pm: PubMaster):
 
 
 def setup_settings_developer(click, scroll, pm: PubMaster):
+  CP = car.CarParams()
+  CP.alphaLongitudinalAvailable = True
+  Params().put("CarParamsPersistent", CP.to_bytes())
+
   setup_settings(click, scroll, pm)
   click(278, 950)
 
@@ -87,7 +91,7 @@ def setup_keyboard(click, scroll, pm: PubMaster):
 
 def setup_openpilot_long_control_confirmation_dialog(click, scroll, pm: PubMaster):
   setup_settings_developer(click, scroll, pm)
-  click(2000, 1000)  # toggle openpilot longitudinal control
+  click(2000, 960)  # toggle openpilot longitudinal control
 
 
 def setup_pair_device(click, scroll, pm: PubMaster):
