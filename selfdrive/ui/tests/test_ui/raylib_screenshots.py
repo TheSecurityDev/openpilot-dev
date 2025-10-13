@@ -234,10 +234,9 @@ class TestUI:
     if clicks == 0:
       return
     click = -1 if clicks < 0 else 1  # -1 = down, 1 = up
-    clicks = abs(clicks)
-    for i in range(clicks):
-      pyautogui.scroll(click, *args, **kwargs)  # call scroll for individual clicks since it doesn't use delay between clicks internally
-      time.sleep(0.01)  # small delay between clicks otherwise it doesn't work
+    for _ in range(abs(clicks)):
+      pyautogui.scroll(click, *args, **kwargs)  # scroll for individual clicks since we need to delay between clicks
+      time.sleep(0.01)  # small delay between scroll clicks to work properly in xvfb
 
   @with_processes(["ui"])
   def test_ui(self, name: str, setup_case: SetupFunction, config: CaseConfig | None = None):
