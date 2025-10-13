@@ -42,80 +42,88 @@ def put_update_params(params: Params):
   params.put("UpdaterNewDescription", description)
 
 
-def setup_homescreen(click, pm: PubMaster):
+def setup_homescreen(click, scroll, pm: PubMaster):
   pass
 
 
-def setup_settings(click, pm: PubMaster):
+def setup_settings(click, scroll, pm: PubMaster):
   click(100, 100)
 
 
-def close_settings(click, pm: PubMaster):
+def close_settings(click, scroll, pm: PubMaster):
   click(240, 216)
 
 
-def setup_settings_network(click, pm: PubMaster):
-  setup_settings(click, pm)
+def setup_settings_network(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
   click(278, 450)
 
 
-def setup_settings_toggles(click, pm: PubMaster):
-  setup_settings(click, pm)
+def setup_settings_toggles(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
   click(278, 600)
 
 
-def setup_settings_software(click, pm: PubMaster):
+def setup_settings_software(click, scroll, pm: PubMaster):
   put_update_params(Params())
-  setup_settings(click, pm)
+  setup_settings(click, scroll, pm)
   click(278, 720)
 
 
-def setup_settings_firehose(click, pm: PubMaster):
-  setup_settings(click, pm)
+def setup_settings_firehose(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
   click(278, 845)
 
 
-def setup_settings_developer(click, pm: PubMaster):
-  setup_settings(click, pm)
+def setup_settings_developer(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
   click(278, 950)
 
 
-def setup_keyboard(click, pm: PubMaster):
-  setup_settings_developer(click, pm)
+def setup_keyboard(click, scroll, pm: PubMaster):
+  setup_settings_developer(click, scroll, pm)
   click(1930, 470)
 
 
-def setup_pair_device(click, pm: PubMaster):
+def setup_pair_device(click, scroll, pm: PubMaster):
   click(1950, 800)
 
 
-def setup_offroad_alert(click, pm: PubMaster):
+def setup_offroad_alert(click, scroll, pm: PubMaster):
   set_offroad_alert("Offroad_TemperatureTooHigh", True, extra_text='99C')
   set_offroad_alert("Offroad_ExcessiveActuation", True, extra_text='longitudinal')
   for alert in OFFROAD_ALERTS:
     set_offroad_alert(alert, True)
 
-  setup_settings(click, pm)
-  close_settings(click, pm)
+  setup_settings(click, scroll, pm)
+  close_settings(click, scroll, pm)
 
 
-def setup_confirmation_dialog(click, pm: PubMaster):
-  setup_settings(click, pm)
+def setup_confirmation_dialog(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
   click(1985, 791)  # reset calibration
 
 
-def setup_homescreen_update_available(click, pm: PubMaster):
+def setup_homescreen_update_available(click, scroll, pm: PubMaster):
   params = Params()
   params.put_bool("UpdateAvailable", True)
   put_update_params(params)
-  setup_settings(click, pm)
-  close_settings(click, pm)
+  setup_settings(click, scroll, pm)
+  close_settings(click, scroll, pm)
 
 
-def setup_software_release_notes(click, pm: PubMaster):
-  setup_settings(click, pm)
-  setup_settings_software(click, pm)
+def setup_software_release_notes(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
+  setup_settings_software(click, scroll, pm)
   click(588, 110)  # expand description for current version
+
+
+def setup_experimental_mode_description(click, scroll, pm: PubMaster):
+  setup_settings(click, scroll, pm)
+  setup_settings_toggles(click, scroll, pm)
+  click(1200, 280)  # expand description for experimental mode
+  scroll(-4)  # scroll down to show more of the description
+  time.sleep(1)
 
 
 class CaseConfig(TypedDict):
@@ -123,7 +131,7 @@ class CaseConfig(TypedDict):
   scroll_enabled: NotRequired[bool]
 
 
-SetupFunction = Callable[[Callable[..., None], PubMaster], None]
+SetupFunction = Callable[[Callable[..., None], Callable[..., None], PubMaster], None]
 CaseValue = SetupFunction | tuple[SetupFunction, CaseConfig | None]
 
 # Value can be the setup function, or tuple of (setup func, config)
@@ -141,6 +149,10 @@ CASES: dict[str, CaseValue] = {
   "homescreen_update_available": (setup_homescreen_update_available, {"scroll_amount": -12}),  # smaller scrollable area
   "confirmation_dialog": setup_confirmation_dialog,
   "software_release_notes": setup_software_release_notes,
+  "experimental_mode_description": (
+    setup_experimental_mode_description,
+    {"scroll_enabled": False},
+  ),
 }
 
 
@@ -218,11 +230,20 @@ class TestUI:
     if result != 0:
       raise Exception("xdotool command failed (ensure xdotool is installed)")
 
+  def scroll(self, clicks: int, *args, **kwargs):
+    if clicks == 0:
+      return
+    click = -1 if clicks < 0 else 1  # -1 = down, 1 = up
+    clicks = abs(clicks)
+    for i in range(clicks):
+      pyautogui.scroll(click, *args, **kwargs)  # call scroll for individual clicks since it doesn't use delay between clicks internally
+      time.sleep(0.01)  # small delay between clicks otherwise it doesn't work
+
   @with_processes(["ui"])
   def test_ui(self, name: str, setup_case: SetupFunction, config: CaseConfig | None = None):
     self.setup()
     time.sleep(UI_DELAY)  # Wait for UI to start
-    setup_case(self.click, self.pm)
+    setup_case(self.click, self.scroll, self.pm)
     config = config or {}
 
     # Just take a screenshot if scrolling is disabled
