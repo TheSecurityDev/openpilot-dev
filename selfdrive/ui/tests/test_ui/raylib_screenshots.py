@@ -85,6 +85,11 @@ def setup_keyboard(click, scroll, pm: PubMaster):
   click(1930, 470)
 
 
+def setup_openpilot_long_control_confirmation_dialog(click, scroll, pm: PubMaster):
+  setup_settings_developer(click, scroll, pm)
+  click(2000, 1000)  # toggle openpilot longitudinal control
+
+
 def setup_pair_device(click, scroll, pm: PubMaster):
   click(1950, 800)
 
@@ -153,6 +158,7 @@ CASES: dict[str, CaseValue] = {
     setup_experimental_mode_description,
     {"scroll_enabled": False},
   ),
+  "openpilot_long_control_confirmation_dialog": setup_openpilot_long_control_confirmation_dialog,
 }
 
 
