@@ -167,8 +167,7 @@ class DeviceLayout(Widget):
         cloudlog.exception("invalid LiveTorqueParameters")
 
     desc += "<br><br>"
-    desc += ("openpilot is continuously calibrating, resetting is rarely required. " +
-             "Resetting calibration will restart openpilot if the car is powered on.")
+    desc += "openpilot is continuously calibrating, resetting is rarely required. " + "Resetting calibration will restart openpilot if the car is powered on."
 
     self._reset_calib_btn.set_description(desc)
 
@@ -208,7 +207,9 @@ class DeviceLayout(Widget):
 
   def _on_review_training_guide(self):
     if not self._training_guide:
+
       def completed_callback():
         gui_app.set_modal_overlay(None)
+
       self._training_guide = TrainingGuide(completed_callback=completed_callback)
     gui_app.set_modal_overlay(self._training_guide)
