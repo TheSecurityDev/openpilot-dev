@@ -93,7 +93,7 @@ jobs:
         run: >-
           sudo apt-get update && sudo apt-get install -y imagemagick
 
-          scenes=$(find ${{ github.workspace }}/pr_ui/*.png -type f -printf "%f\n" | cut -d '.' -f 1 | grep -v 'pair_device')
+          scenes=$(find ${{ github.workspace }}/pr_ui/*.png -type f -printf "%f\n" | cut -d '.' -f 1)
           A=($scenes)
 
           DIFF=""
