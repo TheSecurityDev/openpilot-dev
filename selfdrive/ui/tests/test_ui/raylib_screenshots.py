@@ -28,9 +28,14 @@ UI_DELAY = 0.2
 OFFROAD_ALERTS = ['Offroad_IsTakingSnapshot']
 
 
-def put_update_params(params: Params):
+def put_update_release_notes_params(params: Params):
   params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
   params.put("UpdaterNewReleaseNotes", parse_release_notes(BASEDIR))
+
+
+def put_update_available_params(params: Params):
+  params.put_bool("UpdateAvailable", True)
+  put_update_release_notes_params(params)
 
 
 def setup_homescreen(click, pm: PubMaster):
@@ -38,9 +43,7 @@ def setup_homescreen(click, pm: PubMaster):
 
 
 def setup_homescreen_update_available(click, pm: PubMaster):
-  params = Params()
-  params.put_bool("UpdateAvailable", True)
-  put_update_params(params)
+  put_update_available_params(Params())
   setup_offroad_alert(click, pm)
 
 
@@ -68,7 +71,7 @@ def setup_settings_toggles(click, pm: PubMaster):
 
 
 def setup_settings_software(click, pm: PubMaster):
-  put_update_params(Params())
+  put_update_release_notes_params(Params())
   setup_settings(click, pm)
   click(278, 720)
 
@@ -84,6 +87,11 @@ def setup_settings_software_download(click, pm: PubMaster):
 def setup_settings_software_release_notes(click, pm: PubMaster):
   setup_settings_software(click, pm)
   click(588, 110)  # expand description for current version
+
+
+def setup_settings_software_install(click, pm: PubMaster):
+  put_update_available_params(Params())
+  setup_settings_software(click, pm)
 
 
 def setup_settings_firehose(click, pm: PubMaster):
@@ -106,7 +114,7 @@ def setup_pair_device(click, pm: PubMaster):
 
 
 def setup_offroad_alert(click, pm: PubMaster):
-  put_update_params(Params())
+  put_update_release_notes_params(Params())
   set_offroad_alert("Offroad_TemperatureTooHigh", True, extra_text='99C')
   set_offroad_alert("Offroad_ExcessiveActuation", True, extra_text='longitudinal')
   for alert in OFFROAD_ALERTS:
@@ -138,6 +146,7 @@ CASES = {
   "settings_software": setup_settings_software,
   "settings_software_download": setup_settings_software_download,
   "settings_software_release_notes": setup_settings_software_release_notes,
+  "settings_software_install": setup_settings_software_install,
   "settings_firehose": setup_settings_firehose,
   "settings_developer": setup_settings_developer,
   "keyboard": setup_keyboard,
