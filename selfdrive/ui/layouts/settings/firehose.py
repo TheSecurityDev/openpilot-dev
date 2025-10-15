@@ -8,27 +8,27 @@ from openpilot.common.swaglog import cloudlog
 from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.system.athena.registration import UNREGISTERED_DONGLE_ID
 from openpilot.system.ui.lib.application import gui_app, FontWeight, FONT_SCALE
-from openpilot.system.ui.lib.text_measure import measure_text_cached
 from openpilot.system.ui.lib.scroll_panel import GuiScrollPanel
 from openpilot.system.ui.lib.wrap_text import wrap_text
 from openpilot.system.ui.widgets import Widget
+from openpilot.system.ui.widgets.html_render import HtmlRenderer, ElementType
 from openpilot.selfdrive.ui.lib.api_helpers import get_token
 
-TITLE = "Firehose Mode"
+TITLE = "<h1>Firehose Mode</h1>"
 DESCRIPTION = (
   "openpilot learns to drive by watching humans, like you, drive.\n\n"
   + "Firehose Mode allows you to maximize your training data uploads to improve "
   + "openpilot's driving models. More data means bigger models, which means better Experimental Mode."
-)
+).replace("\n", "<br>")
 INSTRUCTIONS = (
   "For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.\n\n"
   + "Firehose Mode can also work while you're driving if connected to a hotspot or unlimited SIM card.\n\n\n"
-  + "Frequently Asked Questions\n\n"
-  + "Does it matter how or where I drive? Nope, just drive as you normally would.\n\n"
-  + "Do all of my segments get pulled in Firehose Mode? No, we selectively pull a subset of your segments.\n\n"
-  + "What's a good USB-C adapter? Any fast phone or laptop charger should be fine.\n\n"
-  + "Does it matter which software I run? Yes, only upstream openpilot (and particular forks) are able to be used for training."
-)
+  + "<h3>Frequently Asked Questions</h3>\n\n"
+  + "Does it matter how or where I drive? - Nope, just drive as you normally would.\n\n"
+  + "Do all of my segments get pulled in Firehose Mode? - No, we selectively pull a subset of your segments.\n\n"
+  + "What's a good USB-C adapter? - Any fast phone or laptop charger should be fine.\n\n"
+  + "Does it matter which software I run? - Yes, only upstream openpilot (and particular forks) are able to be used for training."
+).replace("\n", "<br>")  # TODO: Add support for italics for FAQ
 
 
 class FirehoseLayout(Widget):
@@ -46,10 +46,27 @@ class FirehoseLayout(Widget):
     self.scroll_panel = GuiScrollPanel()
     self._content_height = 0
 
+    self._title_renderer = HtmlRenderer(text=TITLE, text_size={ElementType.P: 50}, center_text=True)
+    self._description_renderer = HtmlRenderer(text=DESCRIPTION, text_size={ElementType.P: 45}, text_color=rl.WHITE)
+    self._instructions_renderer = HtmlRenderer(text=INSTRUCTIONS, text_size={ElementType.P: 40}, text_color=self.LIGHT_GRAY)
+    self._cached_heights: tuple[int, int, int] | None = None  # title, description, instructions
+    self._cached_width = 0
+
     self.running = True
     self.update_thread = threading.Thread(target=self._update_loop, daemon=True)
     self.update_thread.start()
     self.last_update_time = 0
+
+  def _get_cached_heights(self, width: int) -> tuple[int, int, int]:
+    """Returns cached heights for HTML title, description, and instructions based on the given width."""
+    if width == self._cached_width and self._cached_heights is not None:
+      return self._cached_heights
+    self._cached_width = width
+    title_height = int(self._title_renderer.get_total_height(width))
+    description_height = int(self._description_renderer.get_total_height(width))
+    instructions_height = int(self._instructions_renderer.get_total_height(width))
+    self._cached_heights = (title_height, description_height, instructions_height)
+    return self._cached_heights
 
   def show_event(self):
     self.scroll_panel.set_offset(0)
@@ -83,16 +100,19 @@ class FirehoseLayout(Widget):
     x = int(rect.x + 40)
     y = int(rect.y + 40 + scroll_offset)
     w = int(rect.width - 80)
+    # TODO: Make padding configurable in HtmlRenderer instead
+    html_x = x - 20  # account for padding in HtmlRenderer
+
+    # Get cached heights for current width
+    title_h, description_h, instructions_h = self._get_cached_heights(w)
 
     # Title (centered)
-    title_font = gui_app.font(FontWeight.MEDIUM)
-    text_width = measure_text_cached(title_font, TITLE, 100).x
-    title_x = rect.x + (rect.width - text_width) / 2
-    rl.draw_text_ex(title_font, TITLE, rl.Vector2(title_x, y), 100, 0, rl.WHITE)
-    y += 200
+    self._title_renderer.render(rl.Rectangle(html_x, y, w, title_h))
+    y += title_h + 50
 
     # Description
-    y = self._draw_wrapped_text(x, y, w, DESCRIPTION, gui_app.font(FontWeight.NORMAL), 45, rl.WHITE)
+    self._description_renderer.render(rl.Rectangle(html_x, y, w, description_h))
+    y += description_h
     y += 40 + 20
 
     # Separator
@@ -115,7 +135,8 @@ class FirehoseLayout(Widget):
     y += 30 + 20
 
     # Instructions
-    y = self._draw_wrapped_text(x, y, w, INSTRUCTIONS, gui_app.font(FontWeight.NORMAL), 40, self.LIGHT_GRAY)
+    self._instructions_renderer.render(rl.Rectangle(html_x, y, w, instructions_h))
+    y += instructions_h
 
     # bottom margin + remove effect of scroll offset
     return int(round(y - self.scroll_panel.offset + 40))
