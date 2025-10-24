@@ -105,25 +105,25 @@ class TogglesLayout(Widget):
     self._toggles = {}
     self._locked_toggles = set()
     for param, (title, desc, icon, needs_restart) in self._toggle_defs.items():
-      toggle = toggle_item(
-        title,
-        desc,
-        self._params.get_bool(param),
-        callback=lambda state, p=param: self._toggle_callback(state, p),
-        icon=icon,
-      )
-
       try:
         locked = self._params.get_bool(param + "Lock")
       except UnknownKeyName:
         locked = False
-      toggle.action_item.set_enabled(not locked)
+      locked = False
 
-      # Make description callable for live translation
       additional_desc = ""
       if needs_restart and not locked:
-        additional_desc = tr("Changing this setting will restart openpilot if the car is powered on.")
-      toggle.set_description(lambda og_desc=toggle.description, add_desc=additional_desc: tr(og_desc) + (" " + tr(add_desc) if add_desc else ""))
+        additional_desc = "Changing this setting will restart openpilot if the car is powered on."
+
+      toggle = toggle_item(
+        title,
+        # Make description callable for live translation
+        description=lambda og_desc=desc, add_desc=additional_desc: tr(og_desc) + (" " + tr(add_desc) if add_desc else ""),
+        initial_state=self._params.get_bool(param),
+        callback=lambda state, p=param: self._toggle_callback(state, p),
+        icon=icon,
+        enabled=not locked,
+      )
 
       # track for engaged state updates
       if locked:
