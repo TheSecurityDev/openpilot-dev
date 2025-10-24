@@ -296,6 +296,11 @@ class ListItem(Widget):
     # Cached properties for performance
     self._prev_description: str | None = self.description
 
+    if (isinstance(title, str)):
+      print(f"Missing translation for ListItem title: '{title}'")
+    if (isinstance(description, str)):
+      print(f"Missing translation for ListItem description: '{description}'")
+
   def show_event(self):
     self._set_description_visible(False)
 
