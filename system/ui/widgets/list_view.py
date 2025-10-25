@@ -297,7 +297,8 @@ class ListItem(Widget):
     self._prev_description: str | None = self.description
 
   def show_event(self):
-    self._set_description_visible(False)
+    SHOW_TOGGLE_DESCRIPTIONS = bool(int(os.getenv("SHOW_TOGGLE_DESCRIPTIONS", "0")))
+    self._set_description_visible(SHOW_TOGGLE_DESCRIPTIONS)
 
   def set_description_opened_callback(self, callback: Callable) -> None:
     self.description_opened_callback = callback
