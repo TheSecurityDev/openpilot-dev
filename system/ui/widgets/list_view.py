@@ -310,6 +310,7 @@ class ListItem(Widget):
   def set_parent_rect(self, parent_rect: rl.Rectangle):
     super().set_parent_rect(parent_rect)
     self._rect.width = parent_rect.width
+    # TODO: We'll have to fix this some other way because it's called every frame for items in scrollers
     self._update_rect_height()  # Recalculate height when width changes
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
