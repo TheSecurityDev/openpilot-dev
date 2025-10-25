@@ -310,6 +310,7 @@ class ListItem(Widget):
   def set_parent_rect(self, parent_rect: rl.Rectangle):
     super().set_parent_rect(parent_rect)
     self._rect.width = parent_rect.width
+    self._update_height()
 
   def _handle_mouse_release(self, mouse_pos: MousePos):
     if not self.is_visible:
@@ -330,9 +331,7 @@ class ListItem(Widget):
       # do callback first in case receiver changes description
       if self.description_visible and self.description_opened_callback is not None:
         self.description_opened_callback()
-
-      content_width = int(self._rect.width - ITEM_PADDING * 2)
-      self._rect.height = self.get_item_height(self._font, content_width)
+      self._update_height()
 
   def _update_state(self):
     # Detect changes if description is callback
@@ -413,6 +412,10 @@ class ListItem(Widget):
       description_height = self._html_renderer.get_total_height(max_width)
       height += description_height - (ITEM_BASE_HEIGHT - ITEM_DESC_V_OFFSET) + ITEM_PADDING
     return height
+
+  def _update_height(self):
+    content_width = int(self._rect.width - ITEM_PADDING * 2)
+    self._rect.height = self.get_item_height(self._font, content_width)
 
   def get_right_item_rect(self, item_rect: rl.Rectangle) -> rl.Rectangle:
     if not self.action_item:
