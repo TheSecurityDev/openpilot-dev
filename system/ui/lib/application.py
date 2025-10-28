@@ -40,6 +40,7 @@ FONT_SCALE = 1.242
 
 ASSETS_DIR = files("openpilot.selfdrive").joinpath("assets")
 FONT_DIR = ASSETS_DIR.joinpath("fonts")
+EXPORT_FONTS_AS_C = os.getenv("EXPORT_FONTS_AS_C") == "1"
 
 
 class FontWeight(StrEnum):
@@ -199,6 +200,10 @@ class GuiApplication:
 
       if not PC:
         self._mouse.start()
+
+      if EXPORT_FONTS_AS_C:
+        self.close()
+        sys.exit(0)
 
   @contextmanager
   def _startup_profile_context(self):
@@ -392,6 +397,11 @@ class GuiApplication:
       with as_file(FONT_DIR.joinpath(font_weight_file)) as fspath:
         font = rl.load_font(fspath.as_posix())
         rl.set_texture_filter(font.texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+        if (EXPORT_FONTS_AS_C):
+          c_file = fspath.stem.replace("-", "") + ".c"
+          c_file_path = str(FONT_DIR.joinpath(c_file))
+          print(f"Exporting font {font_weight_file} as C source to '{c_file}'...")
+          rl.export_font_as_code(font, c_file_path)
         self._fonts[font_weight_file] = font
     rl.gui_set_font(self._fonts[FontWeight.NORMAL])
 
