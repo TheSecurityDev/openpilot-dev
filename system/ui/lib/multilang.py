@@ -1,14 +1,19 @@
+from importlib.resources import files
 import os
 import json
 import gettext
-from openpilot.common.params import Params
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.swaglog import cloudlog
 
+try:
+  from openpilot.common.params import Params
+except ImportError:
+  Params = None
+
 SYSTEM_UI_DIR = os.path.join(BASEDIR, "system", "ui")
-UI_DIR = os.path.join(BASEDIR, "selfdrive", "ui")
-TRANSLATIONS_DIR = os.path.join(UI_DIR, "translations")
-LANGUAGES_FILE = os.path.join(TRANSLATIONS_DIR, "languages.json")
+UI_DIR = files("openpilot.selfdrive.ui")
+TRANSLATIONS_DIR = UI_DIR.joinpath("translations")
+LANGUAGES_FILE = TRANSLATIONS_DIR.joinpath("languages.json")
 
 UNIFONT_LANGUAGES = [
   "ar",
@@ -22,7 +27,7 @@ UNIFONT_LANGUAGES = [
 
 class Multilang:
   def __init__(self):
-    self._params = Params()
+    self._params = Params() if Params is not None else None
     self._language: str = "en"
     self.languages = {}
     self.codes = {}
@@ -39,7 +44,7 @@ class Multilang:
 
   def setup(self):
     try:
-      with open(os.path.join(TRANSLATIONS_DIR, f'app_{self._language}.mo'), 'rb') as fh:
+      with TRANSLATIONS_DIR.joinpath(f'app_{self._language}.mo').open('rb') as fh:
         translation = gettext.GNUTranslations(fh)
       translation.install()
       self._translation = translation
@@ -62,13 +67,14 @@ class Multilang:
     return self._translation.ngettext(singular, plural, n)
 
   def _load_languages(self):
-    with open(LANGUAGES_FILE, encoding='utf-8') as f:
+    with LANGUAGES_FILE.open(encoding='utf-8') as f:
       self.languages = json.load(f)
     self.codes = {v: k for k, v in self.languages.items()}
 
-    lang = str(self._params.get("LanguageSetting")).removeprefix("main_")
-    if lang in self.codes:
-      self._language = lang
+    if self._params is not None:
+      lang = str(self._params.get("LanguageSetting")).removeprefix("main_")
+      if lang in self.codes:
+        self._language = lang
 
 
 multilang = Multilang()

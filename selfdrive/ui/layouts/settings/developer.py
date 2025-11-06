@@ -37,7 +37,7 @@ class DeveloperLayout(Widget):
     # Build items and keep references for callbacks/state updates
     self._adb_toggle = toggle_item(
       lambda: tr("Enable ADB"),
-      description=lambda: DESCRIPTIONS["enable_adb"],
+      description=lambda: tr(DESCRIPTIONS["enable_adb"]),
       initial_state=self._params.get_bool("AdbEnabled"),
       callback=self._on_enable_adb,
       enabled=ui_state.is_offroad,
@@ -50,7 +50,7 @@ class DeveloperLayout(Widget):
       initial_state=self._params.get_bool("SshEnabled"),
       callback=self._on_enable_ssh,
     )
-    self._ssh_keys = ssh_key_item(lambda: tr("SSH Keys"), description=lambda: DESCRIPTIONS["ssh_key"])
+    self._ssh_keys = ssh_key_item(lambda: tr("SSH Keys"), description=lambda: tr(DESCRIPTIONS["ssh_key"]))
 
     self._joystick_toggle = toggle_item(
       lambda: tr("Joystick Debug Mode"),
@@ -69,22 +69,29 @@ class DeveloperLayout(Widget):
 
     self._alpha_long_toggle = toggle_item(
       lambda: tr("openpilot Longitudinal Control (Alpha)"),
-      description=lambda: DESCRIPTIONS["alpha_longitudinal"],
+      description=lambda: tr(DESCRIPTIONS["alpha_longitudinal"]),
       initial_state=self._params.get_bool("AlphaLongitudinalEnabled"),
       callback=self._on_alpha_long_enabled,
       enabled=lambda: not ui_state.engaged,
     )
 
-    items = [
+    self._ui_debug_toggle = toggle_item(
+      lambda: tr("UI Debug Mode"),
+      description="",
+      initial_state=self._params.get_bool("ShowDebugInfo"),
+      callback=self._on_enable_ui_debug,
+    )
+    self._on_enable_ui_debug(self._params.get_bool("ShowDebugInfo"))
+
+    self._scroller = Scroller([
       self._adb_toggle,
       self._ssh_toggle,
       self._ssh_keys,
       self._joystick_toggle,
       self._long_maneuver_toggle,
       self._alpha_long_toggle,
-    ]
-
-    self._scroller = Scroller(items, line_separator=True, spacing=0)
+      self._ui_debug_toggle,
+    ], line_separator=True, spacing=0)
 
     # Toggles should be not available to change in onroad state
     ui_state.add_offroad_transition_callback(self._update_toggles)
@@ -130,8 +137,14 @@ class DeveloperLayout(Widget):
       ("JoystickDebugMode", self._joystick_toggle),
       ("LongitudinalManeuverMode", self._long_maneuver_toggle),
       ("AlphaLongitudinalEnabled", self._alpha_long_toggle),
+      ("ShowDebugInfo", self._ui_debug_toggle),
     ):
       item.action_item.set_state(self._params.get_bool(key))
+
+  def _on_enable_ui_debug(self, state: bool):
+    self._params.put_bool("ShowDebugInfo", state)
+    gui_app.set_show_touches(state)
+    gui_app.set_show_fps(state)
 
   def _on_enable_adb(self, state: bool):
     self._params.put_bool("AdbEnabled", state)
