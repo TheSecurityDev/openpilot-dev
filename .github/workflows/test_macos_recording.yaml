@@ -1,0 +1,59 @@
+name: Test macOS Recording
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - raylib-record
+
+jobs:
+  test_recording:
+    name: Test macOS Recording
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          brew install glfw
+
+      - name: Install Python dependencies
+        run: |
+          pip install -e .
+
+      - name: Run recording test
+        run: |
+          # Run for 5 seconds then kill
+          timeout 5 env RECORD=1 python system/ui/spinner.py || true
+
+          # Check if output file was created
+          if [ -f output.mp4 ]; then
+            echo "Recording created successfully!"
+            ls -lh output.mp4
+
+            # Get video info
+            if command -v ffprobe &> /dev/null; then
+              ffprobe -v error -show_entries stream=width,height,codec_name,pix_fmt -of default=noprint_wrappers=1 output.mp4
+            fi
+          else
+            echo "ERROR: Recording file not created"
+            exit 1
+          fi
+
+      - name: Upload recording artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-recording-test
+          path: output.mp4
+          if-no-files-found: warn
+          retention-days: 7
