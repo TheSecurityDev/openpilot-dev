@@ -202,9 +202,9 @@ def clip(
   with OpenpilotPrefix(prefix, shared_download_cache=True):
     populate_car_params(lr)
     env = os.environ.copy()
-    env['RENDER'] = '1'
+    env['RECORD'] = '1'
     env['OUTPUT_FILE'] = out
-    env['RENDER_FRAMES'] = str(round(duration * FRAMERATE))
+    env['RECORD_FRAMES'] = str(round(duration * FRAMERATE))
     frame_dir = '/tmp/openpilot_frames'
     env['FRAME_DIR'] = frame_dir
 

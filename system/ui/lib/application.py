@@ -36,9 +36,9 @@ SCALE = float(os.getenv("SCALE", "1.0"))
 GRID_SIZE = int(os.getenv("GRID", "0"))
 PROFILE_RENDER = int(os.getenv("PROFILE_RENDER", "0"))
 PROFILE_STATS = int(os.getenv("PROFILE_STATS", "100"))  # Number of functions to show in profile output
-RENDER = os.getenv("RENDER") == "1"
+RECORD = os.getenv("RECORD") == "1"
 OUTPUT_FILE = os.getenv("OUTPUT_FILE", "output.mp4")
-RENDER_FRAMES = int(os.getenv("RENDER_FRAMES", "0"))
+RECORD_FRAMES = int(os.getenv("RECORD_FRAMES", "0"))
 FRAME_DIR = os.getenv("FRAME_DIR", "/tmp/openpilot_frames")
 
 GL_VERSION = """
@@ -263,7 +263,7 @@ class GuiApplication:
       rl.set_config_flags(flags)
 
       rl.init_window(self._scaled_width, self._scaled_height, title)
-      if RENDER:
+      if RECORD:
         frame_dir = os.path.abspath(FRAME_DIR)
         os.makedirs(frame_dir, exist_ok=True)
         self._frame_dir = frame_dir
@@ -422,7 +422,7 @@ class GuiApplication:
         self._render_profiler.enable()
 
       while not (self._window_close_requested or rl.window_should_close()):
-        if RENDER and self._frame >= RENDER_FRAMES:
+        if RECORD and self._frame >= RECORD_FRAMES:
           rl.close_window()
           return
 
@@ -481,7 +481,7 @@ class GuiApplication:
           self._draw_grid()
 
         rl.end_drawing()
-        if RENDER:
+        if RECORD:
           image = rl.load_image_from_screen()
           rl.export_image(image, os.path.join(self._frame_dir, f"frame_{self._frame:06d}.png"))
           rl.unload_image(image)
