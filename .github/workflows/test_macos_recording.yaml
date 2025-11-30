@@ -37,17 +37,17 @@ jobs:
           PYTHONWARNINGS: default
           HOMEBREW_DISPLAY_INSTALL_TIMES: 1
 
-      - name: Getting scons cache
-        uses: ./.github/workflows/auto-cache
-        with:
-          path: /tmp/scons_cache
-          key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
-          restore-keys: |
-            scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
-            scons-${{ runner.arch }}-macos
+      # - name: Getting scons cache
+      #   uses: ./.github/workflows/auto-cache
+      #   with:
+      #     path: /tmp/scons_cache
+      #     key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+      #     restore-keys: |
+      #       scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
+      #       scons-${{ runner.arch }}-macos
 
-      - name: Build openpilot
-        run: . .venv/bin/activate && scons -j$(nproc)
+      # - name: Build openpilot
+      #   run: . .venv/bin/activate && scons -j$(nproc)
 
       - name: Run recording test
         run: |
