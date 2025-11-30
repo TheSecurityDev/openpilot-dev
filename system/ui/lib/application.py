@@ -40,7 +40,6 @@ PROFILE_STATS = int(os.getenv("PROFILE_STATS", "100"))  # Number of functions to
 RECORD = os.getenv("RECORD") == "1"
 OUTPUT_FILE = os.getenv("OUTPUT_FILE", "output.mp4")
 RECORD_FRAMES = int(os.getenv("RECORD_FRAMES", "0"))
-FRAME_DIR = os.getenv("FRAME_DIR", "/tmp/openpilot_frames")
 
 GL_VERSION = """
 #version 300 es
