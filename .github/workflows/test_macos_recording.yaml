@@ -5,6 +5,8 @@ on:
   push:
     branches:
       - raylib-record
+      - raylib-record-macos-test
+      - master
 
 jobs:
   test_recording:
