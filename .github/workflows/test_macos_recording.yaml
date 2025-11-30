@@ -11,7 +11,7 @@ on:
 jobs:
   test_recording:
     name: Test macOS Recording
-    runs-on: macos-latest
+    runs-on: macos-15-intel
     timeout-minutes: 10
     steps:
       - name: Checkout code
