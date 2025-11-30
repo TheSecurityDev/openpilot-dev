@@ -19,21 +19,39 @@ jobs:
         with:
           submodules: true
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: Cache commit date
+        run: echo "CACHE_COMMIT_DATE=$(git log -1 --pretty='format:%cd' --date=format:'%Y-%m-%d-%H:%M')" >> $GITHUB_ENV
+
+      - name: Homebrew cache
+        uses: ./.github/workflows/auto-cache
         with:
-          python-version: '3.11'
+          path: ~/Library/Caches/Homebrew
+          key: brew-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+          restore-keys: |
+            brew-macos-${{ env.CACHE_COMMIT_DATE }}
+            brew-macos
 
-      - name: Install system dependencies
-        run: |
-          brew install glfw
+      - name: Install dependencies
+        run: ./tools/mac_setup.sh
+        env:
+          PYTHONWARNINGS: default
+          HOMEBREW_DISPLAY_INSTALL_TIMES: 1
 
-      - name: Install Python dependencies
-        run: |
-          pip install -e .
+      - name: Getting scons cache
+        uses: ./.github/workflows/auto-cache
+        with:
+          path: /tmp/scons_cache
+          key: scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}-${{ github.sha }}
+          restore-keys: |
+            scons-${{ runner.arch }}-macos-${{ env.CACHE_COMMIT_DATE }}
+            scons-${{ runner.arch }}-macos
+
+      - name: Build openpilot
+        run: . .venv/bin/activate && scons -j$(nproc)
 
       - name: Run recording test
         run: |
+          . .venv/bin/activate
           # Run for 5 seconds then kill
           timeout 5 env RECORD=1 python system/ui/spinner.py || true
 
