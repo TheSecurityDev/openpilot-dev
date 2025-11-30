@@ -33,7 +33,7 @@ PROC_WAIT_SECONDS = 30*10
 
 OPENPILOT_FONT = str(Path(BASEDIR, 'selfdrive/assets/fonts/Inter-Regular.ttf').resolve())
 REPLAY = str(Path(BASEDIR, 'tools/replay/replay').resolve())
-UI = str(Path(BASEDIR, 'selfdrive/ui/ui').resolve())
+UI_PY = str(Path(BASEDIR, 'selfdrive/ui/ui.py').resolve())
 
 logger = logging.getLogger('clip.py')
 
@@ -141,9 +141,8 @@ def populate_car_params(lr: LogReader):
 def validate_env(parser: ArgumentParser):
   if platform.system() not in ['Linux']:
     parser.exit(1, f'clip.py: error: {platform.system()} is not a supported operating system\n')
-  for proc in [REPLAY, UI]:
-    if shutil.which(proc) is None:
-      parser.exit(1, f'clip.py: error: missing {proc} command, did you build openpilot yet?\n')
+  if shutil.which(REPLAY) is None:
+    parser.exit(1, f'clip.py: error: missing {REPLAY} command, did you build openpilot yet?\n')
 
 
 def validate_output_file(output_file: str):
@@ -198,7 +197,7 @@ def clip(
     replay_cmd.append('--qcam')
   replay_cmd.append(route.name.canonical_name)
 
-  ui_cmd = [UI]
+  ui_cmd = ['python3', UI_PY]
 
   with OpenpilotPrefix(prefix, shared_download_cache=True):
     populate_car_params(lr)
