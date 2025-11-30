@@ -456,7 +456,7 @@ class GuiApplication:
         self._render_profiler.enable()
 
       while not (self._window_close_requested or rl.window_should_close()):
-        if RECORD and self._frame >= RECORD_FRAMES:
+        if RECORD and RECORD_FRAMES > 0 and self._frame >= RECORD_FRAMES:
           self.close()
           return
 
