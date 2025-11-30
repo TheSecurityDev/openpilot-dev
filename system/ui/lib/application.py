@@ -36,6 +36,10 @@ SCALE = float(os.getenv("SCALE", "1.0"))
 GRID_SIZE = int(os.getenv("GRID", "0"))
 PROFILE_RENDER = int(os.getenv("PROFILE_RENDER", "0"))
 PROFILE_STATS = int(os.getenv("PROFILE_STATS", "100"))  # Number of functions to show in profile output
+RENDER = os.getenv("RENDER") == "1"
+OUTPUT_FILE = os.getenv("OUTPUT_FILE", "output.mp4")
+RENDER_FRAMES = int(os.getenv("RENDER_FRAMES", "0"))
+FRAME_DIR = os.getenv("FRAME_DIR", "/tmp/openpilot_frames")
 
 GL_VERSION = """
 #version 300 es
@@ -259,6 +263,10 @@ class GuiApplication:
       rl.set_config_flags(flags)
 
       rl.init_window(self._scaled_width, self._scaled_height, title)
+      if RENDER:
+        frame_dir = os.path.abspath(FRAME_DIR)
+        os.makedirs(frame_dir, exist_ok=True)
+        self._frame_dir = frame_dir
       needs_render_texture = self._scale != 1.0 or BURN_IN_MODE
       if self._scale != 1.0:
         rl.set_mouse_scale(1 / self._scale, 1 / self._scale)
@@ -414,6 +422,10 @@ class GuiApplication:
         self._render_profiler.enable()
 
       while not (self._window_close_requested or rl.window_should_close()):
+        if RENDER and self._frame >= RENDER_FRAMES:
+          rl.close_window()
+          return
+
         if PC:
           # Thread is not used on PC, need to manually add mouse events
           self._mouse._handle_mouse_event()
@@ -469,6 +481,10 @@ class GuiApplication:
           self._draw_grid()
 
         rl.end_drawing()
+        if RENDER:
+          image = rl.load_image_from_screen()
+          rl.export_image(image, os.path.join(self._frame_dir, f"frame_{self._frame:06d}.png"))
+          rl.unload_image(image)
         self._monitor_fps()
         self._frame += 1
 
