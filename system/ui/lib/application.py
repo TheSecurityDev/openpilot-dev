@@ -38,7 +38,7 @@ GRID_SIZE = int(os.getenv("GRID", "0"))
 PROFILE_RENDER = int(os.getenv("PROFILE_RENDER", "0"))
 PROFILE_STATS = int(os.getenv("PROFILE_STATS", "100"))  # Number of functions to show in profile output
 RECORD = os.getenv("RECORD") == "1"
-OUTPUT_FILE = os.getenv("OUTPUT_FILE", "output.mp4")
+RECORD_OUTPUT = os.getenv("RECORD_OUTPUT", "output.mp4")
 RECORD_FRAMES = int(os.getenv("RECORD_FRAMES", "0"))
 
 GL_VERSION = """
@@ -288,7 +288,7 @@ class GuiApplication:
             'ultrafast',
             '-f',
             'mp4',
-            OUTPUT_FILE,
+            RECORD_OUTPUT,
           ],
           stdin=subprocess.PIPE,
         )
