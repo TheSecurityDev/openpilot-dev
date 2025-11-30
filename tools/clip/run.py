@@ -10,7 +10,7 @@ from argparse import ArgumentParser, ArgumentTypeError
 from collections.abc import Sequence
 from pathlib import Path
 from random import randint
-from subprocess import Popen
+from subprocess import Popen, run
 from typing import Literal
 
 from cereal.messaging import SubMaster
@@ -141,9 +141,6 @@ def populate_car_params(lr: LogReader):
 def validate_env(parser: ArgumentParser):
   if platform.system() not in ['Linux']:
     parser.exit(1, f'clip.py: error: {platform.system()} is not a supported operating system\n')
-  for proc in ['Xvfb', 'ffmpeg']:
-    if shutil.which(proc) is None:
-      parser.exit(1, f'clip.py: error: missing {proc} command, is it installed?\n')
   for proc in [REPLAY, UI]:
     if shutil.which(proc) is None:
       parser.exit(1, f'clip.py: error: missing {proc} command, did you build openpilot yet?\n')
@@ -193,49 +190,6 @@ def clip(
 
   begin_at = max(start - SECONDS_TO_WARM, 0)
   duration = end - start
-  bit_rate_kbps = int(round(target_mb * 8 * 1024 * 1024 / duration / 1000))
-
-  # TODO: evaluate creating fn that inspects /tmp/.X11-unix and creates unused display to avoid possibility of collision
-  display = f':{randint(99, 999)}'
-
-  box_style = 'box=1:boxcolor=black@0.33:boxborderw=7'
-  meta_text = get_meta_text(lr, route)
-  overlays = [
-    # metadata overlay
-    f"drawtext=text='{escape_ffmpeg_text(meta_text)}':fontfile={OPENPILOT_FONT}:fontcolor=white:fontsize=15:{box_style}:x=(w-text_w)/2:y=5.5:enable='between(t,1,5)'",
-    # route time overlay
-    f"drawtext=text='%{{eif\\:floor(({start}+t)/60)\\:d\\:2}}\\:%{{eif\\:mod({start}+t\\,60)\\:d\\:2}}':fontfile={OPENPILOT_FONT}:fontcolor=white:fontsize=24:{box_style}:x=w-text_w-38:y=38"
-  ]
-  if title:
-    overlays.append(f"drawtext=text='{escape_ffmpeg_text(title)}':fontfile={OPENPILOT_FONT}:fontcolor=white:fontsize=32:{box_style}:x=(w-text_w)/2:y=53")
-
-  if speed > 1:
-    overlays += [
-      f"setpts=PTS/{speed}",
-      "fps=60",
-    ]
-
-  ffmpeg_cmd = [
-    'ffmpeg', '-y',
-    '-video_size', RESOLUTION,
-    '-framerate', str(FRAMERATE),
-    '-f', 'x11grab',
-    '-rtbufsize', '100M',
-    '-draw_mouse', '0',
-    '-i', display,
-    '-c:v', 'libx264',
-    '-maxrate', f'{bit_rate_kbps}k',
-    '-bufsize', f'{bit_rate_kbps*2}k',
-    '-crf', '23',
-    '-filter:v', ','.join(overlays),
-    '-preset', 'ultrafast',
-    '-tune', 'zerolatency',
-    '-pix_fmt', 'yuv420p',
-    '-movflags', '+faststart',
-    '-f', 'mp4',
-    '-t', str(duration),
-    out,
-  ]
 
   replay_cmd = [REPLAY, '--ecam', '-c', '1', '-s', str(begin_at), '--prefix', prefix]
   if data_dir:
@@ -244,27 +198,50 @@ def clip(
     replay_cmd.append('--qcam')
   replay_cmd.append(route.name.canonical_name)
 
-  ui_cmd = [UI, '-platform', 'xcb']
-  xvfb_cmd = ['Xvfb', display, '-terminate', '-screen', '0', f'{RESOLUTION}x{PIXEL_DEPTH}']
+  ui_cmd = [UI]
 
   with OpenpilotPrefix(prefix, shared_download_cache=True):
     populate_car_params(lr)
     env = os.environ.copy()
-    env['DISPLAY'] = display
+    env['RENDER'] = '1'
+    env['OUTPUT_FILE'] = out
+    env['RENDER_FRAMES'] = str(round(duration * FRAMERATE))
+    frame_dir = '/tmp/openpilot_frames'
+    env['FRAME_DIR'] = frame_dir
 
-    with managed_proc(xvfb_cmd, env) as xvfb_proc, managed_proc(ui_cmd, env) as ui_proc, managed_proc(replay_cmd, env) as replay_proc:
-      procs = [xvfb_proc, ui_proc, replay_proc]
+    with managed_proc(ui_cmd, env) as ui_proc, managed_proc(replay_cmd, env) as replay_proc:
+      procs = [ui_proc, replay_proc]
       logger.info('waiting for replay to begin (loading segments, may take a while)...')
       wait_for_frames(procs)
       logger.debug(f'letting UI warm up ({SECONDS_TO_WARM}s)...')
       time.sleep(SECONDS_TO_WARM)
       check_for_failure(procs)
-      with managed_proc(ffmpeg_cmd, env) as ffmpeg_proc:
-        procs.append(ffmpeg_proc)
-        logger.info(f'recording in progress ({duration}s)...')
-        ffmpeg_proc.wait(duration + PROC_WAIT_SECONDS)
-        check_for_failure(procs)
-        logger.info(f'recording complete: {Path(out).resolve()}')
+      logger.info(f'recording in progress ({duration}s)...')
+      # Wait for the duration
+      time.sleep(duration + PROC_WAIT_SECONDS)
+      check_for_failure(procs)
+      logger.info(f'recording complete: {Path(out).resolve()}')
+
+      ffmpeg_cmd = [
+        'ffmpeg',
+        '-y',
+        '-framerate',
+        str(FRAMERATE),
+        '-i',
+        os.path.join(frame_dir, 'frame_%06d.png'),
+        '-c:v',
+        'libx264',
+        '-crf',
+        '23',
+        '-pix_fmt',
+        'yuv420p',
+        '-movflags',
+        '+faststart',
+        out,
+      ]
+      run(ffmpeg_cmd, check=True)
+      # Clean up
+      shutil.rmtree(frame_dir, ignore_errors=True)
 
 
 def main():
