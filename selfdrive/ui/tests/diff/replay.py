@@ -21,6 +21,9 @@ from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
 
+# Monkey-patch rl.get_frame_time to return fixed value for determinism
+rl.get_frame_time = lambda: 1.0 / FPS
+
 
 @dataclass
 class Event:
