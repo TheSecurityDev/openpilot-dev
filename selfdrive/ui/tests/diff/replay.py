@@ -46,7 +46,6 @@ SCRIPT = [
   Event(swipe_left=True, delay=1.5),  # explore settings
   Event(swipe_down=True),  # back to home
   Event(swipe_right=True),  # open alerts
-  Event(),  # wait
 ]
 
 
@@ -121,7 +120,7 @@ def run_replay():
     elapsed_time += 1.0 / FPS
     frame += 1
 
-    if script_index >= len(SCRIPT):
+    if script_index >= len(SCRIPT) and elapsed_time >= next_event_time:
       break
 
   gui_app.close()
