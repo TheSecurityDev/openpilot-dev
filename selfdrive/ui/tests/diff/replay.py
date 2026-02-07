@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import os
-import time
 import coverage
 import pyray as rl
 from dataclasses import dataclass
@@ -15,11 +14,16 @@ os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ["RECORD_OUTP
 from openpilot.common.params import Params
 from openpilot.system.version import terms_version, training_version
 from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
-from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
+CLICK_DURATION = 0.05
+SWIPE_DURATION = 0.1
+EDGE_MARGIN = 2
+
+# Monkey-patch rl.get_frame_time to return fixed value for determinism
+rl.get_frame_time = lambda: 1.0 / FPS
 
 
 @dataclass
@@ -54,14 +58,32 @@ def setup_state():
   return None
 
 
-def inject_click(coords):
-  events = []
+def inject_gesture(coords: list[tuple[int, int]], duration: float = CLICK_DURATION):
+  """Inject a click or swipe gesture with linear interpolation."""
+  num_steps = max(int(duration * FPS), 3)
+  events: list[MouseEvent] = []
+
+  # Press down at first coordinate
   x, y = coords[0]
-  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=time.monotonic()))
-  for x, y in coords[1:]:
-    events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=time.monotonic()))
+  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=0.0))
+
+  # Interpolate intermediate positions
+  if len(coords) > 1:
+    for step in range(1, num_steps):
+      progress = step / num_steps
+      segment_progress = progress * (len(coords) - 1)
+      segment_idx = min(int(segment_progress), len(coords) - 2)
+      local_progress = segment_progress - segment_idx
+
+      x1, y1 = coords[segment_idx]
+      x2, y2 = coords[segment_idx + 1]
+      x = int(x1 + (x2 - x1) * local_progress)
+      y = int(y1 + (y2 - y1) * local_progress)
+      events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=0.0))
+
+  # Release at final coordinate
   x, y = coords[-1]
-  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=time.monotonic()))
+  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=0.0))
 
   with gui_app._mouse._lock:
     gui_app._mouse._events.extend(events)
@@ -69,19 +91,21 @@ def inject_click(coords):
 
 def handle_event(event: Event):
   if event.click:
-    inject_click([(gui_app.width // 2, gui_app.height // 2)])
+    inject_gesture([(gui_app.width // 2, gui_app.height // 2)])
   if event.swipe_left:
-    inject_click([(gui_app.width * 3 // 4, gui_app.height // 2),
-                  (gui_app.width // 4, gui_app.height // 2),
-                  (0, gui_app.height // 2)])
+    inject_gesture(
+      [(gui_app.width * 3 // 4, gui_app.height // 2), (gui_app.width // 4, gui_app.height // 2), (EDGE_MARGIN, gui_app.height // 2)], SWIPE_DURATION
+    )
   if event.swipe_right:
-    inject_click([(gui_app.width // 4, gui_app.height // 2),
-                  (gui_app.width * 3 // 4, gui_app.height // 2),
-                  (gui_app.width, gui_app.height // 2)])
+    inject_gesture(
+      [(gui_app.width // 4, gui_app.height // 2), (gui_app.width * 3 // 4, gui_app.height // 2), (gui_app.width - EDGE_MARGIN, gui_app.height // 2)],
+      SWIPE_DURATION,
+    )
   if event.swipe_down:
-    inject_click([(gui_app.width // 2, gui_app.height // 4),
-                  (gui_app.width // 2, gui_app.height * 3 // 4),
-                  (gui_app.width // 2, gui_app.height)])
+    inject_gesture(
+      [(gui_app.width // 2, gui_app.height // 4), (gui_app.width // 2, gui_app.height * 3 // 4), (gui_app.width // 2, gui_app.height - EDGE_MARGIN)],
+      SWIPE_DURATION,
+    )
 
 
 def run_replay():
@@ -96,23 +120,19 @@ def run_replay():
 
   frame = 0
   script_index = 0
-  elapsed_time = 0.0
-  next_event_time = 0.0
+  next_event_frame = 0
 
   for should_render in gui_app.render():
-    if script_index < len(SCRIPT) and elapsed_time >= next_event_time:
+    if script_index < len(SCRIPT) and frame >= next_event_frame:
       event = SCRIPT[script_index]
       handle_event(event)
-      next_event_time += event.delay
+      next_event_frame = frame + int(event.delay * FPS)
       script_index += 1
 
-    ui_state.update()
     if should_render:
       main_layout.render()
 
-    elapsed_time += 1.0 / FPS
     frame += 1
-
     if script_index >= len(SCRIPT):
       break
 
