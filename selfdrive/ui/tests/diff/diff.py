@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import base64
 import webbrowser
+import shutil
 import argparse
 from pathlib import Path
 from openpilot.common.basedir import BASEDIR
@@ -31,11 +32,30 @@ def frame_to_data_url(frame_path):
   return f"data:image/png;base64,{base64.b64encode(data).decode()}"
 
 
+def resolve_video_path(video_path):
+  candidate = Path(video_path).expanduser()
+  if candidate.exists():
+    return str(candidate)
+  alt = DIFF_OUT_DIR / video_path
+  if alt.exists():
+    return str(alt)
+  raise FileNotFoundError(f"Video not found: {video_path}")
+
+
 def create_diff_video(video1, video2, output_path):
   """Create a diff video using ffmpeg blend filter with difference mode."""
   print("Creating diff video...")
   cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
-  subprocess.run(cmd, capture_output=True, check=True)
+  try:
+    subprocess.run(cmd, capture_output=True, text=True, check=True)
+  except subprocess.CalledProcessError as exc:
+    if exc.stdout:
+      print(exc.stdout)
+    if exc.stderr:
+      print(exc.stderr, file=sys.stderr)
+    print(f"ffmpeg failed with exit code {exc.returncode}", file=sys.stderr)
+    return False
+  return True
 
 
 def find_differences(video1, video2):
@@ -153,6 +173,28 @@ diffVideo.addEventListener('timeupdate', () => {{
   return html
 
 
+def is_wsl():
+  if os.environ.get("WSL_DISTRO_NAME") or os.environ.get("WSL_INTEROP"):
+    return True
+  try:
+    with open("/proc/sys/kernel/osrelease", encoding="utf-8") as f:
+      return "microsoft" in f.read().lower()
+  except OSError:
+    return False
+
+
+def open_in_browser(url):
+  if not is_wsl():
+    webbrowser.open(url)
+    return
+
+  if shutil.which("wslview"):
+    subprocess.run(["wslview", url], check=False)
+    return
+
+  subprocess.run(["cmd.exe", "/c", "start", "", url], check=False)
+
+
 def main():
   parser = argparse.ArgumentParser(description='Compare two videos and generate HTML diff report')
   parser.add_argument('video1', help='First video file')
@@ -160,6 +202,7 @@ def main():
   parser.add_argument('output', nargs='?', default='diff.html', help='Output HTML file (default: diff.html)')
   parser.add_argument("--basedir", type=str, help="Base directory for output", default="")
   parser.add_argument('--no-open', action='store_true', help='Do not open HTML report in browser')
+  parser.add_argument('--open', action='store_true', help='Force open HTML report in browser')
 
   args = parser.parse_args()
 
@@ -174,25 +217,35 @@ def main():
   print()
 
   # Create diff video
-  diff_video_path = os.path.join(os.path.dirname(args.output), DIFF_OUT_DIR / "diff.mp4")
-  create_diff_video(args.video1, args.video2, diff_video_path)
+  try:
+    video1 = resolve_video_path(args.video1)
+    video2 = resolve_video_path(args.video2)
+  except FileNotFoundError as exc:
+    print(exc, file=sys.stderr)
+    sys.exit(1)
 
-  different_frames, frame_data, total_frames = find_differences(args.video1, args.video2)
+  diff_video_path = str(DIFF_OUT_DIR / "diff.mp4")
+  if not create_diff_video(video1, video2, diff_video_path):
+    sys.exit(1)
+
+  different_frames, frame_data, total_frames = find_differences(video1, video2)
 
   if different_frames is None:
     sys.exit(1)
 
   print()
   print("Generating HTML report...")
-  html = generate_html_report(args.video1, args.video2, args.basedir, different_frames, frame_data, total_frames)
+  html = generate_html_report(video1, video2, args.basedir, different_frames, frame_data, total_frames)
 
   with open(DIFF_OUT_DIR / args.output, 'w') as f:
     f.write(html)
 
   # Open in browser by default
-  if not args.no_open:
+  should_open = not args.no_open
+  if should_open:
     print(f"Opening {args.output} in browser...")
-    webbrowser.open(f'file://{os.path.abspath(DIFF_OUT_DIR / args.output)}')
+    url = f'file://{os.path.abspath(DIFF_OUT_DIR / args.output)}'
+    open_in_browser(url)
 
   return 0 if len(different_frames) == 0 else 1
 
