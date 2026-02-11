@@ -1,6 +1,6 @@
 name: "PR review"
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, reopened, synchronize, edited]
 
 jobs:
@@ -40,8 +40,7 @@ jobs:
       if: github.event.pull_request.head.repo.full_name != 'commaai/openpilot'
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        issue_message: |
-            Thanks for opening an issue! Please ensure you have included all relevant information, route logs, or steps to reproduce the issue.
+        issue_message: ""
         pr_message: |
             <!-- _(run_id **${{ github.run_id }}**)_ -->
             Thanks for contributing to openpilot! In order for us to review your PR as quickly as possible, check the following:
