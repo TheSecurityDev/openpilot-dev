@@ -116,7 +116,7 @@ jobs:
           fi
           echo "DIFF=$DIFF" >> "$GITHUB_OUTPUT"
 
-          COVERAGE_URL="https://commaai.github.io/ci-artifacts/coverage_pr_${{ github.event.number }}.html"
+          COVERAGE_URL="https://commaai.github.io/ci-artifacts/coverage_pr_${{ github.event.number }}/index.html"
           COVERAGE="📊 [View Coverage Report]($COVERAGE_URL)"
           echo "COVERAGE=$COVERAGE" >> "$GITHUB_OUTPUT"
 
@@ -125,7 +125,7 @@ jobs:
         working-directory: ${{ github.workspace }}/master_ui_raylib
         run: |
           # Save coverage report before pr_ui contents are moved
-          cp ${{ github.workspace }}/pr_ui/htmlcov/index.html /tmp/coverage_pr.html || true
+          cp -r ${{ github.workspace }}/pr_ui/htmlcov /tmp/htmlcov_pr || true
 
           # Overwrite PR branch w/ proposed ui, and master ui at this point in time for future reference
           git config user.name "GitHub Actions Bot"
@@ -141,8 +141,8 @@ jobs:
           git fetch origin ${{ env.REPORT_FILES_BRANCH_NAME }}
           git checkout ${{ env.REPORT_FILES_BRANCH_NAME }}
           cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/diff.html diff_pr_${{ github.event.number }}.html
-          cp /tmp/coverage_pr.html coverage_pr_${{ github.event.number }}.html || true
-          git add diff_pr_${{ github.event.number }}.html coverage_pr_${{ github.event.number }}.html
+          cp -r /tmp/htmlcov_pr coverage_pr_${{ github.event.number }} || true
+          git add diff_pr_${{ github.event.number }}.html coverage_pr_${{ github.event.number }}
           git commit -m "mici raylib ui diff and coverage reports for PR #${{ github.event.number }}" || echo "No changes to commit"
           git push origin ${{ env.REPORT_FILES_BRANCH_NAME }}
 
