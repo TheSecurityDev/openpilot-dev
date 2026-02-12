@@ -62,6 +62,7 @@ jobs:
           path: ${{ github.workspace }}/pr_ui
 
       - name: Getting master ui  # filename: master_ui_raylib/mici_ui_replay.mp4
+        continue-on-error: true
         uses: actions/checkout@v6
         with:
           repository: TheSecurityDev/openpilot-ci-artifacts
@@ -96,7 +97,12 @@ jobs:
           mv "${{ github.workspace }}/pr_ui/mici_ui_replay.mp4" "$pr_video"
 
           master_video="${{ github.workspace }}/pr_ui/mici_ui_replay_master.mp4"
-          mv "${{ github.workspace }}/master_ui_raylib/mici_ui_replay.mp4" "$master_video"
+          if [ -f "${{ github.workspace }}/master_ui_raylib/mici_ui_replay.mp4" ]; then
+            mv "${{ github.workspace }}/master_ui_raylib/mici_ui_replay.mp4" "$master_video"
+          else
+            echo "No master video found, using PR video as baseline"
+            cp "$pr_video" "$master_video"
+          fi
 
           # Run report
           export PYTHONPATH=${{ github.workspace }}
