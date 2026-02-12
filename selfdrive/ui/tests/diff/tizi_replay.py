@@ -23,11 +23,10 @@ from openpilot.system.updated.updated import parse_release_notes
 from openpilot.system.version import terms_version, training_version
 from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.layouts.main import MainLayout, MainState
 
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
-HOLD = int(FPS * 0.75)
+HOLD = int(FPS * 0.5)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -130,6 +129,7 @@ def build_script(pm, main_layout):
   def make_home_refresh_setup(fn):
     """Set up state and force an immediate refresh on the home layout."""
     def setup():
+      from openpilot.selfdrive.ui.layouts.main import MainState
       fn()
       main_layout._layouts[MainState.HOME].last_refresh = 0
     return setup
@@ -260,6 +260,7 @@ def run_replay():
   if not HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
+  from openpilot.selfdrive.ui.layouts.main import MainLayout
   main_layout = MainLayout()
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
@@ -301,8 +302,9 @@ def main():
   cov.stop()
   cov.save()
   cov.report()
-  cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi'))
-  print("HTML report: htmlcov/index.html")
+  directory = os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi')
+  cov.html_report(directory)
+  print(f"HTML report: {directory}/index.html")
 
 
 if __name__ == "__main__":
