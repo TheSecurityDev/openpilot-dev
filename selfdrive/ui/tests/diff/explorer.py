@@ -32,7 +32,6 @@ from openpilot.common.params import Params
 from openpilot.system.version import terms_version, training_version
 from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
 from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
@@ -89,7 +88,7 @@ class UIEngine:
   """Manages the render loop and action execution."""
 
   def __init__(self):
-    self._main_layout: MiciMainLayout | None = None
+    self._main_layout = None
     self._render_gen = None
     self._frame = 0
     self._action_log: list[dict] = []
@@ -110,6 +109,7 @@ class UIEngine:
       rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
 
     gui_app.init_window("ui explorer", fps=FPS)
+    from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
     self._main_layout = MiciMainLayout()
     self._main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
     self._render_gen = gui_app.render()
@@ -195,7 +195,7 @@ class UIEngine:
     return self._frame
 
   @property
-  def main_layout(self) -> MiciMainLayout:
+  def main_layout(self):
     if self._main_layout is None:
       raise RuntimeError("UIEngine not set up; call setup() first")
     return self._main_layout
@@ -218,20 +218,22 @@ def run_replay(recording_path: str):
     raise ValueError("Recording JSON must be a list of actions")
 
   print(f"Replaying {len(actions)} actions from {recording_path}")
+  cov = coverage.Coverage(source=COVERAGE_SOURCE)
+  cov.start()
+
   engine = UIEngine()
   engine.setup()
   engine.pump(30)
 
-  cov = coverage.Coverage(source=COVERAGE_SOURCE)
-  with cov.collect():
-    for i, action in enumerate(actions):
-      print(f"  [{i+1}/{len(actions)}] {action['action']}", end="")
-      if 'x' in action:
-        print(f" ({action['x']},{action['y']})", end="")
-      print()
-      engine.execute_action(action)
-    engine.pump(60)
+  for i, action in enumerate(actions):
+    print(f"  [{i+1}/{len(actions)}] {action['action']}", end="")
+    if 'x' in action:
+      print(f" ({action['x']},{action['y']})", end="")
+    print()
+    engine.execute_action(action)
+  engine.pump(60)
 
+  cov.stop()
   engine.close()
   cov.save()
   total = cov.report()
@@ -246,6 +248,9 @@ def run_replay(recording_path: str):
 
 def run_auto_explore(target_coverage: float = 90.0):
   """Systematically explore the offroad UI for code coverage."""
+  cov = coverage.Coverage(source=COVERAGE_SOURCE)
+  cov.start()
+
   from openpilot.selfdrive.ui.tests.diff.introspect import capture_screen_state, WidgetInfo
   from openpilot.selfdrive.ui.mici.layouts.settings.settings import SettingsLayout, PanelType
   from openpilot.selfdrive.ui.mici.widgets.button import BigButton as RealBigButton, BigCircleButton as RealBigCircleButton
@@ -254,7 +259,6 @@ def run_auto_explore(target_coverage: float = 90.0):
   engine.setup()
   engine.pump(60)
 
-  cov = coverage.Coverage(source=COVERAGE_SOURCE)
   visited: set[str] = set()
   action_log: list[dict] = []
   settings_layout: SettingsLayout = engine.main_layout._settings_layout
@@ -403,109 +407,109 @@ def run_auto_explore(target_coverage: float = 90.0):
   print("AUTO-EXPLORE — offroad UI")
   print("=" * 60)
 
-  with cov.collect():
-    # Phase 1: Home screen
-    print("\n[Phase 1] Home screen")
-    interact_toggles(get_state())
-    do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental")
-    pump(10)
-    do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental off")
-    pump(10)
+  # Phase 1: Home screen
+  print("\n[Phase 1] Home screen")
+  interact_toggles(get_state())
+  do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental")
+  pump(10)
+  do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental off")
+  pump(10)
 
-    # Phase 2: Offroad alerts
-    print("\n[Phase 2] Offroad alerts")
+  # Phase 2: Offroad alerts
+  print("\n[Phase 2] Offroad alerts")
 
-    swipe_right("swipe to alerts")
-    pump(30)
+  swipe_right("swipe to alerts")
+  pump(30)
 
-    params_obj = Params()
-    alerts = {
-      "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
-      "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
-      "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
-    }
-    for key, val in alerts.items():
-      params_obj.put(key, val)
-    params_obj.put_bool("UpdateAvailable", True)
-    params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
-    pump(30)
+  params_obj = Params()
+  alerts = {
+    "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
+    "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
+    "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
+  }
+  for key, val in alerts.items():
+    params_obj.put(key, val)
+  params_obj.put_bool("UpdateAvailable", True)
+  params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
+  pump(30)
 
-    interact_toggles(get_state())
-    swipe_repeat(268, 220, 268, 60, 4, "scroll alerts", 15)
-    swipe_repeat(268, 60, 268, 220, 4, "scroll alerts back", 15)
+  interact_toggles(get_state())
+  swipe_repeat(268, 220, 268, 60, 4, "scroll alerts", 15)
+  swipe_repeat(268, 60, 268, 220, 4, "scroll alerts back", 15)
 
-    swipe_left("back to home")
-    pump(20)
+  swipe_left("back to home")
+  pump(20)
 
-    for key in alerts:
-      params_obj.remove(key)
-    params_obj.put_bool("UpdateAvailable", False)
-    pump(10)
+  for key in alerts:
+    params_obj.remove(key)
+  params_obj.put_bool("UpdateAvailable", False)
+  pump(10)
 
-    # Phase 3: Settings panels
-    print("\n[Phase 3] Settings")
-    tap(32, 204, "open settings")
-    pump(30)
+  # Phase 3: Settings panels
+  print("\n[Phase 3] Settings")
+  tap(32, 204, "open settings")
+  pump(30)
 
-    swipe_repeat(400, 120, 50, 120, 4, "scroll settings bar", 15)
-    swipe_repeat(50, 120, 400, 120, 4, "scroll settings bar back", 15)
+  swipe_repeat(400, 120, 50, 120, 4, "scroll settings bar", 15)
+  swipe_repeat(50, 120, 400, 120, 4, "scroll settings bar back", 15)
 
-    # Pair button
-    for w in get_state().get_interactive_widgets():
-      if w.widget_type == "BigButton" and w.text and w.text.lower() in ("pair", "paired"):
-        cx, cy = w.center()
-        tap(cx, cy, f"click '{w.text}'")
-        pump(15)
-        dismiss_modal()
-        break
+  # Pair button
+  for w in get_state().get_interactive_widgets():
+    if w.widget_type == "BigButton" and w.text and w.text.lower() in ("pair", "paired"):
+      cx, cy = w.center()
+      tap(cx, cy, f"click '{w.text}'")
+      pump(15)
+      dismiss_modal()
+      break
 
-    for pt in (PanelType.TOGGLES, PanelType.DEVICE, PanelType.NETWORK,
-               PanelType.DEVELOPER, PanelType.FIREHOSE):
-      explore_panel(pt)
+  for pt in (PanelType.TOGGLES, PanelType.DEVICE, PanelType.NETWORK,
+             PanelType.DEVELOPER, PanelType.FIREHOSE):
+    explore_panel(pt)
 
-    swipe_down("close settings")
-    pump(30)
+  swipe_down("close settings")
+  pump(30)
 
-    # # Phase 4: Param-triggered states
-    # print("\n[Phase 4] Param variations")
-    # for key, val in [("UpdateAvailable", True), ("UpdateAvailable", False),
-    #          ("ExperimentalMode", True), ("ExperimentalMode", False),
-    #          ("IsMetric", True), ("IsMetric", False),
-    #          ("ShowDebugInfo", True)]:
-    #   set_param_bool(key, val)
-    #   pump(15)
+  # # Phase 4: Param-triggered states
+  # print("\n[Phase 4] Param variations")
+  # for key, val in [("UpdateAvailable", True), ("UpdateAvailable", False),
+  #          ("ExperimentalMode", True), ("ExperimentalMode", False),
+  #          ("IsMetric", True), ("IsMetric", False),
+  #          ("ShowDebugInfo", True)]:
+  #   set_param_bool(key, val)
+  #   pump(15)
 
-    # pump(30)
-    # interact_toggles(get_state())
+  # pump(30)
+  # interact_toggles(get_state())
 
-    # # Revisit device panel with different param combos
-    # click(32, 204, "open settings")
-    # pump(20)
-    # settings_layout._set_current_panel(PanelType.DEVICE)
-    # pump(40)
-    # swipe_repeat(400, 120, 50, 120, 6, "scroll device", 15)
-    # settings_layout._set_current_panel(None)
-    # pump(5)
+  # # Revisit device panel with different param combos
+  # click(32, 204, "open settings")
+  # pump(20)
+  # settings_layout._set_current_panel(PanelType.DEVICE)
+  # pump(40)
+  # swipe_repeat(400, 120, 50, 120, 6, "scroll device", 15)
+  # settings_layout._set_current_panel(None)
+  # pump(5)
 
-    # set_param_bool("UpdateAvailable", True)
-    # settings_layout._set_current_panel(PanelType.DEVICE)
-    # pump(40)
-    # swipe_repeat(400, 120, 50, 120, 6, "scroll device w/ update", 15)
-    # settings_layout._set_current_panel(None)
-    # pump(5)
+  # set_param_bool("UpdateAvailable", True)
+  # settings_layout._set_current_panel(PanelType.DEVICE)
+  # pump(40)
+  # swipe_repeat(400, 120, 50, 120, 6, "scroll device w/ update", 15)
+  # settings_layout._set_current_panel(None)
+  # pump(5)
 
-    # # Reset
-    # set_param_bool("UpdateAvailable", False, "reset UpdateAvailable")
-    # set_param_bool("ShowDebugInfo", False, "reset ShowDebugInfo")
-    # pump(5)
-    # swipe_down("close settings")
-    # pump(30)
+  # # Reset
+  # set_param_bool("UpdateAvailable", False, "reset UpdateAvailable")
+  # set_param_bool("ShowDebugInfo", False, "reset ShowDebugInfo")
+  # pump(5)
+  # swipe_down("close settings")
+  # pump(30)
 
-    # Phase 5: Final home screen render
-    print("\n[Phase 5] Final home screen")
-    pump(60)
+  # Phase 5: Final home screen render
+  print("\n[Phase 5] Final home screen")
+  pump(60)
 
   # -- report ----------------------------------------------------------------
+  cov.stop()
   engine.close()
   cov.save()
 
