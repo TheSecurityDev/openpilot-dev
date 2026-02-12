@@ -116,7 +116,7 @@ jobs:
           fi
           echo "DIFF=$DIFF" >> "$GITHUB_OUTPUT"
 
-          COVERAGE_URL="https://github.com/commaai/ci-artifacts/raw/refs/heads/${{ env.BRANCH_NAME }}/htmlcov/index.html"
+          COVERAGE_URL="https://commaai.github.io/ci-artifacts/coverage_pr_${{ github.event.number }}.html"
           COVERAGE="📊 [View Coverage Report]($COVERAGE_URL)"
           echo "COVERAGE=$COVERAGE" >> "$GITHUB_OUTPUT"
 
@@ -138,8 +138,9 @@ jobs:
           git fetch origin ${{ env.REPORT_FILES_BRANCH_NAME }}
           git checkout ${{ env.REPORT_FILES_BRANCH_NAME }}
           cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/diff.html diff_pr_${{ github.event.number }}.html
-          git add diff_pr_${{ github.event.number }}.html
-          git commit -m "mici raylib ui diff report for PR #${{ github.event.number }}" || echo "No changes to commit"
+          cp ${{ github.workspace }}/pr_ui/htmlcov/index.html coverage_pr_${{ github.event.number }}.html
+          git add diff_pr_${{ github.event.number }}.html coverage_pr_${{ github.event.number }}.html
+          git commit -m "mici raylib ui diff and coverage reports for PR #${{ github.event.number }}" || echo "No changes to commit"
           git push origin ${{ env.REPORT_FILES_BRANCH_NAME }}
 
       - name: Comment Video on PR
