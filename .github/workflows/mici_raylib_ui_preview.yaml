@@ -154,6 +154,7 @@ jobs:
             <!-- _(run_id_video_mici_raylib **${{ github.run_id }}**)_ -->
             ## mici raylib UI Preview
             ${{ steps.find_diff.outputs.DIFF }}
+
             ${{ steps.find_diff.outputs.COVERAGE }}
           comment_tag: run_id_video_mici_raylib
           pr_number: ${{ github.event.number }}
