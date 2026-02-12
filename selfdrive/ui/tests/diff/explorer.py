@@ -68,17 +68,17 @@ def inject_release(x: int, y: int):
     )
 
 
-def inject_swipe(x1: int, y1: int, x2: int, y2: int, steps: int = 5):
-  t = time.monotonic()
-  events = [MouseEvent(pos=MousePos(x1, y1), slot=0, left_pressed=True, left_released=False, left_down=False, t=t)]
-  for i in range(1, steps + 1):
-    frac = i / steps
-    x = int(x1 + (x2 - x1) * frac)
-    y = int(y1 + (y2 - y1) * frac)
-    events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=t + 0.02 * i))
-  events.append(MouseEvent(pos=MousePos(x2, y2), slot=0, left_pressed=False, left_released=True, left_down=False, t=t + 0.02 * (steps + 1)))
-  with gui_app._mouse._lock:
-    gui_app._mouse._events.extend(events)
+# def inject_swipe(x1: int, y1: int, x2: int, y2: int, steps: int = 5):
+#   t = time.monotonic()
+#   events = [MouseEvent(pos=MousePos(x1, y1), slot=0, left_pressed=True, left_released=False, left_down=False, t=t)]
+#   for i in range(1, steps + 1):
+#     frac = i / steps
+#     x = int(x1 + (x2 - x1) * frac)
+#     y = int(y1 + (y2 - y1) * frac)
+#     events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=t + 0.02 * i))
+#   events.append(MouseEvent(pos=MousePos(x2, y2), slot=0, left_pressed=False, left_released=True, left_down=False, t=t + 0.02 * (steps + 1)))
+#   with gui_app._mouse._lock:
+#     gui_app._mouse._events.extend(events)
 
 
 # ---------------------------------------------------------------------------
@@ -389,37 +389,37 @@ def run_auto_explore(target_coverage: float = 90.0):
     print("\n[Phase 1] Home screen")
     interact_toggles(get_state())
     do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental")
-    pump()
-    do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental off")
-    pump()
-
-    # Phase 2: Offroad alerts
-    print("\n[Phase 2] Offroad alerts")
-    params_obj = Params()
-    alerts = {
-      "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
-      "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
-      "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
-    }
-    for key, val in alerts.items():
-      params_obj.put(key, val)
-    params_obj.put_bool("UpdateAvailable", True)
-    params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
-    pump(30)
-
-    swipe_right("swipe to alerts")
-    pump(30)
-    swipe_repeat(400, 120, 50, 120, 6, "scroll alerts", 15)
-    swipe_repeat(50, 120, 400, 120, 6, "scroll alerts back", 15)
-    interact_toggles(get_state())
-
-    swipe_left("back to home")
-    pump(20)
-
-    for key in alerts:
-      params_obj.remove(key)
-    params_obj.put_bool("UpdateAvailable", False)
     pump(10)
+    do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental off")
+    pump(10)
+
+    # # Phase 2: Offroad alerts
+    # print("\n[Phase 2] Offroad alerts")
+    # params_obj = Params()
+    # alerts = {
+    #   "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
+    #   "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
+    #   "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
+    # }
+    # for key, val in alerts.items():
+    #   params_obj.put(key, val)
+    # params_obj.put_bool("UpdateAvailable", True)
+    # params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
+    # pump(30)
+
+    # swipe_right("swipe to alerts")
+    # pump(30)
+    # swipe_repeat(400, 120, 50, 120, 6, "scroll alerts", 15)
+    # swipe_repeat(50, 120, 400, 120, 6, "scroll alerts back", 15)
+    # interact_toggles(get_state())
+
+    # swipe_left("back to home")
+    # pump(20)
+
+    # for key in alerts:
+    #   params_obj.remove(key)
+    # params_obj.put_bool("UpdateAvailable", False)
+    # pump(10)
 
     # Phase 3: Settings panels
     print("\n[Phase 3] Settings")
@@ -444,40 +444,40 @@ def run_auto_explore(target_coverage: float = 90.0):
     swipe_down("close settings")
     pump(30)
 
-    # Phase 4: Param-triggered states
-    print("\n[Phase 4] Param variations")
-    for key, val in [("UpdateAvailable", True), ("UpdateAvailable", False),
-             ("ExperimentalMode", True), ("ExperimentalMode", False),
-             ("IsMetric", True), ("IsMetric", False),
-             ("ShowDebugInfo", True)]:
-      set_param_bool(key, val)
-      pump(15)
+    # # Phase 4: Param-triggered states
+    # print("\n[Phase 4] Param variations")
+    # for key, val in [("UpdateAvailable", True), ("UpdateAvailable", False),
+    #          ("ExperimentalMode", True), ("ExperimentalMode", False),
+    #          ("IsMetric", True), ("IsMetric", False),
+    #          ("ShowDebugInfo", True)]:
+    #   set_param_bool(key, val)
+    #   pump(15)
 
-    pump(30)
-    interact_toggles(get_state())
+    # pump(30)
+    # interact_toggles(get_state())
 
-    # Revisit device panel with different param combos
-    click(32, 204, "open settings")
-    pump(20)
-    settings_layout._set_current_panel(PanelType.DEVICE)
-    pump(40)
-    swipe_repeat(400, 120, 50, 120, 6, "scroll device", 15)
-    settings_layout._set_current_panel(None)
-    pump(5)
+    # # Revisit device panel with different param combos
+    # click(32, 204, "open settings")
+    # pump(20)
+    # settings_layout._set_current_panel(PanelType.DEVICE)
+    # pump(40)
+    # swipe_repeat(400, 120, 50, 120, 6, "scroll device", 15)
+    # settings_layout._set_current_panel(None)
+    # pump(5)
 
-    set_param_bool("UpdateAvailable", True)
-    settings_layout._set_current_panel(PanelType.DEVICE)
-    pump(40)
-    swipe_repeat(400, 120, 50, 120, 6, "scroll device w/ update", 15)
-    settings_layout._set_current_panel(None)
-    pump(5)
+    # set_param_bool("UpdateAvailable", True)
+    # settings_layout._set_current_panel(PanelType.DEVICE)
+    # pump(40)
+    # swipe_repeat(400, 120, 50, 120, 6, "scroll device w/ update", 15)
+    # settings_layout._set_current_panel(None)
+    # pump(5)
 
-    # Reset
-    set_param_bool("UpdateAvailable", False, "reset UpdateAvailable")
-    set_param_bool("ShowDebugInfo", False, "reset ShowDebugInfo")
-    pump(5)
-    swipe_down("close settings")
-    pump(30)
+    # # Reset
+    # set_param_bool("UpdateAvailable", False, "reset UpdateAvailable")
+    # set_param_bool("ShowDebugInfo", False, "reset ShowDebugInfo")
+    # pump(5)
+    # swipe_down("close settings")
+    # pump(30)
 
     # Phase 5: Final home screen render
     print("\n[Phase 5] Final home screen")

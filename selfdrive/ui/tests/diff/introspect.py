@@ -100,6 +100,10 @@ class WidgetInfo:
             self.x + self.width > 0 and self.x < screen_w and
             self.y + self.height > 0 and self.y < screen_h)
 
+  def is_fully_on_screen(self, screen_w: int, screen_h: int) -> bool:
+    """Check if widget is fully visible on screen and has non-zero size."""
+    return self.width > 0 and self.height > 0 and self.x >= 0 and self.x + self.width <= screen_w and self.y >= 0 and self.y + self.height <= screen_h
+
 
 # ---------------------------------------------------------------------------
 # Tree walker
