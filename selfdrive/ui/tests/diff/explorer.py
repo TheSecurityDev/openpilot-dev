@@ -118,6 +118,9 @@ class UIEngine:
     """Advance the render loop by *n* frames."""
     if self._render_gen is None:
       raise RuntimeError("UIEngine not set up; call setup() first")
+    if self._main_layout is None:
+      raise RuntimeError("UIEngine not set up; call setup() first")
+    main_layout = self._main_layout
     for _ in range(n):
       try:
         should_render = next(self._render_gen)
@@ -125,7 +128,7 @@ class UIEngine:
         return
       ui_state.update()
       if should_render:
-        self._main_layout.render()
+        main_layout.render()
       self._frame += 1
 
   def execute_action(self, action: dict):
@@ -267,7 +270,7 @@ def run_auto_explore(target_coverage: float = 90.0):
     if desc:
       print(f"    -> {desc}")
 
-  def click(x: int, y: int, desc: str = ""):
+  def tap(x: int, y: int, desc: str = ""):
     do({"action": "click", "x": x, "y": y}, desc or f"click({x},{y})")
 
   def swipe(x1, y1, x2, y2, desc=""):
@@ -283,6 +286,12 @@ def run_auto_explore(target_coverage: float = 90.0):
 
   def swipe_right(desc="swipe right"):
     swipe(50, 120, 400, 120, desc)
+
+  def swipe_up(desc="swipe up"):
+    swipe(268, 220, 268, 20, desc)
+
+  def swipe_down_panel(desc="swipe down"):
+    swipe(268, 20, 268, 220, desc)
 
   def swipe_down(desc="swipe down"):
     swipe(268, 12, 268, 228, desc)
@@ -320,12 +329,12 @@ def run_auto_explore(target_coverage: float = 90.0):
       visited.add(key)
       cx, cy = w.center()
       if w.checked is not None:
-        click(cx, cy, f"toggle '{w.text}' ({'ON' if w.checked else 'OFF'})")
+        tap(cx, cy, f"toggle '{w.text}' ({'ON' if w.checked else 'OFF'})")
         pump(8)
-        click(cx, cy, f"toggle '{w.text}' back")
+        tap(cx, cy, f"toggle '{w.text}' back")
         pump(8)
       elif w.clickable and w.text:
-        click(cx, cy, f"click '{w.text}'")
+        tap(cx, cy, f"click '{w.text}'")
         pump(15)
 
   def explore_panel(panel_type: PanelType):
@@ -345,11 +354,17 @@ def run_auto_explore(target_coverage: float = 90.0):
       print(f"    {len(items)} scroller items")
       for idx, item in enumerate(items):
         # Scroll item into view
-        if hasattr(item, '_rect') and item._rect.x > 0:
-          scroller.scroll_to(item._rect.x, smooth=False)
+        item_rect = getattr(item, '_rect', None)
+        scroller_horizontal = getattr(scroller, '_horizontal', True)
+        if item_rect is not None and item_rect.width > 0 and item_rect.height > 0:
+          pos = item_rect.x if scroller_horizontal else item_rect.y
+          scroller.scroll_to(pos, smooth=False)
           pump(20)
         else:
-          swipe_left(f"scroll to item {idx}")
+          if scroller_horizontal:
+            swipe_left(f"scroll to item {idx}")
+          else:
+            swipe_up(f"scroll to item {idx}")
           pump(15)
 
         interact_toggles(get_state())
@@ -361,16 +376,20 @@ def run_auto_explore(target_coverage: float = 90.0):
             cx, cy = int(r.x + r.width / 2), int(r.y + r.height / 2)
             if 0 <= cx < 536 and 0 <= cy < 240:
               label = getattr(item, '_text', '') or type(item).__name__
-              click(cx, cy, f"click '{label[:30]}'")
+              tap(cx, cy, f"click '{label[:30]}'")
               pump(15)
               dismiss_modal()
 
       scroller.scroll_to(0, smooth=False)
       pump(10)
     else:
-      # No scroller — just swipe through
-      swipe_repeat(400, 120, 50, 120, 6, "scroll", 15)
-      swipe_repeat(50, 120, 400, 120, 6, "scroll back", 8)
+      # No widget scroller list (e.g. Firehose uses a vertical scroll panel) — just swipe through
+      if panel_type == PanelType.FIREHOSE:
+        swipe_repeat(268, 220, 268, 20, 6, "scroll", 15)
+        swipe_repeat(268, 20, 268, 220, 6, "scroll back", 8)
+      else:
+        swipe_repeat(400, 120, 50, 120, 6, "scroll", 15)
+        swipe_repeat(50, 120, 400, 120, 6, "scroll back", 8)
 
     pump(20)
     dismiss_modal()
@@ -393,37 +412,39 @@ def run_auto_explore(target_coverage: float = 90.0):
     do({"action": "long_press", "x": 268, "y": 120, "duration_ms": 700}, "long press experimental off")
     pump(10)
 
-    # # Phase 2: Offroad alerts
-    # print("\n[Phase 2] Offroad alerts")
-    # params_obj = Params()
-    # alerts = {
-    #   "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
-    #   "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
-    #   "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
-    # }
-    # for key, val in alerts.items():
-    #   params_obj.put(key, val)
-    # params_obj.put_bool("UpdateAvailable", True)
-    # params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
-    # pump(30)
+    # Phase 2: Offroad alerts
+    print("\n[Phase 2] Offroad alerts")
 
-    # swipe_right("swipe to alerts")
-    # pump(30)
-    # swipe_repeat(400, 120, 50, 120, 6, "scroll alerts", 15)
-    # swipe_repeat(50, 120, 400, 120, 6, "scroll alerts back", 15)
-    # interact_toggles(get_state())
+    swipe_right("swipe to alerts")
+    pump(30)
 
-    # swipe_left("back to home")
-    # pump(20)
+    params_obj = Params()
+    alerts = {
+      "Offroad_ConnectivityNeeded": {"text": "Connect to internet.", "severity": 1},
+      "Offroad_UpdateFailed": {"text": "Update failed.", "severity": 1},
+      "Offroad_TemperatureTooHigh": {"text": "Temperature too high.", "severity": 0},
+    }
+    for key, val in alerts.items():
+      params_obj.put(key, val)
+    params_obj.put_bool("UpdateAvailable", True)
+    params_obj.put("UpdaterNewDescription", "0.10.2 / release / def5678 / Dec 01")
+    pump(30)
 
-    # for key in alerts:
-    #   params_obj.remove(key)
-    # params_obj.put_bool("UpdateAvailable", False)
-    # pump(10)
+    interact_toggles(get_state())
+    swipe_repeat(268, 220, 268, 60, 4, "scroll alerts", 15)
+    swipe_repeat(268, 60, 268, 220, 4, "scroll alerts back", 15)
+
+    swipe_left("back to home")
+    pump(20)
+
+    for key in alerts:
+      params_obj.remove(key)
+    params_obj.put_bool("UpdateAvailable", False)
+    pump(10)
 
     # Phase 3: Settings panels
     print("\n[Phase 3] Settings")
-    click(32, 204, "open settings")
+    tap(32, 204, "open settings")
     pump(30)
 
     swipe_repeat(400, 120, 50, 120, 4, "scroll settings bar", 15)
@@ -432,7 +453,8 @@ def run_auto_explore(target_coverage: float = 90.0):
     # Pair button
     for w in get_state().get_interactive_widgets():
       if w.widget_type == "BigButton" and w.text and w.text.lower() in ("pair", "paired"):
-        click(*w.center(), f"click '{w.text}'")
+        cx, cy = w.center()
+        tap(cx, cy, f"click '{w.text}'")
         pump(15)
         dismiss_modal()
         break
