@@ -18,6 +18,7 @@ from cereal import car, log, messaging
 from cereal.messaging import PubMaster
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
+from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.system.updated.updated import parse_release_notes
 from openpilot.system.version import terms_version, training_version
@@ -296,15 +297,16 @@ def run_replay():
 
 
 def main():
-  cov = coverage.coverage(source=['openpilot.selfdrive.ui.layouts'])
-  with cov.collect():
-    run_replay()
-  cov.stop()
-  cov.save()
-  cov.report()
-  directory = os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi')
-  cov.html_report(directory)
-  print(f"HTML report: {directory}/index.html")
+  with OpenpilotPrefix():
+    cov = coverage.coverage(source=['openpilot.selfdrive.ui.layouts'])
+    with cov.collect():
+      run_replay()
+    cov.stop()
+    cov.save()
+    cov.report()
+    directory = os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi')
+    cov.html_report(directory)
+    print(f"HTML report: {directory}/index.html")
 
 
 if __name__ == "__main__":
