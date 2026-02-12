@@ -1,6 +1,16 @@
 #!/usr/bin/env python3
+"""
+UI replay & exploration tool for the mici UI.
+
+Modes:
+  --mode script     Original hardcoded script replay (default for diff testing)
+  --mode explore    Introspection-driven auto-exploration with coverage
+  --mode replay     Replay a previously recorded JSON action log
+"""
 import os
+import sys
 import time
+import argparse
 import coverage
 import pyray as rl
 from dataclasses import dataclass
@@ -19,13 +29,17 @@ from openpilot.selfdrive.ui.ui_state import ui_state
 from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 
 FPS = 60
-HEADLESS = os.getenv("WINDOWED", "0") == "1"
+HEADLESS = os.getenv("WINDOWED", "0") != "1"
+
+
+# ---------------------------------------------------------------------------
+# Legacy script-based replay (kept for deterministic diff testing)
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class DummyEvent:
   click: bool = False
-  # TODO: add some kind of intensity
   swipe_left: bool = False
   swipe_right: bool = False
   swipe_down: bool = False
@@ -44,8 +58,10 @@ def setup_state():
   params.put("HasAcceptedTerms", terms_version)
   params.put("CompletedTrainingVersion", training_version)
   params.put("DongleId", "test123456789")
+  params.put("HardwareSerial", "TESTSERIAL001")
   params.put("UpdaterCurrentDescription", "0.10.1 / test-branch / abc1234 / Nov 30")
-  return None
+  params.put_bool("OpenpilotEnabledToggle", True)
+  params.put_bool("IsLdwEnabled", True)
 
 
 def inject_click(coords):
@@ -82,7 +98,7 @@ def run_replay():
   setup_state()
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
-  if not HEADLESS:
+  if HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
   main_layout = MiciMainLayout()
@@ -113,16 +129,49 @@ def run_replay():
   print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
 
 
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+
 def main():
-  cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici'])
+  parser = argparse.ArgumentParser(description='UI replay/exploration tool')
+  parser.add_argument(
+    '--mode', choices=['script', 'explore', 'replay'], default='script', help='script: deterministic replay | explore: auto-explore | replay: replay recording'
+  )
+  parser.add_argument('--recording', type=str, default=None, help='Path to recording JSON (replay mode)')
+  parser.add_argument('--target-coverage', type=float, default=90.0, help='Target coverage %% (explore mode)')
+  args = parser.parse_args()
+
+  if args.mode == 'explore':
+    from openpilot.selfdrive.ui.tests.diff.explorer import run_auto_explore
+
+    final_cov = run_auto_explore(target_coverage=args.target_coverage)
+    return 0 if final_cov >= args.target_coverage else 1
+
+  elif args.mode == 'replay':
+    from openpilot.selfdrive.ui.tests.diff.explorer import run_replay as run_recording_replay
+
+    if not args.recording:
+      rec_path = os.path.join(DIFF_OUT_DIR, "auto_explore_recording.json")
+      if not os.path.exists(rec_path):
+        print("ERROR: No recording specified and no auto_explore_recording.json found.")
+        print("  Run with --mode explore first, or specify --recording <path>")
+        return 1
+      args.recording = rec_path
+    total = run_recording_replay(args.recording)
+    return 0 if total >= 80 else 1
+
+  # Legacy script mode
+  cov = coverage.Coverage(source=['openpilot.selfdrive.ui.mici'])
   with cov.collect():
     run_replay()
-  cov.stop()
   cov.save()
   cov.report()
   cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov'))
   print("HTML report: htmlcov/index.html")
+  return 0
 
 
 if __name__ == "__main__":
-  main()
+  sys.exit(main())
