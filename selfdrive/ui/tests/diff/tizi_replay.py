@@ -148,7 +148,8 @@ def build_script(pm, main_layout):
 
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
-  add(0, DummyEvent(click_pos=(150, 93)))
+  # NOTE: There's an issue where the click will also trigger the close button underneath (since it occurs in the same frame), so keep it left of that
+  add(0, DummyEvent(click_pos=(100, 100)))
   add(HOLD, DummyEvent())
 
   # === Settings - Network ===
