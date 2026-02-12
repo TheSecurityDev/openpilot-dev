@@ -301,7 +301,7 @@ def main():
   cov.stop()
   cov.save()
   cov.report()
-  cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov'))
+  cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi'))
   print("HTML report: htmlcov/index.html")
 
 
