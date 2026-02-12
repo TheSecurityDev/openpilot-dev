@@ -305,7 +305,7 @@ def main():
     cov.save()
     cov.report()
     directory = os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi')
-    cov.html_report(directory)
+    cov.html_report(directory=directory)
     print(f"HTML report: {directory}/index.html")
 
 
