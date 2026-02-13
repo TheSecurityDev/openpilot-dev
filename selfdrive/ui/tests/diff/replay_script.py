@@ -17,7 +17,7 @@ NetworkType = log.DeviceState.NetworkType
 BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branch-name"
 
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
-_frame_fn: Callable | None = None  # TODO: This is really hacky, find a better way to do this
+_frame_fn: Callable | None = None  # TODO: This seems hacky, find a better way to do this
 
 
 def get_frame_fn():
@@ -25,7 +25,7 @@ def get_frame_fn():
 
 
 def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
-  """Create a setup function that sets the global _frame_fn to the given send function and calls it."""
+  """Return a setup function that sets the global _frame_fn to the given send function and calls it."""
 
   def setup() -> None:
     global _frame_fn
@@ -130,9 +130,9 @@ def build_mici_script(pm, add: AddFn, click, setup):
 def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
-  def hold(dt: int = HOLD):
-    """Hold for the given time delta (in frames) by adding a no-op event."""
-    add(dt, DummyEvent())
+  def setup_and_click(setup: Callable, click_pos: tuple[int, int], hold_time: int = HOLD):
+    add(0, DummyEvent(setup=setup, click_pos=click_pos))
+    add(hold_time, DummyEvent())
 
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
@@ -170,15 +170,13 @@ def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   click(278, 600)
 
   # === Settings - Software ===
-  add(0, DummyEvent(setup=lambda: put_update_params(Params()), click_pos=(278, 720)))
-  hold()
+  setup_and_click(lambda: put_update_params(Params()), (278, 720))
 
   # === Settings - Firehose ===
   click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  add(0, DummyEvent(setup=setup_developer_params, click_pos=(278, 950)))
-  hold()
+  setup_and_click(setup_developer_params, (278, 950))
 
   # === Keyboard modal (SSH keys button in developer panel) ===
   click(1930, 470)  # click SSH keys
@@ -228,19 +226,18 @@ def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
 
   def hold(dt: int = HOLD):
     """Hold for the given time delta (in frames) by adding a no-op event."""
-    add(dt, DummyEvent())
+    if dt > 0:
+      add(dt, DummyEvent())
 
   def click(x: int, y: int, hold_time: int = HOLD):
     """Add a click event for the given position and hold for the given time (in frames)."""
     add(0, DummyEvent(click_pos=(x, y)))
-    if hold_time > 0:
-      hold(hold_time)
+    hold(hold_time)
 
   def setup(fn: Callable, hold_time: int = HOLD):
     """Add a setup event that calls the given function and hold for the given time (in frames)."""
     add(0, DummyEvent(setup=fn))
-    if hold_time > 0:
-      hold(hold_time)
+    hold(hold_time)
 
   if big:
     build_tizi_script(pm, add, click, setup, main_layout)
