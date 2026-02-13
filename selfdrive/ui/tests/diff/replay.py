@@ -122,12 +122,12 @@ def main():
   print(f"Running '{variant}' replay...")
   with OpenpilotPrefix():
     sources = ["openpilot.system.ui"]
-    if args.big:
-      sources.extend(["openpilot.selfdrive.ui.layouts", "openpilot.selfdrive.ui.onroad", "openpilot.selfdrive.ui.widgets"])
-      omit = ["**/*mici*"]  # exclude files containing "mici"
-    else:
+    if variant == "mici":
       sources.append("openpilot.selfdrive.ui.mici")
       omit = ["**/*tizi*", "**/*tici*"]  # exclude files containing "tizi" or "tici"
+    else:
+      sources.extend(["openpilot.selfdrive.ui.layouts", "openpilot.selfdrive.ui.onroad", "openpilot.selfdrive.ui.widgets"])
+      omit = ["**/*mici*"]  # exclude files containing "mici"
     cov = coverage.coverage(source=sources, omit=omit)
     with cov.collect():
       run_replay(variant)
