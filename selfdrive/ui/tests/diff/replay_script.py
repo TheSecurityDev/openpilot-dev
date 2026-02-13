@@ -11,11 +11,13 @@ HOLD = int(FPS * 0.25)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
+PandaType = log.PandaState.PandaType
+NetworkType = log.DeviceState.NetworkType
 
 BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branch-name"
 
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
-_frame_fn: Callable | None = None
+_frame_fn: Callable | None = None  # TODO: This is really hacky, find a better way to do this
 
 
 # --- Setup helper functions ---
@@ -57,14 +59,29 @@ def dismiss_modal():
 def send_onroad(pm):
   ds = messaging.new_message('deviceState')
   ds.deviceState.started = True
-  ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
+  ds.deviceState.networkType = NetworkType.wifi
 
   ps = messaging.new_message('pandaStates', 1)
-  ps.pandaStates[0].pandaType = log.PandaState.PandaType.dos
+  ps.pandaStates[0].pandaType = PandaType.dos
   ps.pandaStates[0].ignitionLine = True
 
   pm.send('deviceState', ds)
   pm.send('pandaStates', ps)
+
+
+# TODO: This is all extremely hacky
+def make_network_state_setup(pm, network_type):
+  def _send():
+    ds = messaging.new_message('deviceState')
+    ds.deviceState.networkType = network_type
+    pm.send('deviceState', ds)
+
+  def setup():
+    global _frame_fn
+    _frame_fn = _send
+    _send()
+
+  return setup
 
 
 def make_onroad_setup(pm):
@@ -137,16 +154,10 @@ def build_tizi_script(pm, add: AddFn, main_layout):
 
     return setup
 
-  def initialize_state():
-    """Seed initial offroad device state"""
-    ds = messaging.new_message('deviceState')
-    ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
-    pm.send('deviceState', ds)
-
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  add(0, DummyEvent(setup=initialize_state))
+  add(0, DummyEvent(setup=make_network_state_setup(pm, NetworkType.wifi)))
   hold()
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
