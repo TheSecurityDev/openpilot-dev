@@ -102,9 +102,9 @@ def run_replay(variant):
       script_index += 1
 
     # Keep sending cereal messages for persistent states (onroad, alerts)
-    fn = get_frame_fn()
-    if fn:
-      fn()
+    frame_fn = get_frame_fn()
+    if frame_fn:
+      frame_fn()
 
     ui_state.update()
 
