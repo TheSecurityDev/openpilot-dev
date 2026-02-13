@@ -23,11 +23,15 @@ VARIANTS = {
 }
 
 
-replay_variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
+variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
 
-os.environ["RECORD"] = "1"
-if replay_variant == 'tizi':
+if variant == 'tizi':
   os.environ["BIG"] = "1"
+os.environ["RECORD"] = "1"
+if "RECORD_OUTPUT" not in os.environ:
+  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, f"{variant}_ui_replay.mp4")
+else:
+  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ["RECORD_OUTPUT"])
 
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
@@ -73,8 +77,6 @@ def run_replay(variant):
 
   cfg = VARIANTS[variant]
 
-  output = os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4")
-  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, output)
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   setup_state()
@@ -140,7 +142,7 @@ def main(variant='mici'):
 
 
 if __name__ == "__main__":
-  if replay_variant not in VARIANTS:
-    print(f"Unknown variant '{replay_variant}'. Available: {', '.join(VARIANTS)}")
+  if variant not in VARIANTS:
+    print(f"Unknown variant '{variant}'. Available: {', '.join(VARIANTS)}")
     sys.exit(1)
-  main(replay_variant)
+  main(variant)
