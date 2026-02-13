@@ -1,10 +1,13 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from collections.abc import Callable
+from dataclasses import dataclass
 
 from cereal import car, log, messaging
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
-from openpilot.selfdrive.ui.tests.diff.replay import ScriptEvent, FPS
+from openpilot.selfdrive.ui.tests.diff.replay import FPS
 from openpilot.system.updated.updated import parse_release_notes
 
 WAIT = int(FPS * 0.5)
@@ -109,6 +112,15 @@ def make_alert_setup(pm, size, text1, text2, status):
 
 # --- Script building functions ---
 
+@dataclass
+class ScriptEvent:
+  if TYPE_CHECKING:
+    # Prevent application imports from being excluded by coverage report since we only import here for the type hint
+    from openpilot.system.ui.lib.application import MouseEvent
+
+  setup: Callable | None = None
+  mouse_events: list[MouseEvent] | None = None
+
 
 AddFn = Callable[[int, ScriptEvent], None]
 
@@ -211,13 +223,16 @@ def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   add(0, ScriptEvent())
 
 
-def build_script(pm, main_layout, big=False) -> list[tuple[int, ScriptEvent]]:
+ScriptEntry = tuple[int, ScriptEvent]  # (frame, event)
+
+
+def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
   from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
   print(f"Building replay script (big={big})...")
 
   frame = 0
-  script: list[tuple[int, ScriptEvent]] = []
+  script: list[ScriptEntry] = []
 
   def get_frame_time() -> float:
     """Return the current frame time in seconds based on the frame count and FPS. Used for deterministic event timestamps."""

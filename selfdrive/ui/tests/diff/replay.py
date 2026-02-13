@@ -1,13 +1,8 @@
 #!/usr/bin/env python3
-from __future__ import annotations
 import os
 import coverage
 import pyray as rl
 import argparse
-
-from typing import TYPE_CHECKING
-from dataclasses import dataclass
-from collections.abc import Callable
 
 from cereal.messaging import PubMaster
 from openpilot.common.params import Params
@@ -28,15 +23,6 @@ os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_
 
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
-
-@dataclass
-class ScriptEvent:
-  if TYPE_CHECKING:
-    # Prevent application imports from being excluded by coverage report since we only use it here for the type hint
-    from openpilot.system.ui.lib.application import MouseEvent
-
-  setup: Callable | None = None
-  mouse_events: list[MouseEvent] | None = None
 
 
 def setup_state():
