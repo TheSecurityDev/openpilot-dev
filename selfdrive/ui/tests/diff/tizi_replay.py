@@ -303,7 +303,6 @@ def main():
     cov = coverage.coverage(source=['openpilot.selfdrive.ui.layouts'])
     with cov.collect():
       run_replay()
-    cov.stop()
     cov.save()
     cov.report()
     directory = os.path.join(DIFF_OUT_DIR, 'htmlcov-tizi')
