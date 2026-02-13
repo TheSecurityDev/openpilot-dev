@@ -100,11 +100,12 @@ def get_frame_fn():
   return _frame_fn
 
 
-def build_script(main_layout, big=False):
+def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
+  """Build and return the correct replay script as a list of (timestamp, event) tuples."""
   t = 0
-  script = []
+  script: list[tuple[int, DummyEvent]] = []
 
-  def add(dt, event):
+  def add(dt: int, event: DummyEvent):
     nonlocal t
     t += dt
     script.append((t, event))
@@ -127,7 +128,7 @@ def build_script(main_layout, big=False):
 
   # tizi script
 
-  def make_home_refresh_setup(fn):
+  def make_home_refresh_setup(fn: Callable):
     """Set up state and force an immediate refresh on the home layout."""
     def setup():
       from openpilot.selfdrive.ui.layouts.main import MainState
