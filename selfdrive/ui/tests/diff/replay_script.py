@@ -54,7 +54,7 @@ def setup_offroad_alerts():
 def setup_update_available():
   params = Params()
   params.put_bool("UpdateAvailable", True)
-  params.put("UpdaterNewDescription", f"0.10.2 / {BRANCH_NAME} / 0123456 / Jan 01")
+  params.put("UpdaterNewDescription", f"0.10.2 / {BRANCH_NAME} / 0a1b2c3 / Jan 01")
   put_update_params(params)
 
 
