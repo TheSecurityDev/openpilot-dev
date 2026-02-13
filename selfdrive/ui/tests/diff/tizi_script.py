@@ -9,7 +9,7 @@ from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.selfdrive.ui.tests.diff.replay import DummyEvent, FPS
 from openpilot.system.updated.updated import parse_release_notes
 
-HOLD = int(FPS * 0.5)
+HOLD = int(FPS * 0.25)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -116,6 +116,9 @@ def build_script(main_layout):
     t += dt
     script.append((t, event))
 
+  def hold(dt=HOLD):
+    add(dt, DummyEvent())
+
   def make_home_refresh_setup(fn):
     """Set up state and force an immediate refresh on the home layout."""
     def setup():
@@ -130,40 +133,40 @@ def build_script(main_layout):
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
   add(0, DummyEvent(setup=make_home_refresh_setup(setup_offroad_alerts)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Update Available (auto-transitions via HomeLayout refresh) ===
   add(0, DummyEvent(setup=make_home_refresh_setup(setup_update_available)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
   # NOTE: There's an issue where the click will also trigger the close button underneath (since it occurs in the same frame), so keep it left of that
   add(0, DummyEvent(click_pos=(100, 100)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Network ===
   # Nav buttons start at y=300, height=110, x centered ~278
   add(0, DummyEvent(click_pos=(278, 450)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Toggles ===
   add(0, DummyEvent(click_pos=(278, 600)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Software ===
   add(0, DummyEvent(setup=lambda: put_update_params(Params())))
   add(int(FPS * 0.2), DummyEvent(click_pos=(278, 720)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Firehose ===
   add(0, DummyEvent(click_pos=(278, 845)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Settings - Developer (set CarParamsPersistent first) ===
   add(0, DummyEvent(setup=setup_developer_params))
   add(int(FPS * 0.2), DummyEvent(click_pos=(278, 950)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Keyboard modal (SSH keys button in developer panel) ===
   add(0, DummyEvent(click_pos=(1930, 470)))
@@ -172,7 +175,7 @@ def build_script(main_layout):
 
   # === Close settings (close button center ~(250, 160)) ===
   add(0, DummyEvent(click_pos=(250, 160)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Onroad ===
   add(0, DummyEvent(setup=make_onroad_setup(pm)))
@@ -180,29 +183,29 @@ def build_script(main_layout):
 
   # === Onroad with sidebar (click onroad to toggle) ===
   add(0, DummyEvent(click_pos=(1000, 500)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # === Onroad alerts ===
   # Small alert
   add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # Medium alert
   add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # Full alert
   add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # Full alert multiline
   add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # Full alert long text
   add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY",
                      "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt)))
-  add(HOLD, DummyEvent())
+  hold()
 
   # End
   add(0, DummyEvent())
