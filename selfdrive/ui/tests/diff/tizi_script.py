@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Tizi UI replay script — defines the frame-by-frame test scenario."""
 from collections.abc import Callable
 
@@ -50,6 +49,7 @@ def setup_developer_params():
 
 
 def dismiss_modal():
+  # TODO: Don't dismiss this way if possible
   from openpilot.system.ui.lib.application import gui_app
   gui_app.set_modal_overlay(None)
 
