@@ -29,10 +29,7 @@ if variant == 'tizi':
   os.environ["BIG"] = "1"
 
 os.environ["RECORD"] = "1"
-if "RECORD_OUTPUT" not in os.environ:
-  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, f"{variant}_ui_replay.mp4")
-else:
-  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ["RECORD_OUTPUT"])
+os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4"))
 
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
