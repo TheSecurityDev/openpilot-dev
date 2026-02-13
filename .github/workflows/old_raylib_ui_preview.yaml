@@ -1,4 +1,4 @@
-name: "raylib ui preview"
+name: "raylib ui preview (old)"
 on:
   push:
     branches:
