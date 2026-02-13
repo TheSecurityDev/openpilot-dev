@@ -119,9 +119,10 @@ def get_frame_fn():
   return _frame_fn
 
 
+AddFn = Callable[[int, DummyEvent], None]
 
 
-def build_mici_script(pm, add, click):
+def build_mici_script(pm, add: AddFn, click):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
   from openpilot.system.ui.lib.application import gui_app
 
@@ -135,7 +136,7 @@ def build_mici_script(pm, add, click):
   click(*center, HOLD_LONG)
 
 
-def build_tizi_script(pm, add, click, main_layout):
+def build_tizi_script(pm, add: AddFn, click, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def hold(dt: int = HOLD):
@@ -181,21 +182,19 @@ def build_tizi_script(pm, add, click, main_layout):
   click(278, 600)
 
   # === Settings - Software ===
-  add(0, DummyEvent(setup=lambda: put_update_params(Params())))
-  add(int(FPS * 0.2), DummyEvent(click_pos=(278, 720)))
+  add(0, DummyEvent(setup=lambda: put_update_params(Params()), click_pos=(278, 720)))
   hold()
 
   # === Settings - Firehose ===
   click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  add(0, DummyEvent(setup=setup_developer_params))
-  add(int(FPS * 0.2), DummyEvent(click_pos=(278, 950)))
+  add(0, DummyEvent(setup=setup_developer_params, click_pos=(278, 950)))
   hold()
 
   # === Keyboard modal (SSH keys button in developer panel) ===
   add(0, DummyEvent(click_pos=(1930, 470)))
-  add(HOLD, DummyEvent(setup=dismiss_modal))
+  add(HOLD, DummyEvent(setup=dismiss_modal))  # TODO: Just click Cancel instead of dismissing this way
   add(int(FPS * 0.3), DummyEvent())
 
   # === Close settings (close button center ~(250, 160)) ===
