@@ -56,7 +56,7 @@ def run_replay(variant):
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Import and build script
-  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
+  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn, ScriptEvent
 
   script = build_script(pm, main_layout, big=args.big)
   script_index = 0
@@ -65,16 +65,19 @@ def run_replay(variant):
   rl.get_frame_time = lambda: 1.0 / FPS
   rl.get_time = lambda: frame / FPS
 
+  def handle_event(event: ScriptEvent):
+    if event.setup:
+      event.setup()
+    if event.mouse_events:
+      with gui_app._mouse._lock:
+        gui_app._mouse._events.extend(event.mouse_events)
+
   # Main loop to replay events and render frames
   for should_render in gui_app.render():
     # Handle all events for the current frame
     while script_index < len(script) and script[script_index][0] == frame:
       _, event = script[script_index]
-      if event.setup:
-        event.setup()
-      if event.mouse_events:
-        with gui_app._mouse._lock:
-          gui_app._mouse._events.extend(event.mouse_events)
+      handle_event(event)
       script_index += 1
 
     # Keep sending cereal messages for persistent states (onroad, alerts)
