@@ -7,7 +7,7 @@ from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.selfdrive.ui.tests.diff.replay import DummyEvent, FPS
 from openpilot.system.updated.updated import parse_release_notes
 
-HOLD = int(FPS * 0.25)
+HOLD = int(FPS * 0.5)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -119,23 +119,23 @@ def get_frame_fn():
   return _frame_fn
 
 
-AddFn = Callable[[int, DummyEvent], None]
 
 
-def build_mici_script(pm, add: AddFn):
+def build_mici_script(pm, add, click):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
   from openpilot.system.ui.lib.application import gui_app
 
   w, h = gui_app.width, gui_app.height
   center = (w // 2, h // 2)
 
-  add(0, DummyEvent())
-  add(FPS, DummyEvent(click_pos=center))
-  add(FPS, DummyEvent(click_pos=center))
-  add(FPS, DummyEvent())
+  HOLD_LONG = int(FPS)
+
+  add(HOLD_LONG, DummyEvent())
+  click(*center, HOLD_LONG)
+  click(*center, HOLD_LONG)
 
 
-def build_tizi_script(pm, add: AddFn, main_layout):
+def build_tizi_script(pm, add, click, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def hold(dt: int = HOLD):
@@ -171,17 +171,14 @@ def build_tizi_script(pm, add: AddFn, main_layout):
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
   # NOTE: There's an issue where the click will also trigger the close button underneath (since it occurs in the same frame), so keep it left of that
-  add(0, DummyEvent(click_pos=(100, 100)))
-  hold()
+  click(100, 100)
 
   # === Settings - Network ===
   # Nav buttons start at y=300, height=110, x centered ~278
-  add(0, DummyEvent(click_pos=(278, 450)))
-  hold()
+  click(278, 450)
 
   # === Settings - Toggles ===
-  add(0, DummyEvent(click_pos=(278, 600)))
-  hold()
+  click(278, 600)
 
   # === Settings - Software ===
   add(0, DummyEvent(setup=lambda: put_update_params(Params())))
@@ -189,8 +186,7 @@ def build_tizi_script(pm, add: AddFn, main_layout):
   hold()
 
   # === Settings - Firehose ===
-  add(0, DummyEvent(click_pos=(278, 845)))
-  hold()
+  click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
   add(0, DummyEvent(setup=setup_developer_params))
@@ -203,16 +199,14 @@ def build_tizi_script(pm, add: AddFn, main_layout):
   add(int(FPS * 0.3), DummyEvent())
 
   # === Close settings (close button center ~(250, 160)) ===
-  add(0, DummyEvent(click_pos=(250, 160)))
-  hold()
+  click(250, 160)
 
   # === Onroad ===
   add(0, DummyEvent(setup=make_onroad_setup(pm)))
   add(int(FPS * 1.5), DummyEvent())  # wait for transition
 
   # === Onroad with sidebar (click onroad to toggle) ===
-  add(0, DummyEvent(click_pos=(1000, 500)))
-  hold()
+  click(1000, 500)
 
   # === Onroad alerts ===
   # Small alert
@@ -258,10 +252,16 @@ def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
     t += dt
     script.append((t, event))
 
+  def click(x: int, y: int, hold_time: int = HOLD):
+    """Add a click event for the given position and hold for the given time (in frames)."""
+    add(0, DummyEvent(click_pos=(x, y)))
+    if hold_time > 0:
+      add(hold_time, DummyEvent())
+
   if big:
-    build_tizi_script(pm, add, main_layout)
+    build_tizi_script(pm, add, click, main_layout)
   else:
-    build_mici_script(pm, add)
+    build_mici_script(pm, add, click)
 
   print(f"Built replay script with {len(script)} events and {t} frames ({t / FPS:.2f} seconds)")
 
