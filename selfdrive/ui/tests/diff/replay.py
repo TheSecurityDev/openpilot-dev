@@ -23,7 +23,6 @@ os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.system.version import terms_version, training_version
-from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
 
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
 FPS = 60
@@ -44,6 +43,8 @@ def setup_state():
 
 
 def inject_click(x, y):
+  from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
+
   events = [
     MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=time.monotonic()),
     MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=time.monotonic()),
@@ -60,7 +61,8 @@ def handle_event(event: DummyEvent):
 
 
 def run_replay(variant):
-  from openpilot.selfdrive.ui.ui_state import ui_state
+  from openpilot.selfdrive.ui.ui_state import ui_state  # Import within OpenpilotPrefix context so param values are setup correctly
+  from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
 
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
@@ -70,7 +72,7 @@ def run_replay(variant):
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
-  # Import layout class dynamically for coverage
+  # Dynamically import main layout based on variant
   if variant == "mici":
     from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout as MainLayout
   else:
