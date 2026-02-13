@@ -56,7 +56,7 @@ def run_replay(variant):
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Import and build script
-  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn, ScriptEvent
+  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
   script = build_script(pm, main_layout, big=args.big)
   script_index = 0
 
