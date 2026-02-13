@@ -43,22 +43,22 @@ def setup_state():
   params.put("UpdaterCurrentDescription", "0.10.1 / test-branch / abc1234 / Nov 30")
 
 
-def inject_click(x, y):
+def inject_click(x: int, y: int, t: float | None=None):
   from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
-
+  t = t or time.monotonic()
   events = [
-    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=time.monotonic()),
-    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=time.monotonic()),
+    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=t),
+    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=t),
   ]
   with gui_app._mouse._lock:
     gui_app._mouse._events.extend(events)
 
 
-def handle_event(event: DummyEvent):
+def handle_event(event: DummyEvent, frame: int):
   if event.setup:
     event.setup()
   if event.click_pos:
-    inject_click(*event.click_pos)
+    inject_click(*event.click_pos, t=frame / FPS) # Use deterministic event timestamp based on frame count
 
 
 def run_replay(variant):
@@ -96,7 +96,7 @@ def run_replay(variant):
     # Handle all events for the current frame
     while script_index < len(script) and script[script_index][0] == frame:
       _, event = script[script_index]
-      handle_event(event)
+      handle_event(event, frame)
       script_index += 1
 
     # Keep sending cereal messages for persistent states (onroad, alerts)
