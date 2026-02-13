@@ -11,12 +11,10 @@ from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
 
 VARIANTS = {
   'mici': {
-    'layout': 'openpilot.selfdrive.ui.mici.layouts.main.MiciMainLayout',
     'script': 'openpilot.selfdrive.ui.tests.diff.mici_script',
     'coverage_source': ['openpilot.selfdrive.ui.mici'],
   },
   'tizi': {
-    'layout': 'openpilot.selfdrive.ui.layouts.main.MainLayout',
     'script': 'openpilot.selfdrive.ui.tests.diff.tizi_script',
     'coverage_source': ['openpilot.selfdrive.ui.layouts'],  # TODO: This misses some files
   },
@@ -84,13 +82,15 @@ def run_replay(variant):
   gui_app.init_window("ui diff test", fps=FPS)
 
   # Import layout class dynamically for coverage
-  module_path, class_name = cfg['layout'].rsplit('.', 1)
-  layout_cls = getattr(importlib.import_module(module_path), class_name)
-  main_layout = layout_cls()
+  if variant == "mici":
+    from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout as MainLayout
+  else:
+    from openpilot.selfdrive.ui.layouts.main import MainLayout
+  main_layout = MainLayout()
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Import and build script
-  script_mod = importlib.import_module(cfg['script'])
+  script_mod = importlib.import_module(cfg['script'])  # TODO: Script could just use variant
   SCRIPT = script_mod.build_script(main_layout)
   frame_fn = getattr(script_mod, 'get_frame_fn', lambda: None)
 
