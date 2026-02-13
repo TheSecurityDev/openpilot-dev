@@ -19,6 +19,19 @@ BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branc
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
 _frame_fn: Callable | None = None  # TODO: This is really hacky, find a better way to do this
 
+def get_frame_fn():
+  return _frame_fn
+
+
+def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
+  """Create a setup function that sets the global _frame_fn to the given send function and calls it."""
+
+  def setup() -> None:
+    global _frame_fn
+    _frame_fn = send_fn
+    send_fn()
+
+  return setup
 
 # --- Setup helper functions ---
 
@@ -62,35 +75,24 @@ def send_onroad(pm):
   pm.send('pandaStates', ps)
 
 
-# TODO: This is all extremely hacky
 def make_network_state_setup(pm, network_type):
-  def _send():
+  def _send() -> None:
     ds = messaging.new_message('deviceState')
     ds.deviceState.networkType = network_type
     pm.send('deviceState', ds)
 
-  def setup():
-    global _frame_fn
-    _frame_fn = _send
-    _send()
-
-  return setup
+  return setup_send_fn(_send)
 
 
 def make_onroad_setup(pm):
-  def _send():
+  def _send() -> None:
     send_onroad(pm)
 
-  def setup():
-    global _frame_fn
-    _frame_fn = _send
-    send_onroad(pm)
-
-  return setup
+  return setup_send_fn(_send)
 
 
 def make_alert_setup(pm, size, text1, text2, status):
-  def _send():
+  def _send() -> None:
     send_onroad(pm)
     alert = messaging.new_message('selfdriveState')
     ss = alert.selfdriveState
@@ -100,16 +102,7 @@ def make_alert_setup(pm, size, text1, text2, status):
     ss.alertStatus = status
     pm.send('selfdriveState', alert)
 
-  def setup():
-    global _frame_fn
-    _frame_fn = _send
-    _send()
-
-  return setup
-
-
-def get_frame_fn():
-  return _frame_fn
+  return setup_send_fn(_send)
 
 
 AddFn = Callable[[int, DummyEvent], None]
@@ -194,7 +187,7 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
 
   # === Onroad ===
   add(0, DummyEvent(setup=make_onroad_setup(pm)))
-  add(int(FPS * 1.5), DummyEvent())  # wait for transition
+  hold()
 
   # === Onroad with sidebar (click onroad to toggle) ===
   click(1000, 500)
