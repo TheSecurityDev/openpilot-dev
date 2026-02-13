@@ -145,12 +145,10 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
-    """Helper function to add a setup event followed by a click event with the given position."""
     add(0, ScriptEvent(setup=setup))
     click(*click_pos, wait_frames)
 
   def setup(fn: Callable, wait_frames: int = WAIT):
-    """Add a setup event that calls the given function and wait for the given frames."""
     add(0, ScriptEvent(setup=fn))
     add(wait_frames, ScriptEvent())
 
@@ -158,7 +156,6 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
 
     def setup():
-      """Call the function to modify state and then force refresh on the home layout."""
       from openpilot.selfdrive.ui.layouts.main import MainState
 
       fn()
@@ -178,11 +175,9 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   setup(make_home_refresh_setup(setup_update_available))
 
   # === Settings - Device (click sidebar settings button) ===
-  # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
   click(150, 90)
 
   # === Settings - Network ===
-  # Nav buttons start at y=300, height=110, x centered ~278
   click(278, 450)
 
   # === Settings - Toggles ===
@@ -201,28 +196,22 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(1930, 470)  # click SSH keys
   click(1930, 115)  # click cancel on keyboard
 
-  # === Close settings (close button center ~(250, 160)) ===
+  # === Close settings ===
   click(250, 160)
 
   # === Onroad ===
   setup(make_onroad_setup(pm))
-
-  # === Onroad with sidebar (click onroad to toggle) ===
-  click(1000, 500)
+  click(1000, 500)  # click onroad to toggle sidebar
 
   # === Onroad alerts ===
   # Small alert
   setup(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
-
   # Medium alert
   setup(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
-
   # Full alert
   setup(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
-
   # Full alert multiline
   setup(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
-
   # Full alert long text
   setup(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
