@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 import os
-import sys
 import time
 import coverage
 import pyray as rl
+import argparse
 from dataclasses import dataclass
 from collections.abc import Callable
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--big', action='store_true', help='Use big UI layout (tizi/tici) instead of mici layout')
+args = parser.parse_args()
 
-variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
+variant = 'tizi' if args.big else 'mici'
 
 # Set env variables before application imports
-if variant == 'tizi':
+if args.big:
   os.environ["BIG"] = "1"
 os.environ["RECORD"] = "1"
 os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4"))
@@ -115,11 +118,17 @@ def run_replay(variant):
   print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
 
 
-def main(variant='mici'):
+def main():
   print(f"Running '{variant}' replay...")
   with OpenpilotPrefix():
-    # TODO: Improve coverage sources (e.g. system/ui, etc)
-    cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici' if variant == "mici" else 'openpilot.selfdrive.ui.layouts'])
+    sources = ["openpilot.system.ui"]
+    if args.big:
+      sources.extend(["openpilot.selfdrive.ui.layouts", "openpilot.selfdrive.ui.onroad", "openpilot.selfdrive.ui.widgets"])
+      omit = ["**/*mici*"]  # exclude files containing "mici"
+    else:
+      sources.append("openpilot.selfdrive.ui.mici")
+      omit = ["**/*tizi*", "**/*tici*"]  # exclude files containing "tizi" or "tici"
+    cov = coverage.coverage(source=sources, omit=omit)
     with cov.collect():
       run_replay(variant)
     cov.save()
@@ -130,4 +139,4 @@ def main(variant='mici'):
 
 
 if __name__ == "__main__":
-  main(variant)
+  main()
