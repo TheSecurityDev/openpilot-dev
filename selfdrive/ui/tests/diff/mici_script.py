@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Mici UI replay script — defines the frame-by-frame test scenario."""
 from openpilot.selfdrive.ui.tests.diff.replay import DummyEvent, FPS
 from openpilot.system.ui.lib.application import gui_app
