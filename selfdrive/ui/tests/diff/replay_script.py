@@ -3,21 +3,15 @@ from typing import TYPE_CHECKING
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from cereal import car, log, messaging
-from openpilot.common.basedir import BASEDIR
-from openpilot.common.params import Params
-from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
+from cereal import log, messaging
 from openpilot.selfdrive.ui.tests.diff.replay import FPS
-from openpilot.system.updated.updated import parse_release_notes
+from openpilot.selfdrive.ui.tests.diff.replay_setup import put_update_params, send_onroad, setup_offroad_alerts, setup_update_available, setup_developer_params
 
 WAIT = int(FPS * 0.5)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
-PandaType = log.PandaState.PandaType
-NetworkType = log.DeviceState.NetworkType
 
-BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branch-name"
 
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
 _frame_fn: Callable | None = None  # TODO: This seems hacky, find a better way to do this
@@ -37,46 +31,6 @@ def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
 
 
 # --- Setup helper functions ---
-# TODO: Move to separate file
-
-
-def put_update_params(params: Params):
-  params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
-  params.put("UpdaterNewReleaseNotes", parse_release_notes(BASEDIR))
-  params.put("UpdaterTargetBranch", BRANCH_NAME)
-
-
-def setup_offroad_alerts():
-  put_update_params(Params())
-  set_offroad_alert("Offroad_TemperatureTooHigh", True, extra_text='99C')
-  set_offroad_alert("Offroad_ExcessiveActuation", True, extra_text='longitudinal')
-  set_offroad_alert("Offroad_IsTakingSnapshot", True)
-
-
-def setup_update_available():
-  params = Params()
-  params.put_bool("UpdateAvailable", True)
-  params.put("UpdaterNewDescription", f"0.10.2 / {BRANCH_NAME} / 0a1b2c3 / Jan 01")
-  put_update_params(params)
-
-
-def setup_developer_params():
-  CP = car.CarParams()
-  CP.alphaLongitudinalAvailable = True
-  Params().put("CarParamsPersistent", CP.to_bytes())
-
-
-def send_onroad(pm):
-  ds = messaging.new_message('deviceState')
-  ds.deviceState.started = True
-  ds.deviceState.networkType = NetworkType.wifi
-
-  ps = messaging.new_message('pandaStates', 1)
-  ps.pandaStates[0].pandaType = PandaType.dos
-  ps.pandaStates[0].ignitionLine = True
-
-  pm.send('deviceState', ds)
-  pm.send('pandaStates', ps)
 
 
 def make_network_state_setup(pm, network_type):
@@ -161,7 +115,7 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  setup(make_network_state_setup(pm, NetworkType.wifi))
+  setup(make_network_state_setup(pm, log.DeviceState.NetworkType.wifi))
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
   setup(make_home_refresh_setup(setup_offroad_alerts))
@@ -179,7 +133,7 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(278, 600)
 
   # === Settings - Software ===
-  setup_and_click(lambda: put_update_params(Params()), (278, 720))
+  setup_and_click( put_update_params, (278, 720))
 
   # === Settings - Firehose ===
   click(278, 845)

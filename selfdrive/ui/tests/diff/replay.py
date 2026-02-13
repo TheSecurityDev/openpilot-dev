@@ -5,10 +5,9 @@ import pyray as rl
 import argparse
 
 from cereal.messaging import PubMaster
-from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
-from openpilot.system.version import terms_version, training_version
+from openpilot.selfdrive.ui.tests.diff.replay_setup import initialize_params
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--big', action='store_true', help='Use big UI layout (tizi/tici) instead of mici layout')
@@ -25,21 +24,13 @@ HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
 
 
-def setup_state():
-  params = Params()
-  params.put("HasAcceptedTerms", terms_version)
-  params.put("CompletedTrainingVersion", training_version)
-  params.put("DongleId", "test123456789")
-  params.put("UpdaterCurrentDescription", "0.10.1 / test-branch / abc1234 / Nov 30")
-
-
 def run_replay(variant):
   from openpilot.selfdrive.ui.ui_state import ui_state  # Import within OpenpilotPrefix context so param values are setup correctly
   from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
 
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
-  setup_state()
+  initialize_params()
 
   if HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
