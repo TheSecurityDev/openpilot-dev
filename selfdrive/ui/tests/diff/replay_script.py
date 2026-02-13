@@ -220,7 +220,6 @@ def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
   t = 0
   script: list[tuple[int, DummyEvent]] = []
 
-  # TODO: It should be event simpler. Make a click function that adds the event automatically and holds, for example.
   def add(dt: int, event: DummyEvent):
     """Add an event to the script for the given time delta (in frames) from the previous event."""
     nonlocal t
