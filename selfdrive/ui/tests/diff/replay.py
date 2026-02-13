@@ -24,7 +24,7 @@ from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.system.version import terms_version, training_version
 
-HEADLESS = os.getenv("WINDOWED", "0") == "1"
+HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
 
 
@@ -68,7 +68,7 @@ def run_replay(variant):
 
   setup_state()
 
-  if not HEADLESS:
+  if HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
