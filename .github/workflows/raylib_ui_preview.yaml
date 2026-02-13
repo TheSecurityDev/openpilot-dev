@@ -149,7 +149,7 @@ jobs:
             "mici_diff.html" --basedir "$baseurl" --no-open || mici_diff_exit=$?
 
           cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.html ${{ github.workspace }}/pr_ui_mici/
-          mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/diff.mp4 ${{ github.workspace }}/pr_ui_mici/mici_diff.mp4
+          mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.mp4 ${{ github.workspace }}/pr_ui_mici/
 
           MICI_REPORT_URL="https://commaai.github.io/ci-artifacts/diff_pr_${{ github.event.number }}_mici.html"
           if [ $mici_diff_exit -eq 0 ]; then
@@ -170,7 +170,7 @@ jobs:
               "tizi_diff.html" --basedir "$baseurl" --no-open || tizi_diff_exit=$?
 
             cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/tizi_diff.html ${{ github.workspace }}/pr_ui_tizi/
-            mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/diff.mp4 ${{ github.workspace }}/pr_ui_tizi/tizi_diff.mp4
+            mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/tizi_diff.mp4 ${{ github.workspace }}/pr_ui_tizi/
 
             TIZI_REPORT_URL="https://commaai.github.io/ci-artifacts/diff_pr_${{ github.event.number }}_tizi.html"
             if [ $tizi_diff_exit -eq 0 ]; then
