@@ -4,10 +4,10 @@ from cereal import car, log, messaging
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
-from openpilot.selfdrive.ui.tests.diff.replay import DummyEvent, FPS
+from openpilot.selfdrive.ui.tests.diff.replay import ScriptEvent, FPS
 from openpilot.system.updated.updated import parse_release_notes
 
-HOLD = int(FPS * 0.5)
+WAIT = int(FPS * 0.5)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -110,7 +110,7 @@ def make_alert_setup(pm, size, text1, text2, status):
 # --- Script building functions ---
 
 
-AddFn = Callable[[int, DummyEvent], None]
+AddFn = Callable[[int, ScriptEvent], None]
 
 
 def build_mici_script(pm, add: AddFn, click, setup):
@@ -120,19 +120,20 @@ def build_mici_script(pm, add: AddFn, click, setup):
   w, h = gui_app.width, gui_app.height
   center = (w // 2, h // 2)
 
-  HOLD_LONG = int(FPS)
+  WAIT_LONG = int(FPS)
 
-  add(HOLD_LONG, DummyEvent())
-  click(*center, HOLD_LONG)
-  click(*center, HOLD_LONG)
+  add(WAIT_LONG, ScriptEvent())
+  click(*center, WAIT_LONG)
+  click(*center, WAIT_LONG)
 
 
 def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
-  def setup_and_click(setup: Callable, click_pos: tuple[int, int], hold_time: int = HOLD):
-    add(0, DummyEvent(setup=setup, click_pos=click_pos))
-    add(hold_time, DummyEvent())
+  def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
+    """Helper function to add a setup event followed by a click event with the given position."""
+    add(0, ScriptEvent(setup=setup))
+    click(*click_pos, wait_frames)
 
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
@@ -208,42 +209,54 @@ def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   setup(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
   # End
-  add(0, DummyEvent())
+  add(0, ScriptEvent())
 
 
-def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
-  """Build and return the correct replay script as a list of (frame index, event) tuples."""
+def build_script(pm, main_layout, big=False) -> list[tuple[int, ScriptEvent]]:
+  from openpilot.system.ui.lib.application import MouseEvent, MousePos
+
   print(f"Building replay script (big={big})...")
 
-  t = 0
-  script: list[tuple[int, DummyEvent]] = []
+  frame = 0
+  script: list[tuple[int, ScriptEvent]] = []
 
-  def add(dt: int, event: DummyEvent):
-    """Add an event to the script for the given time delta (in frames) from the previous event."""
-    nonlocal t
-    t += dt
-    script.append((t, event))
+  def get_frame_time() -> float:
+    """Return the current frame time in seconds based on the frame count and FPS. Used for deterministic event timestamps."""
+    return frame / FPS
 
-  def hold(dt: int = HOLD):
-    """Hold for the given time delta (in frames) by adding a no-op event."""
-    if dt > 0:
-      add(dt, DummyEvent())
+  def add(delta: int, event: ScriptEvent):
+    """Add event to the script for the given frames from the previous event."""
+    nonlocal frame
+    frame += delta
+    script.append((frame, event))
 
-  def click(x: int, y: int, hold_time: int = HOLD):
-    """Add a click event for the given position and hold for the given time (in frames)."""
-    add(0, DummyEvent(click_pos=(x, y)))
-    hold(hold_time)
+  def wait(delta: int = WAIT):
+    """Wait for the given frames by adding a no-op event."""
+    if delta > 0:
+      add(delta, ScriptEvent())
 
-  def setup(fn: Callable, hold_time: int = HOLD):
-    """Add a setup event that calls the given function and hold for the given time (in frames)."""
-    add(0, DummyEvent(setup=fn))
-    hold(hold_time)
+  def click(x: int, y: int, wait_frames: int = WAIT):
+    """Add a click event for the given position and wait for the given frames."""
+    add(
+      0,
+      ScriptEvent(mouse_events=[MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())]),
+    )
+    add(
+      1,  # wait 1 frame between press and release
+      ScriptEvent(mouse_events=[MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())]),
+    )
+    wait(wait_frames)
+
+  def setup(fn: Callable, wait_frames: int = WAIT):
+    """Add a setup event that calls the given function and wait for the given frames."""
+    add(0, ScriptEvent(setup=fn))
+    wait(wait_frames)
 
   if big:
     build_tizi_script(pm, add, click, setup, main_layout)
   else:
     build_mici_script(pm, add, click, setup)
 
-  print(f"Built replay script with {len(script)} events and {t} frames ({t / FPS:.2f} seconds)")
+  print(f"Built replay script with {len(script)} events and {frame} frames ({frame / FPS:.2f} seconds)")
 
   return script
