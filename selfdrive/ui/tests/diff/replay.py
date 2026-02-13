@@ -6,6 +6,7 @@ import pyray as rl
 import argparse
 from dataclasses import dataclass
 from collections.abc import Callable
+from cereal.messaging import PubMaster
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
 
 parser = argparse.ArgumentParser()
@@ -26,7 +27,6 @@ from openpilot.system.version import terms_version, training_version
 
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
-
 
 @dataclass
 class DummyEvent:
@@ -73,6 +73,8 @@ def run_replay(variant):
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
+  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
+
   # Dynamically import main layout based on variant
   if variant == "mici":
     from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout as MainLayout
@@ -84,7 +86,7 @@ def run_replay(variant):
   # Import and build script
   from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
 
-  script = build_script(main_layout, big=args.big)
+  script = build_script(pm, main_layout, big=args.big)
   script_index = 0
   frame = 0
   # Override raylib timing functions to return deterministic values based on frame count instead of real time

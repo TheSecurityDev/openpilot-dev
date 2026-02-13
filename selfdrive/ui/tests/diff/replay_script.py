@@ -1,7 +1,6 @@
 from collections.abc import Callable
 
 from cereal import car, log, messaging
-from cereal.messaging import PubMaster
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
@@ -106,7 +105,7 @@ def get_frame_fn():
 AddFn = Callable[[int, DummyEvent], None]
 
 
-def build_mici_script(add: AddFn):
+def build_mici_script(pm, add: AddFn):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
   from openpilot.system.ui.lib.application import gui_app
 
@@ -119,19 +118,18 @@ def build_mici_script(add: AddFn):
   add(FPS, DummyEvent())
 
 
-def build_tizi_script(add: AddFn, main_layout):
+def build_tizi_script(pm, add: AddFn, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def hold(dt: int = HOLD):
     """Hold for the given time delta (in frames) by adding a no-op event."""
     add(dt, DummyEvent())
 
-  # tizi script
-
   def make_home_refresh_setup(fn: Callable):
-    """Set up state and force an immediate refresh on the home layout."""
+    """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
 
     def setup():
+      """Call the function to modify state and then force refresh on the home layout."""
       from openpilot.selfdrive.ui.layouts.main import MainState
 
       fn()
@@ -139,17 +137,16 @@ def build_tizi_script(add: AddFn, main_layout):
 
     return setup
 
-  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
-
-  # Seed initial offroad device state
-  ds = messaging.new_message('deviceState')
-  ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
-  pm.send('deviceState', ds)
+  def initialize_state():
+    """Seed initial offroad device state"""
+    ds = messaging.new_message('deviceState')
+    ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
+    pm.send('deviceState', ds)
 
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  add(0, DummyEvent())
+  add(0, DummyEvent(setup=initialize_state))
   hold()
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
@@ -236,7 +233,7 @@ def build_tizi_script(add: AddFn, main_layout):
   add(0, DummyEvent())
 
 
-def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
+def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
   """Build and return the correct replay script as a list of (frame index, event) tuples."""
   print(f"Building replay script (big={big})...")
 
@@ -251,9 +248,9 @@ def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
     script.append((t, event))
 
   if big:
-    build_tizi_script(add, main_layout)
+    build_tizi_script(pm, add, main_layout)
   else:
-    build_mici_script(add)
+    build_mici_script(pm, add)
 
   print(f"Built replay script with {len(script)} events and {t} frames ({t / FPS:.2f} seconds)")
 
