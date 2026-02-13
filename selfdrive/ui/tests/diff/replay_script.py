@@ -39,6 +39,7 @@ def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
 
 
 # --- Setup helper functions ---
+# TODO: Move to separate file
 
 
 def put_update_params(params: Params):
@@ -112,6 +113,7 @@ def make_alert_setup(pm, size, text1, text2, status):
 
 # --- Script building functions ---
 
+
 @dataclass
 class ScriptEvent:
   if TYPE_CHECKING:
@@ -125,7 +127,7 @@ class ScriptEvent:
 AddFn = Callable[[int, ScriptEvent], None]
 
 
-def build_mici_script(pm, add: AddFn, click, setup):
+def build_mici_script(pm, add: AddFn, click):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
   from openpilot.system.ui.lib.application import gui_app
 
@@ -139,13 +141,18 @@ def build_mici_script(pm, add: AddFn, click, setup):
   click(*center, WAIT_LONG)
 
 
-def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
+def build_tizi_script(pm, add: AddFn, click, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
     """Helper function to add a setup event followed by a click event with the given position."""
     add(0, ScriptEvent(setup=setup))
     click(*click_pos, wait_frames)
+
+  def setup(fn: Callable, wait_frames: int = WAIT):
+    """Add a setup event that calls the given function and wait for the given frames."""
+    add(0, ScriptEvent(setup=fn))
+    add(wait_frames, ScriptEvent())
 
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
@@ -227,6 +234,10 @@ ScriptEntry = tuple[int, ScriptEvent]  # (frame, event)
 
 
 def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
+  """
+  Build the replay script for the appropriate layout variant by calling the corresponding build function.
+  Return the list of ScriptEntry tuples containing the frame number and ScriptEvent for each event in the script.
+  """
   from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
   print(f"Building replay script (big={big})...")
@@ -251,25 +262,17 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
 
   def click(x: int, y: int, wait_frames: int = WAIT):
     """Add a click event for the given position and wait for the given frames."""
-    add(
-      0,
-      ScriptEvent(mouse_events=[MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())]),
-    )
-    add(
-      1,  # wait 1 frame between press and release
-      ScriptEvent(mouse_events=[MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())]),
-    )
-    wait(wait_frames)
-
-  def setup(fn: Callable, wait_frames: int = WAIT):
-    """Add a setup event that calls the given function and wait for the given frames."""
-    add(0, ScriptEvent(setup=fn))
+    mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())
+    add(0, ScriptEvent(mouse_events=[mouse_down]))
+    # wait 1 frame between press and release
+    mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())
+    add(1, ScriptEvent(mouse_events=[mouse_up]))
     wait(wait_frames)
 
   if big:
-    build_tizi_script(pm, add, click, setup, main_layout)
+    build_tizi_script(pm, add, click, main_layout)
   else:
-    build_mici_script(pm, add, click, setup)
+    build_mici_script(pm, add, click)
 
   print(f"Built replay script with {len(script)} events and {frame} frames ({frame / FPS:.2f} seconds)")
 
