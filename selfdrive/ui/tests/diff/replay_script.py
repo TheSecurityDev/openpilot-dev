@@ -108,10 +108,14 @@ AddFn = Callable[[int, DummyEvent], None]
 
 def build_mici_script(add: AddFn):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
-  # === Homescreen (clean) ===
+  from openpilot.system.ui.lib.application import gui_app
+
+  w, h = gui_app.width, gui_app.height
+  center = (w // 2, h // 2)
+
   add(0, DummyEvent())
-  add(FPS, DummyEvent(click_pos=(960, 540)))
-  add(FPS, DummyEvent(click_pos=(960, 540)))
+  add(FPS, DummyEvent(click_pos=center))
+  add(FPS, DummyEvent(click_pos=center))
   add(FPS, DummyEvent())
 
 
@@ -251,6 +255,6 @@ def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
   else:
     build_mici_script(add)
 
-  print(f"Built replay script with {len(script)} events, ending at frame {t} ({t / FPS:.2f} seconds)")
+  print(f"Built replay script with {len(script)} events and {t} frames ({t / FPS:.2f} seconds)")
 
   return script
