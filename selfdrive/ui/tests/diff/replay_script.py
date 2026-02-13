@@ -1,4 +1,3 @@
-"""Tizi UI replay script — defines the frame-by-frame test scenario."""
 from collections.abc import Callable
 
 from cereal import car, log, messaging
@@ -21,6 +20,7 @@ _frame_fn: Callable | None = None
 
 
 # --- Setup helper functions ---
+
 
 def put_update_params(params: Params):
   params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
@@ -51,6 +51,7 @@ def setup_developer_params():
 def dismiss_modal():
   # TODO: Don't dismiss this way if possible
   from openpilot.system.ui.lib.application import gui_app
+
   gui_app.set_modal_overlay(None)
 
 
@@ -75,6 +76,7 @@ def make_onroad_setup(pm):
     global _frame_fn
     _frame_fn = _send
     send_onroad(pm)
+
   return setup
 
 
@@ -93,6 +95,7 @@ def make_alert_setup(pm, size, text1, text2, status):
     global _frame_fn
     _frame_fn = _send
     _send()
+
   return setup
 
 
@@ -100,40 +103,36 @@ def get_frame_fn():
   return _frame_fn
 
 
-def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
-  """Build and return the correct replay script as a list of (frame index, event) tuples."""
-  t = 0
-  script: list[tuple[int, DummyEvent]] = []
+AddFn = Callable[[int, DummyEvent], None]
 
-  def add(event: DummyEvent, dt: int = 0):
-    nonlocal t
-    t += dt
-    script.append((t, event))
 
-  def hold(dt=HOLD):
-    add(DummyEvent(), dt)
+def build_mici_script(add: AddFn):
+  """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
+  # === Homescreen (clean) ===
+  add(0, DummyEvent())
+  add(FPS, DummyEvent(click_pos=(960, 540)))
+  add(FPS, DummyEvent(click_pos=(960, 540)))
+  add(FPS, DummyEvent())
 
-  if not big:
-    # mici script
-    from openpilot.system.ui.lib.application import gui_app
 
-    w, h = gui_app.width, gui_app.height
+def build_tizi_script(add: AddFn, main_layout):
+  """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
-    # === Homescreen (clean) ===
-    add(DummyEvent())
-    add(DummyEvent(click_pos=(w // 2, h // 2)), FPS)
-    add(DummyEvent(click_pos=(w // 2, h // 2)), FPS)
-    add(DummyEvent(), FPS)
-    return script
+  def hold(dt: int = HOLD):
+    """Hold for the given time delta (in frames) by adding a no-op event."""
+    add(dt, DummyEvent())
 
   # tizi script
 
   def make_home_refresh_setup(fn: Callable):
     """Set up state and force an immediate refresh on the home layout."""
+
     def setup():
       from openpilot.selfdrive.ui.layouts.main import MainState
+
       fn()
       main_layout._layouts[MainState.HOME].last_refresh = 0
+
     return setup
 
   pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
@@ -146,86 +145,112 @@ def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  add(DummyEvent())
+  add(0, DummyEvent())
   hold()
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
-  add(DummyEvent(setup=make_home_refresh_setup(setup_offroad_alerts)))
+  add(0, DummyEvent(setup=make_home_refresh_setup(setup_offroad_alerts)))
   hold()
 
   # === Update Available (auto-transitions via HomeLayout refresh) ===
-  add(DummyEvent(setup=make_home_refresh_setup(setup_update_available)))
+  add(0, DummyEvent(setup=make_home_refresh_setup(setup_update_available)))
   hold()
 
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
   # NOTE: There's an issue where the click will also trigger the close button underneath (since it occurs in the same frame), so keep it left of that
-  add(DummyEvent(click_pos=(100, 100)))
+  add(0, DummyEvent(click_pos=(100, 100)))
   hold()
 
   # === Settings - Network ===
   # Nav buttons start at y=300, height=110, x centered ~278
-  add(DummyEvent(click_pos=(278, 450)))
+  add(0, DummyEvent(click_pos=(278, 450)))
   hold()
 
   # === Settings - Toggles ===
-  add(DummyEvent(click_pos=(278, 600)))
+  add(0, DummyEvent(click_pos=(278, 600)))
   hold()
 
   # === Settings - Software ===
-  add(DummyEvent(setup=lambda: put_update_params(Params())))
-  add(DummyEvent(click_pos=(278, 720)), int(FPS * 0.2))
+  add(0, DummyEvent(setup=lambda: put_update_params(Params())))
+  add(int(FPS * 0.2), DummyEvent(click_pos=(278, 720)))
   hold()
 
   # === Settings - Firehose ===
-  add(DummyEvent(click_pos=(278, 845)))
+  add(0, DummyEvent(click_pos=(278, 845)))
   hold()
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  add(DummyEvent(setup=setup_developer_params))
-  add(DummyEvent(click_pos=(278, 950)), int(FPS * 0.2))
+  add(0, DummyEvent(setup=setup_developer_params))
+  add(int(FPS * 0.2), DummyEvent(click_pos=(278, 950)))
   hold()
 
   # === Keyboard modal (SSH keys button in developer panel) ===
-  add(DummyEvent(click_pos=(1930, 470)))
-  add(DummyEvent(setup=dismiss_modal), HOLD)
-  add(DummyEvent(), int(FPS * 0.3))
+  add(0, DummyEvent(click_pos=(1930, 470)))
+  add(HOLD, DummyEvent(setup=dismiss_modal))
+  add(int(FPS * 0.3), DummyEvent())
 
   # === Close settings (close button center ~(250, 160)) ===
-  add(DummyEvent(click_pos=(250, 160)))
+  add(0, DummyEvent(click_pos=(250, 160)))
   hold()
 
   # === Onroad ===
-  add(DummyEvent(setup=make_onroad_setup(pm)))
-  add(DummyEvent(), int(FPS * 1.5))  # wait for transition
+  add(0, DummyEvent(setup=make_onroad_setup(pm)))
+  add(int(FPS * 1.5), DummyEvent())  # wait for transition
 
   # === Onroad with sidebar (click onroad to toggle) ===
-  add(DummyEvent(click_pos=(1000, 500)))
+  add(0, DummyEvent(click_pos=(1000, 500)))
   hold()
 
   # === Onroad alerts ===
   # Small alert
-  add(DummyEvent(setup=make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal)))
+  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal)))
   hold()
 
   # Medium alert
-  add(DummyEvent(setup=make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt)))
+  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt)))
   hold()
 
   # Full alert
-  add(DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical)))
+  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical)))
   hold()
 
   # Full alert multiline
-  add(DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal)))
+  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal)))
   hold()
 
   # Full alert long text
-  add(DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY",
-                     "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt)))
+  add(
+    0,
+    DummyEvent(
+      setup=make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt)
+    ),
+  )
   hold()
 
   # End
-  add(DummyEvent())
+  add(0, DummyEvent())
+
+
+def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
+  """Build and return the correct replay script as a list of (frame index, event) tuples."""
+  print(f"Building replay script (big={big})...")
+
+  t = 0
+  script: list[tuple[int, DummyEvent]] = []
+
+  # TODO: It should be event simpler. Make a click function that adds the event automatically and holds, for example.
+  def add(dt: int, event: DummyEvent):
+    """Add an event to the script for the given time delta (in frames) from the previous event."""
+    nonlocal t
+    t += dt
+    script.append((t, event))
+
+  if big:
+    build_tizi_script(add, main_layout)
+  else:
+    build_mici_script(add)
+
+  print(f"Built replay script with {len(script)} events, ending at frame {t} ({t / FPS:.2f} seconds)")
 
   return script
