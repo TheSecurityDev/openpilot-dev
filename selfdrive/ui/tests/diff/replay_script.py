@@ -49,13 +49,6 @@ def setup_developer_params():
   Params().put("CarParamsPersistent", CP.to_bytes())
 
 
-def dismiss_modal():
-  # TODO: Don't dismiss this way if possible
-  from openpilot.system.ui.lib.application import gui_app
-
-  gui_app.set_modal_overlay(None)
-
-
 def send_onroad(pm):
   ds = messaging.new_message('deviceState')
   ds.deviceState.started = True
@@ -193,9 +186,8 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   hold()
 
   # === Keyboard modal (SSH keys button in developer panel) ===
-  add(0, DummyEvent(click_pos=(1930, 470)))
-  add(HOLD, DummyEvent(setup=dismiss_modal))  # TODO: Just click Cancel instead of dismissing this way
-  add(int(FPS * 0.3), DummyEvent())
+  click(1930, 470)  # click SSH keys
+  click(1930, 115)  # click cancel on keyboard
 
   # === Close settings (close button center ~(250, 160)) ===
   click(250, 160)
