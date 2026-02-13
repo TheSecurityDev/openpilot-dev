@@ -84,10 +84,10 @@ def run_replay(variant):
   from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
 
   script = build_script(main_layout, big=args.big)
-
   frame = 0
   script_index = 0
 
+  # Main loop to replay events and render frames
   for should_render in gui_app.render():
     while script_index < len(script) and script[script_index][0] == frame:
       _, event = script[script_index]
