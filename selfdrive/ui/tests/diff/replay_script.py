@@ -160,8 +160,7 @@ def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
 
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
-  # NOTE: There's an issue where the click will also trigger the close button underneath (since it occurs in the same frame), so keep it left of that
-  click(100, 100)
+  click(150, 90)
 
   # === Settings - Network ===
   # Nav buttons start at y=300, height=110, x centered ~278
