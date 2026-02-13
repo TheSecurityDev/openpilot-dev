@@ -126,21 +126,18 @@ AddFn = Callable[[int, ScriptEvent], None]
 
 
 def build_mici_script(pm, add: AddFn, click):
-  """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
+  """Build the replay script for the mici layout."""
   from openpilot.system.ui.lib.application import gui_app
 
-  w, h = gui_app.width, gui_app.height
-  center = (w // 2, h // 2)
+  center = (gui_app.width // 2, gui_app.height // 2)
 
-  WAIT_LONG = int(FPS)
-
-  add(WAIT_LONG, ScriptEvent())
-  click(*center, WAIT_LONG)
-  click(*center, WAIT_LONG)
+  add(FPS, ScriptEvent())
+  click(*center, FPS)
+  click(*center, FPS)
 
 
 def build_tizi_script(pm, add: AddFn, click, main_layout):
-  """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
+  """Build the replay script for the tizi layout."""
 
   def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
     add(0, ScriptEvent(setup=setup))
