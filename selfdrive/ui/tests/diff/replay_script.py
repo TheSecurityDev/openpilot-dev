@@ -224,15 +224,15 @@ def build_script(pm, main_layout, big=False) -> list[tuple[int, ScriptEvent]]:
     return frame / FPS
 
   def add(delta: int, event: ScriptEvent):
-    """Add event to the script for the given frames from the previous event."""
+    """Add event to the script with the given delta in frames from the previous event."""
     nonlocal frame
     frame += delta
     script.append((frame, event))
 
-  def wait(delta: int = WAIT):
-    """Wait for the given frames by adding a no-op event."""
-    if delta > 0:
-      add(delta, ScriptEvent())
+  def wait(frames: int = WAIT):
+    """Wait for the given number of frames by adding a no-op event."""
+    if frames > 0:
+      add(frames, ScriptEvent())
 
   def click(x: int, y: int, wait_frames: int = WAIT):
     """Add a click event for the given position and wait for the given frames."""
