@@ -25,9 +25,9 @@ VARIANTS = {
 
 variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
 
+# Set env variables before application imports
 if variant == 'tizi':
   os.environ["BIG"] = "1"
-
 os.environ["RECORD"] = "1"
 os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4"))
 
