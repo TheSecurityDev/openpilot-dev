@@ -143,6 +143,8 @@ def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
   ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
   pm.send('deviceState', ds)
 
+  # TODO: Better way of organizing the events
+
   # === Homescreen (clean) ===
   add(0, DummyEvent())
   hold()
