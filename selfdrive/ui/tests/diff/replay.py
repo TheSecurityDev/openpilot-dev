@@ -3,22 +3,10 @@ import os
 import sys
 import time
 import coverage
-import importlib
 import pyray as rl
 from dataclasses import dataclass
 from collections.abc import Callable
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
-
-VARIANTS = {
-  'mici': {
-    'script': 'openpilot.selfdrive.ui.tests.diff.mici_script',
-    'coverage_source': ['openpilot.selfdrive.ui.mici'],
-  },
-  'tizi': {
-    'script': 'openpilot.selfdrive.ui.tests.diff.tizi_script',
-    'coverage_source': ['openpilot.selfdrive.ui.layouts'],  # TODO: This misses some files
-  },
-}
 
 
 variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
@@ -71,8 +59,6 @@ def handle_event(event: DummyEvent):
 def run_replay(variant):
   from openpilot.selfdrive.ui.ui_state import ui_state
 
-  cfg = VARIANTS[variant]
-
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   setup_state()
@@ -90,9 +76,13 @@ def run_replay(variant):
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Import and build script
-  script_mod = importlib.import_module(cfg['script'])  # TODO: Script could just use variant
-  SCRIPT = script_mod.build_script(main_layout)
-  frame_fn = getattr(script_mod, 'get_frame_fn', lambda: None)
+  get_frame_fn = None
+  if variant == "tizi":
+    from openpilot.selfdrive.ui.tests.diff.tizi_script import build_script, get_frame_fn
+  else:
+    from openpilot.selfdrive.ui.tests.diff.mici_script import build_script
+
+  SCRIPT = build_script(main_layout)
 
   frame = 0
   script_index = 0
@@ -103,10 +93,11 @@ def run_replay(variant):
       handle_event(event)
       script_index += 1
 
-    # Keep sending cereal messages for persistent states (onroad, alerts)
-    fn = frame_fn()
-    if fn:
-      fn()
+    if get_frame_fn:
+      # Keep sending cereal messages for persistent states (onroad, alerts)
+      fn = get_frame_fn()
+      if fn:
+        fn()
 
     ui_state.update()
 
@@ -126,10 +117,9 @@ def run_replay(variant):
 
 def main(variant='mici'):
   print(f"Running '{variant}' replay...")
-  cfg = VARIANTS[variant]
   with OpenpilotPrefix():
     # TODO: Improve coverage sources (e.g. system/ui, etc)
-    cov = coverage.coverage(source=cfg['coverage_source'])
+    cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici' if variant == "mici" else 'openpilot.selfdrive.ui.layouts'])
     with cov.collect():
       run_replay(variant)
     cov.save()
@@ -140,7 +130,4 @@ def main(variant='mici'):
 
 
 if __name__ == "__main__":
-  if variant not in VARIANTS:
-    print(f"Unknown variant '{variant}'. Available: {', '.join(VARIANTS)}")
-    sys.exit(1)
   main(variant)
