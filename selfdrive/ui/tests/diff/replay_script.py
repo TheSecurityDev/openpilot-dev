@@ -145,7 +145,7 @@ def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
 
   # === Homescreen (clean) ===
   add(0, DummyEvent())
-  add(FPS, DummyEvent())  # dwell 1s
+  hold()
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
   add(0, DummyEvent(setup=make_home_refresh_setup(setup_offroad_alerts)))
