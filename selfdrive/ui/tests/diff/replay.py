@@ -89,6 +89,7 @@ def run_replay(variant):
 
   # Main loop to replay events and render frames
   for should_render in gui_app.render():
+    # Handle all events for the current frame
     while script_index < len(script) and script[script_index][0] == frame:
       _, event = script[script_index]
       handle_event(event)
