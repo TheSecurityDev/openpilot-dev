@@ -101,7 +101,7 @@ def get_frame_fn():
 
 
 def build_script(main_layout, big=False) -> list[tuple[int, DummyEvent]]:
-  """Build and return the correct replay script as a list of (timestamp, event) tuples."""
+  """Build and return the correct replay script as a list of (frame index, event) tuples."""
   t = 0
   script: list[tuple[int, DummyEvent]] = []
 
