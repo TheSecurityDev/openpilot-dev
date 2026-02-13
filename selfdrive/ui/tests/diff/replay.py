@@ -31,6 +31,7 @@ FPS = 60
 @dataclass
 class DummyEvent:
   click_pos: tuple[int, int] | None = None
+  # TODO: Add support for swiping/scrolling, and other events as needed
   setup: Callable | None = None
 
 
