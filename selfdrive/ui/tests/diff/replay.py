@@ -27,6 +27,7 @@ variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
 
 if variant == 'tizi':
   os.environ["BIG"] = "1"
+
 os.environ["RECORD"] = "1"
 if "RECORD_OUTPUT" not in os.environ:
   os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, f"{variant}_ui_replay.mp4")
