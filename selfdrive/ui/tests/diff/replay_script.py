@@ -19,6 +19,7 @@ BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branc
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
 _frame_fn: Callable | None = None  # TODO: This is really hacky, find a better way to do this
 
+
 def get_frame_fn():
   return _frame_fn
 
@@ -32,6 +33,7 @@ def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
     send_fn()
 
   return setup
+
 
 # --- Setup helper functions ---
 
@@ -105,10 +107,13 @@ def make_alert_setup(pm, size, text1, text2, status):
   return setup_send_fn(_send)
 
 
+# --- Script building functions ---
+
+
 AddFn = Callable[[int, DummyEvent], None]
 
 
-def build_mici_script(pm, add: AddFn, click):
+def build_mici_script(pm, add: AddFn, click, setup):
   """Build the replay script for the mici layout by calling add() with the appropriate events and frame timings."""
   from openpilot.system.ui.lib.application import gui_app
 
@@ -122,7 +127,7 @@ def build_mici_script(pm, add: AddFn, click):
   click(*center, HOLD_LONG)
 
 
-def build_tizi_script(pm, add: AddFn, click, main_layout):
+def build_tizi_script(pm, add: AddFn, click, setup, main_layout):
   """Build the replay script for the tizi layout by calling add() with the appropriate events and frame timings."""
 
   def hold(dt: int = HOLD):
@@ -144,16 +149,13 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  add(0, DummyEvent(setup=make_network_state_setup(pm, NetworkType.wifi)))
-  hold()
+  setup(make_network_state_setup(pm, NetworkType.wifi))
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
-  add(0, DummyEvent(setup=make_home_refresh_setup(setup_offroad_alerts)))
-  hold()
+  setup(make_home_refresh_setup(setup_offroad_alerts))
 
   # === Update Available (auto-transitions via HomeLayout refresh) ===
-  add(0, DummyEvent(setup=make_home_refresh_setup(setup_update_available)))
-  hold()
+  setup(make_home_refresh_setup(setup_update_available))
 
   # === Settings - Device (click sidebar settings button) ===
   # Sidebar SETTINGS_BTN = rl.Rectangle(50, 35, 200, 117), center ~(150, 93)
@@ -186,37 +188,26 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(250, 160)
 
   # === Onroad ===
-  add(0, DummyEvent(setup=make_onroad_setup(pm)))
-  hold()
+  setup(make_onroad_setup(pm))
 
   # === Onroad with sidebar (click onroad to toggle) ===
   click(1000, 500)
 
   # === Onroad alerts ===
   # Small alert
-  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal)))
-  hold()
+  setup(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
 
   # Medium alert
-  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt)))
-  hold()
+  setup(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
 
   # Full alert
-  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical)))
-  hold()
+  setup(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
 
   # Full alert multiline
-  add(0, DummyEvent(setup=make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal)))
-  hold()
+  setup(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
 
   # Full alert long text
-  add(
-    0,
-    DummyEvent(
-      setup=make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt)
-    ),
-  )
-  hold()
+  setup(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
   # End
   add(0, DummyEvent())
@@ -236,16 +227,26 @@ def build_script(pm, main_layout, big=False) -> list[tuple[int, DummyEvent]]:
     t += dt
     script.append((t, event))
 
+  def hold(dt: int = HOLD):
+    """Hold for the given time delta (in frames) by adding a no-op event."""
+    add(dt, DummyEvent())
+
   def click(x: int, y: int, hold_time: int = HOLD):
     """Add a click event for the given position and hold for the given time (in frames)."""
     add(0, DummyEvent(click_pos=(x, y)))
     if hold_time > 0:
-      add(hold_time, DummyEvent())
+      hold(hold_time)
+
+  def setup(fn: Callable, hold_time: int = HOLD):
+    """Add a setup event that calls the given function and hold for the given time (in frames)."""
+    add(0, DummyEvent(setup=fn))
+    if hold_time > 0:
+      hold(hold_time)
 
   if big:
-    build_tizi_script(pm, add, click, main_layout)
+    build_tizi_script(pm, add, click, setup, main_layout)
   else:
-    build_mici_script(pm, add, click)
+    build_mici_script(pm, add, click, setup)
 
   print(f"Built replay script with {len(script)} events and {t} frames ({t / FPS:.2f} seconds)")
 
