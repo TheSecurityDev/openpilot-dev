@@ -85,14 +85,14 @@ def run_replay(variant):
   else:
     from openpilot.selfdrive.ui.tests.diff.mici_script import build_script
 
-  SCRIPT = build_script(main_layout)
+  script = build_script(main_layout)
 
   frame = 0
   script_index = 0
 
   for should_render in gui_app.render():
-    while script_index < len(SCRIPT) and SCRIPT[script_index][0] == frame:
-      _, event = SCRIPT[script_index]
+    while script_index < len(script) and script[script_index][0] == frame:
+      _, event = script[script_index]
       handle_event(event)
       script_index += 1
 
@@ -109,7 +109,7 @@ def run_replay(variant):
 
     frame += 1
 
-    if script_index >= len(SCRIPT):
+    if script_index >= len(script):
       break
 
   gui_app.close()
