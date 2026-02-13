@@ -57,9 +57,9 @@ def run_replay(variant):
 
   # Import and build script
   from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn, ScriptEvent
-
   script = build_script(pm, main_layout, big=args.big)
   script_index = 0
+
   frame = 0
   # Override raylib timing functions to return deterministic values based on frame count instead of real time
   rl.get_frame_time = lambda: 1.0 / FPS

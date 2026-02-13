@@ -22,10 +22,8 @@ BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branc
 # Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
 _frame_fn: Callable | None = None  # TODO: This seems hacky, find a better way to do this
 
-
 def get_frame_fn():
   return _frame_fn
-
 
 def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
   """Return a setup function that sets the global _frame_fn to the given send function and calls it."""
@@ -235,7 +233,6 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
   script: list[ScriptEntry] = []
 
   def get_frame_time() -> float:
-    """Return the current frame time in seconds based on the frame count and FPS. Used for deterministic event timestamps."""
     return frame / FPS
 
   def add(delta: int, event: ScriptEvent):
@@ -253,7 +250,7 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
     """Add a click event for the given position and wait for the given frames."""
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())
     add(0, ScriptEvent(mouse_events=[mouse_down]))
-    # wait 1 frame between press and release
+    # wait 1 frame between press and release (settings button will click close underneath immediately otherwise)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())
     add(1, ScriptEvent(mouse_events=[mouse_up]))
     wait(wait_frames)
