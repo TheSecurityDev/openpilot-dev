@@ -250,7 +250,7 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
     """Add a click event for the given position and wait for the given frames."""
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())
     add(0, ScriptEvent(mouse_events=[mouse_down]))
-    # wait 1 frame between press and release (settings button will click close underneath immediately otherwise)
+    # wait 1 frame between press and release (otherwise settings button can click close underneath immediately when opened)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())
     add(1, ScriptEvent(mouse_events=[mouse_up]))
     wait(wait_frames)
