@@ -1,12 +1,19 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import os
 import coverage
 import pyray as rl
 import argparse
+
+from typing import TYPE_CHECKING
 from dataclasses import dataclass
 from collections.abc import Callable
+
 from cereal.messaging import PubMaster
+from openpilot.common.params import Params
+from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
+from openpilot.system.version import terms_version, training_version
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--big', action='store_true', help='Use big UI layout (tizi/tici) instead of mici layout')
@@ -14,22 +21,19 @@ args = parser.parse_args()
 
 variant = 'tizi' if args.big else 'mici'
 
-# Set env variables before application imports
 if args.big:
   os.environ["BIG"] = "1"
 os.environ["RECORD"] = "1"
 os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4"))
-
-from openpilot.common.params import Params
-from openpilot.common.prefix import OpenpilotPrefix
-from openpilot.system.version import terms_version, training_version
 
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
 
 @dataclass
 class ScriptEvent:
-  from openpilot.system.ui.lib.application import MouseEvent
+  if TYPE_CHECKING:
+    # Prevent application imports from being excluded by coverage report since we only use it here for the type hint
+    from openpilot.system.ui.lib.application import MouseEvent
 
   setup: Callable | None = None
   mouse_events: list[MouseEvent] | None = None
