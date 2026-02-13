@@ -1,42 +1,47 @@
 #!/usr/bin/env python3
 import os
+import sys
 import time
 import coverage
+import importlib
 import pyray as rl
 from dataclasses import dataclass
+from collections.abc import Callable
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
 
-os.environ["RECORD"] = "1"
-if "RECORD_OUTPUT" not in os.environ:
-  os.environ["RECORD_OUTPUT"] = "mici_ui_replay.mp4"
+VARIANTS = {
+  'mici': {
+    'layout': 'openpilot.selfdrive.ui.mici.layouts.main.MiciMainLayout',
+    'script': 'openpilot.selfdrive.ui.tests.diff.mici_script',
+    'coverage_source': ['openpilot.selfdrive.ui.mici'],
+  },
+  'tizi': {
+    'layout': 'openpilot.selfdrive.ui.layouts.main.MainLayout',
+    'script': 'openpilot.selfdrive.ui.tests.diff.tizi_script',
+    'coverage_source': ['openpilot.selfdrive.ui.layouts'],  # TODO: This misses some files
+  },
+}
 
-os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ["RECORD_OUTPUT"])
+
+replay_variant = sys.argv[1] if len(sys.argv) > 1 else 'mici'
+
+os.environ["RECORD"] = "1"
+if replay_variant == 'tizi':
+  os.environ["BIG"] = "1"
 
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.system.version import terms_version, training_version
 from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
-from openpilot.selfdrive.ui.ui_state import ui_state
 
-FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
+FPS = 60
 
 
 @dataclass
 class DummyEvent:
-  click: bool = False
-  # TODO: add some kind of intensity
-  swipe_left: bool = False
-  swipe_right: bool = False
-  swipe_down: bool = False
-
-
-SCRIPT = [
-  (0, DummyEvent()),
-  (FPS * 1, DummyEvent(click=True)),
-  (FPS * 2, DummyEvent(click=True)),
-  (FPS * 3, DummyEvent()),
-]
+  click_pos: tuple[int, int] | None = None
+  setup: Callable | None = None
 
 
 def setup_state():
@@ -45,51 +50,49 @@ def setup_state():
   params.put("CompletedTrainingVersion", training_version)
   params.put("DongleId", "test123456789")
   params.put("UpdaterCurrentDescription", "0.10.1 / test-branch / abc1234 / Nov 30")
-  return None
 
 
-def inject_click(coords):
-  events = []
-  x, y = coords[0]
-  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=time.monotonic()))
-  for x, y in coords[1:]:
-    events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=time.monotonic()))
-  x, y = coords[-1]
-  events.append(MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=time.monotonic()))
-
+def inject_click(x, y):
+  events = [
+    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=time.monotonic()),
+    MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=time.monotonic()),
+  ]
   with gui_app._mouse._lock:
     gui_app._mouse._events.extend(events)
 
 
 def handle_event(event: DummyEvent):
-  if event.click:
-    inject_click([(gui_app.width // 2, gui_app.height // 2)])
-  if event.swipe_left:
-    inject_click([(gui_app.width * 3 // 4, gui_app.height // 2),
-                  (gui_app.width // 4, gui_app.height // 2),
-                  (0, gui_app.height // 2)])
-  if event.swipe_right:
-    inject_click([(gui_app.width // 4, gui_app.height // 2),
-                  (gui_app.width * 3 // 4, gui_app.height // 2),
-                  (gui_app.width, gui_app.height // 2)])
-  if event.swipe_down:
-    inject_click([(gui_app.width // 2, gui_app.height // 4),
-                  (gui_app.width // 2, gui_app.height * 3 // 4),
-                  (gui_app.width // 2, gui_app.height)])
+  if event.setup:
+    event.setup()
+  if event.click_pos:
+    inject_click(*event.click_pos)
 
 
-def run_replay():
-  setup_state()
+def run_replay(variant):
+  from openpilot.selfdrive.ui.ui_state import ui_state
+
+  cfg = VARIANTS[variant]
+
+  output = os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4")
+  os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, output)
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
+
+  setup_state()
 
   if not HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
-  from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout  # import here for coverage
-
-  main_layout = MiciMainLayout()
+  # Import layout class dynamically for coverage
+  module_path, class_name = cfg['layout'].rsplit('.', 1)
+  layout_cls = getattr(importlib.import_module(module_path), class_name)
+  main_layout = layout_cls()
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
+
+  # Import and build script
+  script_mod = importlib.import_module(cfg['script'])
+  SCRIPT = script_mod.build_script(main_layout)
+  frame_fn = getattr(script_mod, 'get_frame_fn', lambda: None)
 
   frame = 0
   script_index = 0
@@ -99,6 +102,11 @@ def run_replay():
       _, event = SCRIPT[script_index]
       handle_event(event)
       script_index += 1
+
+    # Keep sending cereal messages for persistent states (onroad, alerts)
+    fn = frame_fn()
+    if fn:
+      fn()
 
     ui_state.update()
 
@@ -116,16 +124,23 @@ def run_replay():
   print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
 
 
-def main():
+def main(variant='mici'):
+  print(f"Running '{variant}' replay...")
+  cfg = VARIANTS[variant]
   with OpenpilotPrefix():
-    cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici'])
+    # TODO: Improve coverage sources (e.g. system/ui, etc)
+    cov = coverage.coverage(source=cfg['coverage_source'])
     with cov.collect():
-      run_replay()
+      run_replay(variant)
     cov.save()
     cov.report()
-    cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov'))
-    print("HTML report: htmlcov/index.html")
+    directory = os.path.join(DIFF_OUT_DIR, f"htmlcov-{variant}")
+    cov.html_report(directory=directory)
+    print(f"HTML report: {directory}/index.html")
 
 
 if __name__ == "__main__":
-  main()
+  if replay_variant not in VARIANTS:
+    print(f"Unknown variant '{replay_variant}'. Available: {', '.join(VARIANTS)}")
+    sys.exit(1)
+  main(replay_variant)
