@@ -79,13 +79,9 @@ def run_replay(variant):
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Import and build script
-  get_frame_fn = None
-  if variant == "tizi":
-    from openpilot.selfdrive.ui.tests.diff.tizi_script import build_script, get_frame_fn
-  else:
-    from openpilot.selfdrive.ui.tests.diff.mici_script import build_script
+  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
 
-  script = build_script(main_layout)
+  script = build_script(main_layout, big=args.big)
 
   frame = 0
   script_index = 0
@@ -96,11 +92,10 @@ def run_replay(variant):
       handle_event(event)
       script_index += 1
 
-    if get_frame_fn:
-      # Keep sending cereal messages for persistent states (onroad, alerts)
-      fn = get_frame_fn()
-      if fn:
-        fn()
+    # Keep sending cereal messages for persistent states (onroad, alerts)
+    fn = get_frame_fn()
+    if fn:
+      fn()
 
     ui_state.update()
 

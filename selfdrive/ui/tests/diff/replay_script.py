@@ -100,14 +100,7 @@ def get_frame_fn():
   return _frame_fn
 
 
-def build_script(main_layout):
-  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
-
-  # Seed initial offroad device state
-  ds = messaging.new_message('deviceState')
-  ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
-  pm.send('deviceState', ds)
-
+def build_script(main_layout, big=False):
   t = 0
   script = []
 
@@ -119,6 +112,21 @@ def build_script(main_layout):
   def hold(dt=HOLD):
     add(dt, DummyEvent())
 
+  if not big:
+    # mici script
+    from openpilot.system.ui.lib.application import gui_app
+
+    w, h = gui_app.width, gui_app.height
+
+    # === Homescreen (clean) ===
+    add(0, DummyEvent())
+    add(FPS, DummyEvent(click_pos=(w // 2, h // 2)))
+    add(FPS, DummyEvent(click_pos=(w // 2, h // 2)))
+    add(FPS, DummyEvent())
+    return script
+
+  # tizi script
+
   def make_home_refresh_setup(fn):
     """Set up state and force an immediate refresh on the home layout."""
     def setup():
@@ -126,6 +134,13 @@ def build_script(main_layout):
       fn()
       main_layout._layouts[MainState.HOME].last_refresh = 0
     return setup
+
+  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
+
+  # Seed initial offroad device state
+  ds = messaging.new_message('deviceState')
+  ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
+  pm.send('deviceState', ds)
 
   # === Homescreen (clean) ===
   add(0, DummyEvent())
