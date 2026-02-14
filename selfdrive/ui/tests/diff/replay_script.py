@@ -38,23 +38,34 @@ class Script:
   def get_frame_time(self) -> float:
     return self.frame / self.fps
 
-  def add(self, delta: int, event: ScriptEvent):
-    """Add event to the script with the given delta in frames from the previous event."""
-    self.frame += delta
+  def add(self, event: ScriptEvent, before: int = 0, after: int = 0):
+    """Add event to the script, optionally with the given number of frames to wait before or after the event."""
+    self.frame += before
     self.entries.append((self.frame, event))
+    self.frame += after
+
+  def end(self):
+    """Add a final empty event to mark the end of the script."""
+    # Without this, it will just end on the last event without waiting for any specified delay after it
+    self.add(ScriptEvent())
+
+  def wait(self, frames: int):
+    """Add a delay for the given number of frames followed by an empty event."""
+    self.add(ScriptEvent(), before=frames)
+
+  def setup(self, fn: Callable, before: int = 0, after: int = 0):
+    """Add a setup function to be called at the given delta in frames from the previous event."""
+    self.add(ScriptEvent(setup=fn), before, after)
 
   def click(self, x: int, y: int, wait_frames: int = WAIT):
-    """Add a click event for the given position and wait for the given frames."""
+    """Add a click event to the script for the given position and specify frames to wait after."""
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=self.get_frame_time())
-    self.add(0, ScriptEvent(mouse_events=[mouse_down]))
+    self.add(ScriptEvent(mouse_events=[mouse_down]), after=1)
     # wait 1 frame between press and release (otherwise settings button can click close underneath immediately when opened)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
-    self.add(1, ScriptEvent(mouse_events=[mouse_up]))
-    # additional wait after click
-    if wait_frames > 0:
-      self.add(wait_frames, ScriptEvent())
+    self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_frames)
 
 
 def build_mici_script(ctx: ReplayContext, script: Script):
@@ -63,21 +74,21 @@ def build_mici_script(ctx: ReplayContext, script: Script):
 
   center = (gui_app.width // 2, gui_app.height // 2)
 
-  script.add(FPS, ScriptEvent())
+  script.wait(FPS)
   script.click(*center, FPS)
   script.click(*center, FPS)
+  script.end()
 
 
 def build_tizi_script(ctx: ReplayContext, script: Script):
   """Build the replay script for the tizi layout."""
 
   def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
-    script.add(0, ScriptEvent(setup=setup))
+    script.add(ScriptEvent(setup=setup))
     script.click(*click_pos, wait_frames)
 
   def setup(fn: Callable, wait_frames: int = WAIT):
-    script.add(0, ScriptEvent(setup=fn))
-    script.add(wait_frames, ScriptEvent())
+    script.add(ScriptEvent(setup=fn), after=wait_frames)
 
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
@@ -142,7 +153,7 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   setup(make_alert_setup(ctx, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
   # End
-  script.add(0, ScriptEvent())
+  script.end()
 
 
 def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
