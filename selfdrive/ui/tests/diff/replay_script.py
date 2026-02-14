@@ -74,8 +74,8 @@ def build_mici_script(ctx: ReplayContext, script: Script):
   center = (gui_app.width // 2, gui_app.height // 2)
 
   script.wait(FPS)
-  script.click(*center, FPS)
-  script.click(*center, FPS)
+  script.click(*center, FPS)  # Open settings
+  script.click(*center, FPS)  # Open toggles
   script.end()
 
 
