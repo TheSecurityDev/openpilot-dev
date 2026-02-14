@@ -10,7 +10,7 @@ from openpilot.selfdrive.ui.tests.diff.replay_setup import (
   make_network_state_setup, make_onroad_setup, make_alert_setup,
 )
 
-WAIT = int(FPS * 0.5)
+WAIT = int(FPS * 0.5)  # Default frames to wait after events
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -53,9 +53,9 @@ class Script:
     """Add a delay for the given number of frames followed by an empty event."""
     self.add(ScriptEvent(), before=frames)
 
-  def setup(self, fn: Callable, before: int = 0, after: int = 0):
-    """Add a setup function to be called at the given delta in frames from the previous event."""
-    self.add(ScriptEvent(setup=fn), before, after)
+  def setup(self, fn: Callable, wait_frames: int = WAIT):
+    """Add a setup function to be called immediately followed by a delay of the given number of frames."""
+    self.add(ScriptEvent(setup=fn), after=wait_frames)
 
   def click(self, x: int, y: int, wait_after: int = WAIT, wait_between: int = 0):
     """Add a click event to the script for the given position and specify frames to wait between mouse events or after the click."""
@@ -82,9 +82,6 @@ def build_mici_script(ctx: ReplayContext, script: Script):
 def build_tizi_script(ctx: ReplayContext, script: Script):
   """Build the replay script for the tizi layout."""
 
-  def setup(fn: Callable, wait_frames: int = WAIT):
-    script.add(ScriptEvent(setup=fn), after=wait_frames)
-
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
     from openpilot.selfdrive.ui.layouts.main import MainState
@@ -97,14 +94,14 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
 
   # TODO: Better way of organizing the events
 
-  # === Homescreen (clean) ===
-  setup(make_network_state_setup(ctx, log.DeviceState.NetworkType.wifi))
+  # === Homescreen ===
+  script.setup(make_network_state_setup(ctx, log.DeviceState.NetworkType.wifi))
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
-  setup(make_home_refresh_setup(setup_offroad_alerts))
+  script.setup(make_home_refresh_setup(setup_offroad_alerts))
 
   # === Update Available (auto-transitions via HomeLayout refresh) ===
-  setup(make_home_refresh_setup(setup_update_available))
+  script.setup(make_home_refresh_setup(setup_update_available))
 
   # === Settings - Device (click sidebar settings button) ===
   script.click(150, 90, wait_between=1)  # wait 1 frame between mouse down and up to avoid clicking close button immediately when opened
@@ -116,14 +113,14 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   script.click(278, 600)
 
   # === Settings - Software ===
-  setup(put_update_params, wait_frames=0)
+  script.setup(put_update_params, wait_frames=0)
   script.click(278, 720)
 
   # === Settings - Firehose ===
   script.click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  setup(setup_developer_params, wait_frames=0)
+  script.setup(setup_developer_params, wait_frames=0)
   script.click(278, 950)
 
   # === Keyboard modal (SSH keys button in developer panel) ===
@@ -134,20 +131,20 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   script.click(250, 160)
 
   # === Onroad ===
-  setup(make_onroad_setup(ctx))
+  script.setup(make_onroad_setup(ctx))
   script.click(1000, 500)  # click onroad to toggle sidebar
 
   # === Onroad alerts ===
   # Small alert (normal)
-  setup(make_alert_setup(ctx, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
+  script.setup(make_alert_setup(ctx, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
   # Medium alert (userPrompt)
-  setup(make_alert_setup(ctx, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
+  script.setup(make_alert_setup(ctx, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
   # Full alert (critical)
-  setup(make_alert_setup(ctx, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
+  script.setup(make_alert_setup(ctx, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
   # Full alert multiline
-  setup(make_alert_setup(ctx, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
+  script.setup(make_alert_setup(ctx, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
   # Full alert long text
-  setup(make_alert_setup(ctx, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
+  script.setup(make_alert_setup(ctx, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
   # End
   script.end()
