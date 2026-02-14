@@ -3,9 +3,12 @@ from typing import TYPE_CHECKING
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from cereal import log, messaging
+from cereal import log
 from openpilot.selfdrive.ui.tests.diff.replay import FPS, ReplayContext
-from openpilot.selfdrive.ui.tests.diff.replay_setup import put_update_params, send_onroad, setup_offroad_alerts, setup_update_available, setup_developer_params
+from openpilot.selfdrive.ui.tests.diff.replay_setup import (
+  put_update_params, setup_offroad_alerts, setup_update_available, setup_developer_params,
+  make_network_state_setup, make_onroad_setup, make_alert_setup,
+)
 
 WAIT = int(FPS * 0.5)
 
@@ -13,47 +16,6 @@ AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
 
 
-def setup_send_fn(ctx: ReplayContext, send_fn: Callable) -> Callable:
-  """Return a setup function that sets the send function in the context and calls it."""
-
-  def setup() -> None:
-    ctx.set_send_fn(send_fn)
-    send_fn()
-
-  return setup
-
-
-# --- Setup helper functions ---
-
-
-def make_network_state_setup(ctx: ReplayContext, network_type):
-  def _send() -> None:
-    ds = messaging.new_message('deviceState')
-    ds.deviceState.networkType = network_type
-    ctx.pm.send('deviceState', ds)
-
-  return setup_send_fn(ctx, _send)
-
-
-def make_onroad_setup(ctx: ReplayContext):
-  def _send() -> None:
-    send_onroad(ctx.pm)
-
-  return setup_send_fn(ctx, _send)
-
-
-def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
-  def _send() -> None:
-    send_onroad(ctx.pm)
-    alert = messaging.new_message('selfdriveState')
-    ss = alert.selfdriveState
-    ss.alertSize = size
-    ss.alertText1 = text1
-    ss.alertText2 = text2
-    ss.alertStatus = status
-    ctx.pm.send('selfdriveState', alert)
-
-  return setup_send_fn(ctx, _send)
 
 
 # --- Script building functions ---
@@ -172,6 +134,7 @@ def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
 
   print(f"Building replay script (big={big})...")
 
+  # TODO: This stuff could be in a Script class
   frame = 0
   script: list[ScriptEntry] = []
 

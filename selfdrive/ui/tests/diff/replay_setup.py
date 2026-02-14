@@ -1,9 +1,17 @@
+from __future__ import annotations
+from typing import TYPE_CHECKING
 from cereal import car, log, messaging
+from collections.abc import Callable
+
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.system.updated.updated import parse_release_notes
 from openpilot.system.version import terms_version, training_version
+
+if TYPE_CHECKING:
+  # Prevent circular import for type checking
+  from openpilot.selfdrive.ui.tests.diff.replay import ReplayContext
 
 BRANCH_NAME = "this-is-a-really-super-mega-ultra-max-extreme-ultimate-long-branch-name"
 
@@ -56,3 +64,44 @@ def send_onroad(pm):
 
   pm.send('deviceState', ds)
   pm.send('pandaStates', ps)
+
+
+# TODO: Refactor this
+def setup_send_fn(ctx: ReplayContext, send_fn: Callable) -> Callable:
+  """Return a setup function that sets the send function in the context and calls it."""
+
+  def setup() -> None:
+    ctx.set_send_fn(send_fn)
+    send_fn()
+
+  return setup
+
+
+def make_network_state_setup(ctx: ReplayContext, network_type):
+  def _send() -> None:
+    ds = messaging.new_message('deviceState')
+    ds.deviceState.networkType = network_type
+    ctx.pm.send('deviceState', ds)
+
+  return setup_send_fn(ctx, _send)
+
+
+def make_onroad_setup(ctx: ReplayContext):
+  def _send() -> None:
+    send_onroad(ctx.pm)
+
+  return setup_send_fn(ctx, _send)
+
+
+def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
+  def _send() -> None:
+    send_onroad(ctx.pm)
+    alert = messaging.new_message('selfdriveState')
+    ss = alert.selfdriveState
+    ss.alertSize = size
+    ss.alertText1 = text1
+    ss.alertText2 = text2
+    ss.alertStatus = status
+    ctx.pm.send('selfdriveState', alert)
+
+  return setup_send_fn(ctx, _send)
