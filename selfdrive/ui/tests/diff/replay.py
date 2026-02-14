@@ -27,9 +27,7 @@ FPS = 60
 
 
 class ReplayContext:
-  pm: PubMaster
   send_fn: Callable | None = None  # Function to call each frame to send messages for persistent states (onroad, alerts)
-  main_layout: object  # MainLayout instance, used to access layout-specific methods for the replay script
 
   def __init__(self, pm: PubMaster, main_layout):
     self.pm = pm

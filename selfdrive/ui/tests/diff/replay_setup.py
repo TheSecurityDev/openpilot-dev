@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 from cereal import car, log, messaging
 from collections.abc import Callable
 
+from cereal.messaging import PubMaster
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
@@ -53,7 +54,7 @@ def setup_developer_params():
   Params().put("CarParamsPersistent", CP.to_bytes())
 
 
-def send_onroad(pm):
+def send_onroad(pm: PubMaster):
   ds = messaging.new_message('deviceState')
   ds.deviceState.started = True
   ds.deviceState.networkType = log.DeviceState.NetworkType.wifi
