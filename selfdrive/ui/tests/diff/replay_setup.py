@@ -66,34 +66,23 @@ def send_onroad(pm):
   pm.send('pandaStates', ps)
 
 
-# TODO: Refactor this
-def setup_send_fn(ctx: ReplayContext, send_fn: Callable) -> Callable:
-  """Return a setup function that sets the send function in the context and calls it."""
-
-  def setup() -> None:
-    ctx.set_send_fn(send_fn)
-    send_fn()
-
-  return setup
-
-
-def make_network_state_setup(ctx: ReplayContext, network_type):
+def make_network_state_setup(ctx: ReplayContext, network_type) -> Callable:
   def _send() -> None:
     ds = messaging.new_message('deviceState')
     ds.deviceState.networkType = network_type
     ctx.pm.send('deviceState', ds)
 
-  return setup_send_fn(ctx, _send)
+  return lambda: ctx.update_send_fn(_send)
 
 
-def make_onroad_setup(ctx: ReplayContext):
+def make_onroad_setup(ctx: ReplayContext) -> Callable:
   def _send() -> None:
     send_onroad(ctx.pm)
 
-  return setup_send_fn(ctx, _send)
+  return lambda: ctx.update_send_fn(_send)
 
 
-def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
+def make_alert_setup(ctx: ReplayContext, size, text1, text2, status) -> Callable:
   def _send() -> None:
     send_onroad(ctx.pm)
     alert = messaging.new_message('selfdriveState')
@@ -104,4 +93,4 @@ def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
     ss.alertStatus = status
     ctx.pm.send('selfdriveState', alert)
 
-  return setup_send_fn(ctx, _send)
+  return lambda: ctx.update_send_fn(_send)

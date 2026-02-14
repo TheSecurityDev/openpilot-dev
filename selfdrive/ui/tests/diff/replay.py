@@ -36,8 +36,9 @@ class ReplayContext:
     self.send_fn = None
     self.main_layout = main_layout
 
-  def set_send_fn(self, send_fn: Callable) -> None:
+  def update_send_fn(self, send_fn: Callable) -> None:
     self.send_fn = send_fn
+    send_fn() # Call immediately to set initial state
 
   def get_send_fn(self) -> Callable | None:
     return self.send_fn
