@@ -58,7 +58,7 @@ class Script:
     self.add(ScriptEvent(setup=fn), before, after)
 
   def click(self, x: int, y: int, wait_after: int = WAIT, wait_between: int = 0):
-    """Add a click event to the script for the given position and specify frames to wait after."""
+    """Add a click event to the script for the given position and specify frames to wait between mouse events or after the click."""
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=self.get_frame_time())
@@ -81,10 +81,6 @@ def build_mici_script(ctx: ReplayContext, script: Script):
 
 def build_tizi_script(ctx: ReplayContext, script: Script):
   """Build the replay script for the tizi layout."""
-
-  def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
-    script.add(ScriptEvent(setup=setup))
-    script.click(*click_pos, wait_frames)
 
   def setup(fn: Callable, wait_frames: int = WAIT):
     script.add(ScriptEvent(setup=fn), after=wait_frames)
@@ -120,13 +116,15 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   script.click(278, 600)
 
   # === Settings - Software ===
-  setup_and_click(put_update_params, (278, 720))
+  setup(put_update_params, wait_frames=0)
+  script.click(278, 720)
 
   # === Settings - Firehose ===
   script.click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  setup_and_click(setup_developer_params, (278, 950))
+  setup(setup_developer_params, wait_frames=0)
+  script.click(278, 950)
 
   # === Keyboard modal (SSH keys button in developer panel) ===
   script.click(1930, 470)  # click SSH keys
@@ -156,10 +154,7 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
 
 
 def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
-  """
-  Build the replay script for the appropriate layout variant by calling the corresponding build function.
-  Return the list of ScriptEntry tuples containing the frame number and ScriptEvent for each event in the script.
-  """
+  """Build the replay script for the appropriate layout variant and return list of script entries."""
   print(f"Building replay script (big={big})...")
 
   script = Script(FPS)
