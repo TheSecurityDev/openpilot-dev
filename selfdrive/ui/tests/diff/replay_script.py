@@ -103,10 +103,9 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
 
   def make_home_refresh_setup(fn: Callable):
     """Return setup function that calls the given function to modify state and forces an immediate refresh on the home layout."""
+    from openpilot.selfdrive.ui.layouts.main import MainState
 
     def setup():
-      from openpilot.selfdrive.ui.layouts.main import MainState
-
       fn()
       main_layout._layouts[MainState.HOME].last_refresh = 0
 
@@ -133,7 +132,7 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(278, 600)
 
   # === Settings - Software ===
-  setup_and_click( put_update_params, (278, 720))
+  setup_and_click(put_update_params, (278, 720))
 
   # === Settings - Firehose ===
   click(278, 845)
@@ -153,11 +152,11 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(1000, 500)  # click onroad to toggle sidebar
 
   # === Onroad alerts ===
-  # Small alert
+  # Small alert (normal)
   setup(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
-  # Medium alert
+  # Medium alert (userPrompt)
   setup(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
-  # Full alert
+  # Full alert (critical)
   setup(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
   # Full alert multiline
   setup(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
@@ -192,11 +191,6 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
     frame += delta
     script.append((frame, event))
 
-  def wait(frames: int = WAIT):
-    """Wait for the given number of frames by adding a no-op event."""
-    if frames > 0:
-      add(frames, ScriptEvent())
-
   def click(x: int, y: int, wait_frames: int = WAIT):
     """Add a click event for the given position and wait for the given frames."""
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=get_frame_time())
@@ -204,7 +198,9 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
     # wait 1 frame between press and release (otherwise settings button can click close underneath immediately when opened)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=get_frame_time())
     add(1, ScriptEvent(mouse_events=[mouse_up]))
-    wait(wait_frames)
+    # additional wait after click
+    if wait_frames > 0:
+      add(wait_frames, ScriptEvent())
 
   if big:
     build_tizi_script(pm, add, click, main_layout)
