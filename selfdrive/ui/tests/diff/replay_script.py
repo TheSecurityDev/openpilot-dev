@@ -53,9 +53,9 @@ class Script:
     """Add a delay for the given number of frames followed by an empty event."""
     self.add(ScriptEvent(), before=frames)
 
-  def setup(self, fn: Callable, wait_frames: int = WAIT):
+  def setup(self, fn: Callable, wait_after: int = WAIT):
     """Add a setup function to be called immediately followed by a delay of the given number of frames."""
-    self.add(ScriptEvent(setup=fn), after=wait_frames)
+    self.add(ScriptEvent(setup=fn), after=wait_after)
 
   def click(self, x: int, y: int, wait_after: int = WAIT, wait_between: int = 0):
     """Add a click event to the script for the given position and specify frames to wait between mouse events or after the click."""
@@ -113,14 +113,14 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   script.click(278, 600)
 
   # === Settings - Software ===
-  script.setup(put_update_params, wait_frames=0)
+  script.setup(put_update_params, wait_after=0)
   script.click(278, 720)
 
   # === Settings - Firehose ===
   script.click(278, 845)
 
   # === Settings - Developer (set CarParamsPersistent first) ===
-  script.setup(setup_developer_params, wait_frames=0)
+  script.setup(setup_developer_params, wait_after=0)
   script.click(278, 950)
 
   # === Keyboard modal (SSH keys button in developer panel) ===
