@@ -13,7 +13,7 @@ AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
 
 
-def setup_send_fn(ctx: ReplayContext, send_fn: Callable[[], None]) -> Callable[[], None]:
+def setup_send_fn(ctx: ReplayContext, send_fn: Callable) -> Callable:
   """Return a setup function that sets the send function in the context and calls it."""
 
   def setup() -> None:
@@ -62,7 +62,7 @@ def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
 @dataclass
 class ScriptEvent:
   if TYPE_CHECKING:
-    # Prevent application imports from being excluded by coverage report since we only import here for the type hint
+    # Only import for type checking to avoid excluding the application code from coverage
     from openpilot.system.ui.lib.application import MouseEvent
 
   setup: Callable | None = None
@@ -195,10 +195,8 @@ def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
     if wait_frames > 0:
       add(wait_frames, ScriptEvent())
 
-  if big:
-    build_tizi_script(context, add, click)
-  else:
-    build_mici_script(context, add, click)
+  builder = build_tizi_script if big else build_mici_script
+  builder(context, add, click)
 
   print(f"Built replay script with {len(script)} events and {frame} frames ({frame / FPS:.2f} seconds)")
 

@@ -46,6 +46,7 @@ class ReplayContext:
 def run_replay(variant):
   from openpilot.selfdrive.ui.ui_state import ui_state  # Import within OpenpilotPrefix context so param values are setup correctly
   from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
+  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script
 
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
@@ -64,8 +65,6 @@ def run_replay(variant):
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
   # Create context and build script
-  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script
-
   pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
   context = ReplayContext(pm, main_layout)
   script = build_script(context, big=args.big)
