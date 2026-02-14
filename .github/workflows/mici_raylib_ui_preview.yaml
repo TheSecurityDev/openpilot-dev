@@ -98,7 +98,7 @@ jobs:
           ref: ${{ env.TIZI_MASTER_BRANCH }}
 
       - name: Saving new mici master ui
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
         run: |
           cd ${{ github.workspace }}/master_ui_mici 2>/dev/null || git clone --no-checkout git@github.com:TheSecurityDev/openpilot-ci-artifacts.git ${{ github.workspace }}/master_ui_mici
           cd ${{ github.workspace }}/master_ui_mici
@@ -112,7 +112,7 @@ jobs:
           git push origin HEAD:${{ env.MICI_MASTER_BRANCH }} --force
 
       - name: Saving new tizi master ui
-        if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master')
         run: |
           cd ${{ github.workspace }}/master_ui_tizi 2>/dev/null || git clone --no-checkout git@github.com:TheSecurityDev/openpilot-ci-artifacts.git ${{ github.workspace }}/master_ui_tizi
           cd ${{ github.workspace }}/master_ui_tizi
