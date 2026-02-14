@@ -57,15 +57,14 @@ class Script:
     """Add a setup function to be called at the given delta in frames from the previous event."""
     self.add(ScriptEvent(setup=fn), before, after)
 
-  def click(self, x: int, y: int, wait_frames: int = WAIT):
+  def click(self, x: int, y: int, wait_after: int = WAIT, wait_between: int = 0):
     """Add a click event to the script for the given position and specify frames to wait after."""
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=self.get_frame_time())
-    self.add(ScriptEvent(mouse_events=[mouse_down]), after=1)
-    # wait 1 frame between press and release (otherwise settings button can click close underneath immediately when opened)
+    self.add(ScriptEvent(mouse_events=[mouse_down]), after=wait_between)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
-    self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_frames)
+    self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_after)
 
 
 def build_mici_script(ctx: ReplayContext, script: Script):
@@ -112,7 +111,7 @@ def build_tizi_script(ctx: ReplayContext, script: Script):
   setup(make_home_refresh_setup(setup_update_available))
 
   # === Settings - Device (click sidebar settings button) ===
-  script.click(150, 90)
+  script.click(150, 90, wait_between=1)  # wait 1 frame between mouse down and up to avoid clicking close button immediately when opened
 
   # === Settings - Network ===
   script.click(278, 450)
@@ -167,6 +166,6 @@ def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
   builder = build_tizi_script if big else build_mici_script
   builder(context, script)
 
-  print(f"Built replay script with {len(script.entries)} events and {script.frame} frames ({script.frame / FPS:.2f} seconds)")
+  print(f"Built replay script with {len(script.entries)} events and {script.frame} frames ({script.get_frame_time():.2f} seconds)")
 
   return script.entries
