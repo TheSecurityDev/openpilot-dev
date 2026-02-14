@@ -100,7 +100,7 @@ jobs:
       - name: Saving new mici master ui
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          cd ${{ github.workspace }}/master_ui_mici 2>/dev/null || git clone --no-checkout $(cd ${{ github.workspace }}/master_ui_tizi && git remote get-url origin) ${{ github.workspace }}/master_ui_mici
+          cd ${{ github.workspace }}/master_ui_mici 2>/dev/null || git clone --no-checkout git@github.com:TheSecurityDev/openpilot-ci-artifacts.git ${{ github.workspace }}/master_ui_mici
           cd ${{ github.workspace }}/master_ui_mici
           git checkout --orphan=new_branch
           git rm -rf * 2>/dev/null || true
@@ -114,7 +114,7 @@ jobs:
       - name: Saving new tizi master ui
         if: github.ref == 'refs/heads/master' && github.event_name == 'push'
         run: |
-          cd ${{ github.workspace }}/master_ui_tizi 2>/dev/null || git clone --no-checkout $(cd ${{ github.workspace }}/master_ui_mici && git remote get-url origin) ${{ github.workspace }}/master_ui_tizi
+          cd ${{ github.workspace }}/master_ui_tizi 2>/dev/null || git clone --no-checkout git@github.com:TheSecurityDev/openpilot-ci-artifacts.git ${{ github.workspace }}/master_ui_tizi
           cd ${{ github.workspace }}/master_ui_tizi
           git checkout --orphan=new_branch
           git rm -rf * 2>/dev/null || true
@@ -185,8 +185,9 @@ jobs:
 
       - name: Saving proposed ui
         if: github.event_name == 'pull_request'
-        working-directory: ${{ github.workspace }}/master_ui_mici
         run: |
+          cd ${{ github.workspace }}/master_ui_mici 2>/dev/null || git clone --no-checkout git@github.com:TheSecurityDev/openpilot-ci-artifacts.git ${{ github.workspace }}/master_ui_mici
+          cd ${{ github.workspace }}/master_ui_mici
           git config user.name "GitHub Actions Bot"
           git config user.email "<>"
           git checkout --orphan=${{ env.BRANCH_NAME }}
