@@ -78,6 +78,8 @@ jobs:
           path: ${{ github.workspace }}/pr_ui_tizi
 
       - name: Getting mici master ui
+        id: mici_master
+        continue-on-error: true
         uses: actions/checkout@v6
         with:
           repository: TheSecurityDev/openpilot-ci-artifacts
@@ -135,23 +137,27 @@ jobs:
           baseurl="https://github.com/TheSecurityDev/openpilot-ci-artifacts/raw/refs/heads/${{ env.BRANCH_NAME }}"
 
           # --- mici diff ---
-          mv "${{ github.workspace }}/pr_ui_mici/mici_ui_replay.mp4" "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_proposed.mp4"
-          mv "${{ github.workspace }}/master_ui_mici/mici_ui_replay.mp4" "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_master.mp4"
+          if [ -f "${{ github.workspace }}/master_ui_mici/mici_ui_replay.mp4" ]; then
+            mv "${{ github.workspace }}/pr_ui_mici/mici_ui_replay.mp4" "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_proposed.mp4"
+            mv "${{ github.workspace }}/master_ui_mici/mici_ui_replay.mp4" "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_master.mp4"
 
-          mici_diff_exit=0
-          python3 ${{ github.workspace }}/selfdrive/ui/tests/diff/diff.py \
-            "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_master.mp4" \
-            "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_proposed.mp4" \
-            "mici_diff.html" --basedir "$baseurl" --no-open || mici_diff_exit=$?
+            mici_diff_exit=0
+            python3 ${{ github.workspace }}/selfdrive/ui/tests/diff/diff.py \
+              "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_master.mp4" \
+              "${{ github.workspace }}/pr_ui_mici/mici_ui_replay_proposed.mp4" \
+              "mici_diff.html" --basedir "$baseurl" --no-open || mici_diff_exit=$?
 
-          cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.html ${{ github.workspace }}/pr_ui_mici/
-          mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.mp4 ${{ github.workspace }}/pr_ui_mici/
+            cp ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.html ${{ github.workspace }}/pr_ui_mici/
+            mv ${{ github.workspace }}/selfdrive/ui/tests/diff/report/mici_diff.mp4 ${{ github.workspace }}/pr_ui_mici/
 
-          MICI_REPORT_URL="https://thesecuritydev.github.io/openpilot-ci-artifacts/diff_pr_${{ github.event.number }}_mici.html"
-          if [ $mici_diff_exit -eq 0 ]; then
-            echo "MICI_DIFF=✅ Videos are identical! [View Diff Report]($MICI_REPORT_URL)" >> "$GITHUB_OUTPUT"
+            MICI_REPORT_URL="https://thesecuritydev.github.io/openpilot-ci-artifacts/diff_pr_${{ github.event.number }}_mici.html"
+            if [ $mici_diff_exit -eq 0 ]; then
+              echo "MICI_DIFF=✅ Videos are identical! [View Diff Report]($MICI_REPORT_URL)" >> "$GITHUB_OUTPUT"
+            else
+              echo "MICI_DIFF=❌ <strong>Videos differ!</strong> [View Diff Report]($MICI_REPORT_URL)" >> "$GITHUB_OUTPUT"
+            fi
           else
-            echo "MICI_DIFF=❌ <strong>Videos differ!</strong> [View Diff Report]($MICI_REPORT_URL)" >> "$GITHUB_OUTPUT"
+            echo "MICI_DIFF=⚠️ No mici master video available yet (first run)" >> "$GITHUB_OUTPUT"
           fi
 
           # --- tizi diff ---
