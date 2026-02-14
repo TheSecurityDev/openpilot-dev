@@ -4,7 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from cereal import log, messaging
-from openpilot.selfdrive.ui.tests.diff.replay import FPS
+from openpilot.selfdrive.ui.tests.diff.replay import FPS, ReplayContext
 from openpilot.selfdrive.ui.tests.diff.replay_setup import put_update_params, send_onroad, setup_offroad_alerts, setup_update_available, setup_developer_params
 
 WAIT = int(FPS * 0.5)
@@ -13,18 +13,11 @@ AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
 
 
-# Persistent per-frame sender function, set by setup callbacks to keep sending cereal messages
-_frame_fn: Callable | None = None  # TODO: This seems hacky, find a better way to do this
-
-def get_frame_fn():
-  return _frame_fn
-
-def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
-  """Return a setup function that sets the global _frame_fn to the given send function and calls it."""
+def setup_send_fn(ctx: ReplayContext, send_fn: Callable[[], None]) -> Callable[[], None]:
+  """Return a setup function that sets the send function in the context and calls it."""
 
   def setup() -> None:
-    global _frame_fn
-    _frame_fn = send_fn
+    ctx.set_send_fn(send_fn)
     send_fn()
 
   return setup
@@ -33,34 +26,34 @@ def setup_send_fn(send_fn: Callable[[], None]) -> Callable[[], None]:
 # --- Setup helper functions ---
 
 
-def make_network_state_setup(pm, network_type):
+def make_network_state_setup(ctx: ReplayContext, network_type):
   def _send() -> None:
     ds = messaging.new_message('deviceState')
     ds.deviceState.networkType = network_type
-    pm.send('deviceState', ds)
+    ctx.pm.send('deviceState', ds)
 
-  return setup_send_fn(_send)
+  return setup_send_fn(ctx, _send)
 
 
-def make_onroad_setup(pm):
+def make_onroad_setup(ctx: ReplayContext):
   def _send() -> None:
-    send_onroad(pm)
+    send_onroad(ctx.pm)
 
-  return setup_send_fn(_send)
+  return setup_send_fn(ctx, _send)
 
 
-def make_alert_setup(pm, size, text1, text2, status):
+def make_alert_setup(ctx: ReplayContext, size, text1, text2, status):
   def _send() -> None:
-    send_onroad(pm)
+    send_onroad(ctx.pm)
     alert = messaging.new_message('selfdriveState')
     ss = alert.selfdriveState
     ss.alertSize = size
     ss.alertText1 = text1
     ss.alertText2 = text2
     ss.alertStatus = status
-    pm.send('selfdriveState', alert)
+    ctx.pm.send('selfdriveState', alert)
 
-  return setup_send_fn(_send)
+  return setup_send_fn(ctx, _send)
 
 
 # --- Script building functions ---
@@ -79,7 +72,7 @@ class ScriptEvent:
 AddFn = Callable[[int, ScriptEvent], None]
 
 
-def build_mici_script(pm, add: AddFn, click):
+def build_mici_script(ctx: ReplayContext, add: AddFn, click):
   """Build the replay script for the mici layout."""
   from openpilot.system.ui.lib.application import gui_app
 
@@ -90,7 +83,7 @@ def build_mici_script(pm, add: AddFn, click):
   click(*center, FPS)
 
 
-def build_tizi_script(pm, add: AddFn, click, main_layout):
+def build_tizi_script(ctx: ReplayContext, add: AddFn, click):
   """Build the replay script for the tizi layout."""
 
   def setup_and_click(setup: Callable, click_pos: tuple[int, int], wait_frames: int = WAIT):
@@ -107,14 +100,14 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
 
     def setup():
       fn()
-      main_layout._layouts[MainState.HOME].last_refresh = 0
+      ctx.main_layout._layouts[MainState.HOME].last_refresh = 0
 
     return setup
 
   # TODO: Better way of organizing the events
 
   # === Homescreen (clean) ===
-  setup(make_network_state_setup(pm, log.DeviceState.NetworkType.wifi))
+  setup(make_network_state_setup(ctx, log.DeviceState.NetworkType.wifi))
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
   setup(make_home_refresh_setup(setup_offroad_alerts))
@@ -148,20 +141,20 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
   click(250, 160)
 
   # === Onroad ===
-  setup(make_onroad_setup(pm))
+  setup(make_onroad_setup(ctx))
   click(1000, 500)  # click onroad to toggle sidebar
 
   # === Onroad alerts ===
   # Small alert (normal)
-  setup(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
+  setup(make_alert_setup(ctx, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
   # Medium alert (userPrompt)
-  setup(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
+  setup(make_alert_setup(ctx, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
   # Full alert (critical)
-  setup(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
+  setup(make_alert_setup(ctx, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
   # Full alert multiline
-  setup(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
+  setup(make_alert_setup(ctx, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
   # Full alert long text
-  setup(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
+  setup(make_alert_setup(ctx, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
   # End
   add(0, ScriptEvent())
@@ -170,7 +163,7 @@ def build_tizi_script(pm, add: AddFn, click, main_layout):
 ScriptEntry = tuple[int, ScriptEvent]  # (frame, event)
 
 
-def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
+def build_script(context: ReplayContext, big=False) -> list[ScriptEntry]:
   """
   Build the replay script for the appropriate layout variant by calling the corresponding build function.
   Return the list of ScriptEntry tuples containing the frame number and ScriptEvent for each event in the script.
@@ -203,9 +196,9 @@ def build_script(pm, main_layout, big=False) -> list[ScriptEntry]:
       add(wait_frames, ScriptEvent())
 
   if big:
-    build_tizi_script(pm, add, click, main_layout)
+    build_tizi_script(context, add, click)
   else:
-    build_mici_script(pm, add, click)
+    build_mici_script(context, add, click)
 
   print(f"Built replay script with {len(script)} events and {frame} frames ({frame / FPS:.2f} seconds)")
 

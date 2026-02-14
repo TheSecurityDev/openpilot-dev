@@ -4,6 +4,8 @@ import coverage
 import pyray as rl
 import argparse
 
+from collections.abc import Callable
+
 from cereal.messaging import PubMaster
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
@@ -24,6 +26,23 @@ HEADLESS = os.getenv("WINDOWED", "0") != "1"
 FPS = 60
 
 
+class ReplayContext:
+  pm: PubMaster
+  send_fn: Callable | None = None  # Function to call each frame to send messages for persistent states (onroad, alerts)
+  main_layout: object  # MainLayout instance, used to access layout-specific methods for the replay script
+
+  def __init__(self, pm: PubMaster, main_layout):
+    self.pm = pm
+    self.send_fn = None
+    self.main_layout = main_layout
+
+  def set_send_fn(self, send_fn: Callable) -> None:
+    self.send_fn = send_fn
+
+  def get_send_fn(self) -> Callable | None:
+    return self.send_fn
+
+
 def run_replay(variant):
   from openpilot.selfdrive.ui.ui_state import ui_state  # Import within OpenpilotPrefix context so param values are setup correctly
   from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
@@ -36,8 +55,6 @@ def run_replay(variant):
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
-  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
-
   # Dynamically import main layout based on variant
   if variant == "mici":
     from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout as MainLayout
@@ -46,9 +63,12 @@ def run_replay(variant):
   main_layout = MainLayout()
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
-  # Import and build script
-  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script, get_frame_fn
-  script = build_script(pm, main_layout, big=args.big)
+  # Create context and build script
+  from openpilot.selfdrive.ui.tests.diff.replay_script import build_script
+
+  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
+  context = ReplayContext(pm, main_layout)
+  script = build_script(context, big=args.big)
   script_index = 0
 
   frame = 0
@@ -72,9 +92,9 @@ def run_replay(variant):
       script_index += 1
 
     # Keep sending cereal messages for persistent states (onroad, alerts)
-    frame_fn = get_frame_fn()
-    if frame_fn:
-      frame_fn()
+    send_fn = context.get_send_fn()
+    if send_fn:
+      send_fn()
 
     ui_state.update()
 
