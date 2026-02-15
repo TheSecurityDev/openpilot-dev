@@ -13,10 +13,9 @@ if "RECORD_OUTPUT" not in os.environ:
 os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ["RECORD_OUTPUT"])
 
 from openpilot.common.params import Params
+from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.system.version import terms_version, training_version
 from openpilot.system.ui.lib.application import gui_app, MousePos, MouseEvent
-from openpilot.selfdrive.ui.ui_state import ui_state
-from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout
 
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") == "1"
@@ -79,17 +78,25 @@ def handle_event(event: DummyEvent):
 
 
 def run_replay():
+  from openpilot.selfdrive.ui.ui_state import ui_state  # import here for correct param setup (e.g. training guide)
+  from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout  # import here for coverage
+
   setup_state()
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   if not HEADLESS:
     rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
+
+
   main_layout = MiciMainLayout()
   main_layout.set_rect(rl.Rectangle(0, 0, gui_app.width, gui_app.height))
 
-  frame = 0
   script_index = 0
+  frame = 0
+  # Override raylib timing functions to return deterministic values based on frame count instead of real time
+  rl.get_frame_time = lambda: 1.0 / FPS
+  rl.get_time = lambda: frame / FPS
 
   for should_render in gui_app.render():
     while script_index < len(SCRIPT) and SCRIPT[script_index][0] == frame:
@@ -114,14 +121,14 @@ def run_replay():
 
 
 def main():
-  cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici'])
-  with cov.collect():
-    run_replay()
-  cov.stop()
-  cov.save()
-  cov.report()
-  cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov'))
-  print("HTML report: htmlcov/index.html")
+  with OpenpilotPrefix():
+    cov = coverage.coverage(source=['openpilot.selfdrive.ui.mici'])
+    with cov.collect():
+      run_replay()
+    cov.save()
+    cov.report()
+    cov.html_report(directory=os.path.join(DIFF_OUT_DIR, 'htmlcov'))
+    print("HTML report: htmlcov/index.html")
 
 
 if __name__ == "__main__":
