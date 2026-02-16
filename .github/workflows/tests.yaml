@@ -273,7 +273,6 @@ jobs:
       - name: Create UI Report
         run: >
           ${{ env.RUN }} "PYTHONWARNINGS=ignore &&
-                          source selfdrive/test/setup_xvfb.sh &&
                           python3 selfdrive/ui/tests/diff/replay.py &&
                           python3 selfdrive/ui/tests/diff/replay.py --big"
       - name: Upload UI Report
