@@ -272,7 +272,7 @@ jobs:
         run: ${{ env.RUN }} "scons -j$(nproc)"
       - name: Create UI Report
         run: >
-          ${{ env.RUN }} "PYTHONWARNINGS=ignore &&
+          ${{ env.RUN }} "PYTHONWARNINGS=ignore && DISPLAY=:99 &&
                           python3 selfdrive/ui/tests/diff/replay.py &&
                           python3 selfdrive/ui/tests/diff/replay.py --big"
       - name: Upload UI Report
