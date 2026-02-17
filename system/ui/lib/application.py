@@ -290,6 +290,7 @@ class GuiApplication:
       if RECORD:
         output_fps = fps * RECORD_SPEED
         ffmpeg_args = [
+          'ffmpeg',
           '-v', 'warning',          # Reduce ffmpeg log spam
           '-nostats',               # Suppress encoding progress
           '-f', 'rawvideo',         # Input format
