@@ -32,7 +32,7 @@ TOUCH_HISTORY_TIMEOUT = 3.0  # Seconds before touch points fade out
 
 BIG_UI = os.getenv("BIG", "0") == "1"
 ENABLE_VSYNC = os.getenv("ENABLE_VSYNC", "0") == "1"
-DETERMINISTIC = os.getenv("DETERMINISTIC", "0") == "1"  # Disables MSAA for reproducible rendering
+RECORD_DETERMINISTIC = os.getenv("RECORD_DETERMINISTIC", "0") == "1"
 SHOW_FPS = os.getenv("SHOW_FPS") == "1"
 SHOW_TOUCHES = os.getenv("SHOW_TOUCHES") == "1"
 STRICT_MODE = os.getenv("STRICT_MODE") == "1"
@@ -300,10 +300,8 @@ class GuiApplication:
           '-c:v', 'libx264',
           '-preset', 'ultrafast',
         ]
-        if DETERMINISTIC:
-          # Use lossless encoding for deterministic/reproducible output.
-          # - crf 0 enables lossless mode (no quantization artifacts around text edges)
-          ffmpeg_args += ['-crf', '0']
+        if RECORD_DETERMINISTIC:
+          ffmpeg_args += ['-crf', '0'] # enables lossless mode (no quantization artifacts around text edges)
         if RECORD_BITRATE:
           ffmpeg_args += ['-b:v', RECORD_BITRATE, '-maxrate', RECORD_BITRATE, '-bufsize', RECORD_BITRATE]
         ffmpeg_args += [
