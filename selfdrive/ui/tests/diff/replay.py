@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 import os
+# Ensure deterministic GL backend is selected before any graphics/OpenGL
+# libraries are imported. LIBGL_ALWAYS_SOFTWARE must be set prior to
+# loading OpenGL (pyray) so CI and local runs use the same rasterizer.
+os.environ.setdefault("DETERMINISTIC", "1")
+os.environ.setdefault("LIBGL_ALWAYS_SOFTWARE", "1")
+
 import time
 import argparse
 import coverage
@@ -18,13 +24,6 @@ LayoutVariant = Literal["mici", "tizi"]
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 
-
-# Enable deterministic rendering: disables MSAA to avoid driver-dependent anti-aliasing
-os.environ["DETERMINISTIC"] = "1"
-
-# Force mesa software rendering (llvmpipe) so all environments produce identical
-# GPU rasterization results, regardless of the host's physical GPU driver
-os.environ["LIBGL_ALWAYS_SOFTWARE"] = "1"
 
 
 
