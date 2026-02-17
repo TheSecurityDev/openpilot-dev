@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import time
 import argparse
 import coverage
 import pyray as rl
@@ -57,7 +58,11 @@ def run_replay(variant: LayoutVariant) -> None:
 
   send_fn: Callable | None = None
   frame = 0
-  # Override raylib timing functions to return deterministic values based on frame count instead of real time
+  # Override timing functions to return deterministic values based on frame count instead of real time.
+  # Many UI widgets use time.monotonic() directly (home layout refresh, alert timing, device interaction
+  # timeout, etc.), so it must also be patched alongside the raylib timing functions.
+  _original_monotonic = time.monotonic
+  time.monotonic = lambda: frame / FPS
   rl.get_frame_time = lambda: 1.0 / FPS
   rl.get_time = lambda: frame / FPS
 
@@ -93,6 +98,7 @@ def run_replay(variant: LayoutVariant) -> None:
     if script_index >= len(script):
       break
 
+  time.monotonic = _original_monotonic
   gui_app.close()
 
   print(f"Total frames: {frame}")
