@@ -47,6 +47,73 @@ def run_replay(variant: LayoutVariant) -> None:
     rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
+  # Log GL renderer/vendor/version to help triage CI vs local differences.
+  def _log_gl_info():
+    import ctypes
+    import ctypes.util
+    import subprocess
+
+    GL_RENDERER = 0x1F01
+    GL_VENDOR = 0x1F00
+    GL_VERSION = 0x1F02
+
+    def _try_lib(libname):
+      try:
+        lib = ctypes.CDLL(libname)
+        try:
+          glGetString = lib.glGetString
+          glGetString.restype = ctypes.c_char_p
+          glGetString.argtypes = [ctypes.c_uint]
+          renderer = glGetString(GL_RENDERER)
+          vendor = glGetString(GL_VENDOR)
+          version = glGetString(GL_VERSION)
+          return (
+            renderer.decode('utf-8', 'replace') if renderer else '',
+            vendor.decode('utf-8', 'replace') if vendor else '',
+            version.decode('utf-8', 'replace') if version else '',
+          )
+        except AttributeError:
+          return None
+      except OSError:
+        return None
+
+    # Attempt to find common GL libraries
+    candidates = []
+    found = ctypes.util.find_library('GL')
+    if found:
+      candidates.append(found)
+    candidates.extend(['libGL.so.1', 'libGLESv2.so.2', 'libEGL.so.1'])
+
+    for c in candidates:
+      res = _try_lib(c)
+      if res:
+        renderer, vendor, version = res
+        print(f"GL Renderer: {renderer}")
+        print(f"GL Vendor: {vendor}")
+        print(f"GL Version: {version}")
+        return
+
+    # Fallback: try glxinfo if available
+    try:
+      out = subprocess.run(['glxinfo'], capture_output=True, text=True, check=True).stdout
+      for line in out.splitlines():
+        line = line.strip()
+        if line.startswith('OpenGL renderer string:'):
+          print(line)
+        if line.startswith('OpenGL vendor string:'):
+          print(line)
+        if line.startswith('OpenGL version string:'):
+          print(line)
+      return
+    except Exception:
+      pass
+
+    # Last resort: print envvars that affect GL selection
+    print('Could not query GL info via libs or glxinfo')
+    print(f"LIBGL_ALWAYS_SOFTWARE={os.environ.get('LIBGL_ALWAYS_SOFTWARE')}")
+
+  _log_gl_info()
+
   # Dynamically import main layout based on variant
   if variant == "mici":
     from openpilot.selfdrive.ui.mici.layouts.main import MiciMainLayout as MainLayout
