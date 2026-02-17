@@ -162,7 +162,7 @@ def run_replay(variant: LayoutVariant) -> None:
     if script_index >= len(script):
       break
 
-  time.monotonic = _original_monotonic
+  # time.monotonic = _original_monotonic
   gui_app.close()
 
   print(f"Total frames: {frame}")
