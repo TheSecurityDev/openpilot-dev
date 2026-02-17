@@ -270,12 +270,10 @@ class GuiApplication:
       signal.signal(signal.SIGINT, _close)
       atexit.register(self.close)
 
-      flags = 0
-      flags |= rl.ConfigFlags.FLAG_MSAA_4X_HINT
+      flags = rl.ConfigFlags.FLAG_MSAA_4X_HINT
       if ENABLE_VSYNC:
         flags |= rl.ConfigFlags.FLAG_VSYNC_HINT
-      if flags != 0:
-        rl.set_config_flags(flags)
+      rl.set_config_flags(flags)
 
       rl.init_window(self._scaled_width, self._scaled_height, title)
 
