@@ -25,9 +25,34 @@ def extract_framehashes(video_path):
 
 
 def create_diff_video(video1, video2, output_path):
-  """Create a diff video using ffmpeg blend filter with difference mode."""
+  """Create a diff video: original pixels where identical, bright red where different."""
   print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  # split video1 into 3 copies: one for diff, one for red overlay, one as base
+  # maskedmerge picks red where mask is white (pixels differ), original where black
+  filter_complex = (
+    "[0:v]format=rgb24,split=3[a1][a2][a3];"
+    "[1:v]format=rgb24[b];"
+    "[a1][b]blend=all_mode=difference,lutrgb=r='if(gt(val,0),255,0)':g='if(gt(val,0),255,0)':b='if(gt(val,0),255,0)'[mask];"
+    "[a2]lutrgb=r=255:g=0:b=0[red];"
+    "[a3][red][mask]maskedmerge"
+  )
+  cmd = [
+    'ffmpeg',
+    '-i',
+    video1,
+    '-i',
+    video2,
+    '-filter_complex',
+    filter_complex,
+    '-c:v',
+    'libx264',
+    '-crf',
+    '0',
+    '-vsync',
+    '0',
+    '-y',
+    output_path,
+  ]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
