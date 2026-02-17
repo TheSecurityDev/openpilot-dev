@@ -19,8 +19,12 @@ FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 
 
-# Disable MSAA for deterministic rendering across different graphics environments
-os.environ["DISABLE_MSAA"] = "1"
+# Enable deterministic rendering: disables MSAA to avoid driver-dependent anti-aliasing
+os.environ["DETERMINISTIC"] = "1"
+
+# Force mesa software rendering (llvmpipe) so all environments produce identical
+# GPU rasterization results, regardless of the host's physical GPU driver
+os.environ["LIBGL_ALWAYS_SOFTWARE"] = "1"
 
 
 
