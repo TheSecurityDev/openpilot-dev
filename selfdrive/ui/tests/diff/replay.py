@@ -35,7 +35,7 @@ def run_replay(variant: LayoutVariant) -> None:
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   # Disable MSAA for deterministic rendering across different graphics environments
-  # os.environ["DISABLE_MSAA"] = "1"
+  os.environ["DISABLE_MSAA"] = "1"
 
   if HEADLESS:
     rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_HIDDEN)
