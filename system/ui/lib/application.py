@@ -306,7 +306,6 @@ class GuiApplication:
           'pipe:0',  # Input from stdin
         ]
         if DETERMINISTIC:
-          print("Using deterministic recording settings for reproducible output.")
           # Use lossless encoding for deterministic/reproducible output.
           # - yuv444p avoids chroma subsampling (yuv420p averages 2x2 blocks, losing precision)
           # - crf 0 enables lossless mode (no quantization artifacts around text edges)
