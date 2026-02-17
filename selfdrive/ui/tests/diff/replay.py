@@ -18,6 +18,11 @@ FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
 
 
+# Disable MSAA for deterministic rendering across different graphics environments
+os.environ["DISABLE_MSAA"] = "1"
+
+
+
 def setup_state():
   params = Params()
   params.put("HasAcceptedTerms", terms_version)
@@ -33,9 +38,6 @@ def run_replay(variant: LayoutVariant) -> None:
 
   setup_state()
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
-
-  # Disable MSAA for deterministic rendering across different graphics environments
-  os.environ["DISABLE_MSAA"] = "1"
 
   if HEADLESS:
     rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_HIDDEN)
