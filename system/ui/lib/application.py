@@ -321,8 +321,8 @@ class GuiApplication:
             'libx264',
             '-preset',
             'ultrafast',
-            '-crf',
-            '0',
+            # '-crf',
+            # '0',
             # '-threads',
             # '1',
           ]
