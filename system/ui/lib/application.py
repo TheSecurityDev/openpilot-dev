@@ -323,8 +323,8 @@ class GuiApplication:
             'ultrafast',
             '-crf',
             '0',
-            '-threads',
-            '1',
+            # '-threads',
+            # '1',
           ]
         else:
           ffmpeg_args += [
