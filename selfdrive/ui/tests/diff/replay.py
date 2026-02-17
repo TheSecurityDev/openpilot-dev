@@ -34,8 +34,11 @@ def run_replay(variant: LayoutVariant) -> None:
   setup_state()
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
+  # Disable MSAA for deterministic rendering across different graphics environments
+  # os.environ["DISABLE_MSAA"] = "1"
+
   if HEADLESS:
-    rl.set_config_flags(rl.FLAG_WINDOW_HIDDEN)
+    rl.set_config_flags(rl.ConfigFlags.FLAG_WINDOW_HIDDEN)
   gui_app.init_window("ui diff test", fps=FPS)
 
   # Dynamically import main layout based on variant

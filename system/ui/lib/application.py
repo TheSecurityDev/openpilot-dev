@@ -32,6 +32,7 @@ TOUCH_HISTORY_TIMEOUT = 3.0  # Seconds before touch points fade out
 
 BIG_UI = os.getenv("BIG", "0") == "1"
 ENABLE_VSYNC = os.getenv("ENABLE_VSYNC", "0") == "1"
+DISABLE_MSAA = os.getenv("DISABLE_MSAA", "0") == "1"
 SHOW_FPS = os.getenv("SHOW_FPS") == "1"
 SHOW_TOUCHES = os.getenv("SHOW_TOUCHES") == "1"
 STRICT_MODE = os.getenv("STRICT_MODE") == "1"
@@ -269,10 +270,13 @@ class GuiApplication:
       signal.signal(signal.SIGINT, _close)
       atexit.register(self.close)
 
-      flags = rl.ConfigFlags.FLAG_MSAA_4X_HINT
+      flags = 0
+      if not DISABLE_MSAA:
+        flags |= rl.ConfigFlags.FLAG_MSAA_4X_HINT
       if ENABLE_VSYNC:
         flags |= rl.ConfigFlags.FLAG_VSYNC_HINT
-      rl.set_config_flags(flags)
+      if flags != 0:
+        rl.set_config_flags(flags)
 
       rl.init_window(self._scaled_width, self._scaled_height, title)
 
