@@ -271,8 +271,7 @@ class GuiApplication:
       atexit.register(self.close)
 
       flags = 0
-      if not DETERMINISTIC:
-        flags |= rl.ConfigFlags.FLAG_MSAA_4X_HINT
+      flags |= rl.ConfigFlags.FLAG_MSAA_4X_HINT
       if ENABLE_VSYNC:
         flags |= rl.ConfigFlags.FLAG_VSYNC_HINT
       if flags != 0:
@@ -285,7 +284,7 @@ class GuiApplication:
         rl.set_mouse_scale(1 / self._scale, 1 / self._scale)
       if needs_render_texture:
         self._render_texture = rl.load_render_texture(self._width, self._height)
-        # rl.set_texture_filter(self._render_texture.texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
+        rl.set_texture_filter(self._render_texture.texture, rl.TextureFilter.TEXTURE_FILTER_BILINEAR)
 
       if RECORD:
         output_fps = fps * RECORD_SPEED
