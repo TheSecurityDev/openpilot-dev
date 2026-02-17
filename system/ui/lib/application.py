@@ -289,52 +289,27 @@ class GuiApplication:
 
       if RECORD:
         output_fps = fps * RECORD_SPEED
-        # Build ffmpeg args. Allow an opt-in lossless mode to avoid encoding
-        # artifacts across environments (helps pixel-perfect diffs).
-        RECORD_LOSSLESS = os.environ.get('RECORD_LOSSLESS') == '1'
-        if RECORD_LOSSLESS:
-          # Use FFV1 (lossless) with rgb24 output to avoid chroma subsampling
-          ffmpeg_args = [
-            'ffmpeg',
-            '-v', 'warning',
-            '-nostats',
-            '-f', 'rawvideo',
-            '-pix_fmt', 'rgba',
-            '-s', f'{self._width}x{self._height}',
-            '-r', str(fps),
-            '-i', 'pipe:0',
-            '-vf', 'vflip,format=rgb24',
-            '-r', str(output_fps),
-            '-c:v', 'ffv1',
-            '-pix_fmt', 'rgb24',
-          ]
-          ffmpeg_args += [
-            '-y',
-            '-f', 'mkv',
-            RECORD_OUTPUT,
-          ]
-        else:
-          ffmpeg_args = [
-            'ffmpeg',
-            '-v', 'warning',          # Reduce ffmpeg log spam
-            '-nostats',               # Suppress encoding progress
-            '-f', 'rawvideo',         # Input format
-            '-pix_fmt', 'rgba',       # Input pixel format
-            '-s', f'{self._width}x{self._height}',  # Input resolution
-            '-r', str(fps),           # Input frame rate
-            '-i', 'pipe:0',           # Input from stdin
-            '-vf', 'vflip,format=yuv420p',  # Flip vertically and convert to yuv420p
-            '-r', str(output_fps),    # Output frame rate (for speed multiplier)
-            '-c:v', 'libx264',
-            '-preset', 'ultrafast',
-          ]
-          if RECORD_BITRATE:
-            ffmpeg_args += ['-b:v', RECORD_BITRATE, '-maxrate', RECORD_BITRATE, '-bufsize', RECORD_BITRATE]
-          ffmpeg_args += [
-            '-y',                     # Overwrite existing file
-            '-f', 'mp4',              # Output format
-            RECORD_OUTPUT,            # Output file path
-          ]
+        ffmpeg_args = [
+          'ffmpeg',
+          '-v', 'warning',          # Reduce ffmpeg log spam
+          '-nostats',               # Suppress encoding progress
+          '-f', 'rawvideo',         # Input format
+          '-pix_fmt', 'rgba',       # Input pixel format
+          '-s', f'{self._width}x{self._height}',  # Input resolution
+          '-r', str(fps),           # Input frame rate
+          '-i', 'pipe:0',           # Input from stdin
+          '-vf', 'vflip,format=yuv420p',  # Flip vertically and convert to yuv420p
+          '-r', str(output_fps),    # Output frame rate (for speed multiplier)
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+        ]
+        if RECORD_BITRATE:
+          ffmpeg_args += ['-b:v', RECORD_BITRATE, '-maxrate', RECORD_BITRATE, '-bufsize', RECORD_BITRATE]
+        ffmpeg_args += [
+          '-y',                     # Overwrite existing file
+          '-f', 'mp4',              # Output format
+          RECORD_OUTPUT,            # Output file path
+        ]
         self._ffmpeg_proc = subprocess.Popen(ffmpeg_args, stdin=subprocess.PIPE)
         self._ffmpeg_queue = queue.Queue(maxsize=60)  # Buffer up to 60 frames
         self._ffmpeg_stop_event = threading.Event()

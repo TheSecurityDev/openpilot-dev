@@ -26,6 +26,7 @@ HEADLESS = os.getenv("WINDOWED", "0") != "1"
 
 
 
+
 def setup_state():
   params = Params()
   params.put("HasAcceptedTerms", terms_version)
