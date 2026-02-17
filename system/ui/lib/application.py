@@ -291,18 +291,53 @@ class GuiApplication:
         output_fps = fps * RECORD_SPEED
         ffmpeg_args = [
           'ffmpeg',
-          '-v', 'warning',          # Reduce ffmpeg log spam
-          '-nostats',               # Suppress encoding progress
-          '-f', 'rawvideo',         # Input format
-          '-pix_fmt', 'rgba',       # Input pixel format
-          '-s', f'{self._width}x{self._height}',  # Input resolution
-          '-r', str(fps),           # Input frame rate
-          '-i', 'pipe:0',           # Input from stdin
-          '-vf', 'vflip,format=yuv420p',  # Flip vertically and convert to yuv420p
-          '-r', str(output_fps),    # Output frame rate (for speed multiplier)
-          '-c:v', 'libx264',
-          '-preset', 'ultrafast',
+          '-v',
+          'warning',  # Reduce ffmpeg log spam
+          '-nostats',  # Suppress encoding progress
+          '-f',
+          'rawvideo',  # Input format
+          '-pix_fmt',
+          'rgba',  # Input pixel format
+          '-s',
+          f'{self._width}x{self._height}',  # Input resolution
+          '-r',
+          str(fps),  # Input frame rate
+          '-i',
+          'pipe:0',  # Input from stdin
         ]
+        if DETERMINISTIC:
+          print("Using deterministic recording settings for reproducible output.")
+          # Use lossless encoding for deterministic/reproducible output.
+          # - yuv444p avoids chroma subsampling (yuv420p averages 2x2 blocks, losing precision)
+          # - crf 0 enables lossless mode (no quantization artifacts around text edges)
+          # - threads 1 prevents non-deterministic thread interleaving in libx264
+          # Without these, different CI runs produce different lossy artifacts
+          # that show up as red "squares" around fonts in the diff video.
+          ffmpeg_args += [
+            '-vf',
+            'vflip,format=yuv444p',
+            '-r',
+            str(output_fps),
+            '-c:v',
+            'libx264',
+            '-preset',
+            'ultrafast',
+            '-crf',
+            '0',
+            '-threads',
+            '1',
+          ]
+        else:
+          ffmpeg_args += [
+            '-vf',
+            'vflip,format=yuv420p',
+            '-r',
+            str(output_fps),
+            '-c:v',
+            'libx264',
+            '-preset',
+            'ultrafast',
+          ]
         if RECORD_BITRATE:
           ffmpeg_args += ['-b:v', RECORD_BITRATE, '-maxrate', RECORD_BITRATE, '-bufsize', RECORD_BITRATE]
         ffmpeg_args += [
