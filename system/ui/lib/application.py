@@ -301,7 +301,7 @@ class GuiApplication:
           '-preset', 'ultrafast',
         ]
         if RECORD_DETERMINISTIC:
-          ffmpeg_args += ['-crf', '2'] # enables lossless mode (no quantization artifacts around text edges)
+          ffmpeg_args += ['-crf', '0'] # enables lossless mode (no quantization artifacts around text edges)
         if RECORD_BITRATE:
           ffmpeg_args += ['-b:v', RECORD_BITRATE, '-maxrate', RECORD_BITRATE, '-bufsize', RECORD_BITRATE]
         ffmpeg_args += [
