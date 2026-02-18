@@ -49,18 +49,97 @@ def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
   return different_frames, (len(hashes1), len(hashes2))
 
 
-def generate_html_report(videos: tuple[str, str], basedir: str, different_frames: list[int], frame_counts: tuple[int, int], diff_video_name):
-  chunks = []
-  if different_frames:
-    current_chunk = [different_frames[0]]
-    for i in range(1, len(different_frames)):
-      if different_frames[i] == different_frames[i - 1] + 1:
-        current_chunk.append(different_frames[i])
-      else:
-        chunks.append(current_chunk)
-        current_chunk = [different_frames[i]]
-    chunks.append(current_chunk)
+def compute_chunks(different_frames: list[int]) -> list[list[int]]:
+  """Group consecutive frame indices into contiguous chunks."""
+  if not different_frames:
+    return []
+  chunks: list[list[int]] = []
+  current_chunk = [different_frames[0]]
+  for i in range(1, len(different_frames)):
+    if different_frames[i] == different_frames[i - 1] + 1:
+      current_chunk.append(different_frames[i])
+    else:
+      chunks.append(current_chunk)
+      current_chunk = [different_frames[i]]
+  chunks.append(current_chunk)
+  return chunks
 
+
+def get_video_fps(video_path: str) -> float:
+  """Return the frame-rate of a video file."""
+  cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
+         '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', str(video_path)]
+  result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+  num, den = result.stdout.strip().split('/')
+  return int(num) / int(den)
+
+
+CLIP_PADDING = 30  # extra frames of context to include before/after each chunk
+
+
+def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> None:
+  """Extract [start_frame, end_frame] (plus padding) from *video_path* into *output_path*."""
+  padded_start = max(0, start_frame - CLIP_PADDING)
+  total_frames = (end_frame - padded_start + 1) + CLIP_PADDING
+  start_time = padded_start / fps
+  duration = total_frames / fps
+  cmd = ['ffmpeg', '-i', str(video_path), '-ss', str(start_time), '-t', str(duration), '-y', str(output_path)]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
+def extract_chunk_clips(
+  video1: str,
+  video2: str,
+  diff_video: str,
+  chunks: list[list[int]],
+  fps: float,
+  output_dir: Path,
+) -> list[dict]:
+  """For each chunk extract a short clip from video1, video2 and the diff video."""
+  clip_sets: list[dict] = []
+  for i, chunk in enumerate(chunks):
+    start_frame, end_frame = chunk[0], chunk[-1]
+    clips: dict[str, str] = {}
+    for name, src in [('video1', video1), ('video2', video2), ('diff', diff_video)]:
+      out_path = output_dir / f"chunk_{i:03d}_{name}.mp4"
+      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}–{end_frame}…")
+      extract_clip(src, start_frame, end_frame, str(out_path), fps)
+      clips[name] = out_path.name
+    clip_sets.append({'start_frame': start_frame, 'end_frame': end_frame,
+                      'duration': end_frame - start_frame + 1, 'clips': clips})
+  return clip_sets
+
+
+def generate_chunks_html(clip_sets: list[dict], basedir: str) -> str:
+  if not clip_sets:
+    return ""
+  parts = ["<h2>Different Sections</h2>"]
+  for i, cs in enumerate(clip_sets):
+    parts.append(
+      f"<h3>Section {i + 1}: frames {cs['start_frame']}\u2013{cs['end_frame']} "
+      f"({cs['duration']} frame{'s' if cs['duration'] != 1 else ''})</h3>"
+    )
+    parts.append("<table><tbody><tr>")
+    for label, key in [('Video 1', 'video1'), ('Video 2', 'video2'), ('Pixel Diff', 'diff')]:
+      src = os.path.join(basedir, cs['clips'][key])
+      parts.append(
+        f"<td width='33%'><p><strong>{label}</strong></p>"
+        f"<video width='100%' autoplay loop muted>"
+        f"<source src='{src}' type='video/mp4'>"
+        f"Your browser does not support the video tag.</video></td>"
+      )
+    parts.append("</tr></tbody></table>")
+  return "\n".join(parts)
+
+
+def generate_html_report(
+  videos: tuple[str, str],
+  basedir: str,
+  different_frames: list[int],
+  frame_counts: tuple[int, int],
+  diff_video_name: str,
+  clip_sets: list[dict] | None = None,
+) -> str:
   total_frames = max(frame_counts)
   frame_delta = frame_counts[1] - frame_counts[0]
   different_total = len(different_frames) + abs(frame_delta)
@@ -72,6 +151,8 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
+  chunks_html = generate_chunks_html(clip_sets or [], basedir)
+
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
   placeholders = {
@@ -79,6 +160,7 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
     "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
     "DIFF_SRC": os.path.join(basedir, diff_video_name),
     "RESULT_TEXT": result_text,
+    "CHUNKS_HTML": chunks_html,
   }
   for key, value in placeholders.items():
     html = html.replace(f"${key}", value)
@@ -119,9 +201,16 @@ def main():
   if different_frames is None:
     sys.exit(1)
 
+  chunks = compute_chunks(different_frames)
+  clip_sets: list[dict] = []
+  if chunks:
+    print(f"\nExtracting {len(chunks)} different section(s)...")
+    fps = get_video_fps(args.video1)
+    clip_sets = extract_chunk_clips(args.video1, args.video2, diff_video_path, chunks, fps, DIFF_OUT_DIR)
+
   print()
   print("Generating HTML report...")
-  html = generate_html_report((args.video1, args.video2), args.basedir, different_frames, frame_counts, diff_video_name)
+  html = generate_html_report((args.video1, args.video2), args.basedir, different_frames, frame_counts, diff_video_name, clip_sets)
 
   with open(DIFF_OUT_DIR / args.output, 'w') as f:
     f.write(html)
