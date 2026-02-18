@@ -4,6 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UI Diff Report</title>
+  <style>
+    h1, h2, h3 {
+      margin: 0.5em 0 0.25em;
+    }
+    body {
+      margin: 0;
+      padding: 0.5em;
+    }
+    #videoTable {
+      width: 100%;
+    }
+    video {
+      max-width: 100%;
+      height: auto;
+    }
+    @media (max-width: 800px) {
+      #videoTable tr {
+        display: flex;
+        flex-direction: column;
+      }
+      #videoTable td {
+        width: 100% !important;
+        padding-bottom: 0;
+      }
+    }
+  </style>
 </head>
 <body>
   <h2>UI Diff</h2>
