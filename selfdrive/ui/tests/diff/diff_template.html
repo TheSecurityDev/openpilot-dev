@@ -1,65 +1,74 @@
-<h2>UI Diff</h2>
-<table>
-<tr>
-<td width='33%'>
-  <p><strong>Video 1</strong></p>
-  <video id='video1' width='100%' autoplay muted onplay='syncVideos()'>
-    <source src='$VIDEO1_SRC' type='video/mp4'>
-    Your browser does not support the video tag.
-  </video>
-</td>
-<td width='33%'>
-  <p><strong>Video 2</strong></p>
-  <video id='video2' width='100%' autoplay muted onplay='syncVideos()'>
-    <source src='$VIDEO2_SRC' type='video/mp4'>
-    Your browser does not support the video tag.
-  </video>
-</td>
-<td width='33%'>
-  <p><strong>Pixel Diff</strong></p>
-  <video id='diffVideo' width='100%' autoplay muted>
-    <source src='$DIFF_SRC' type='video/mp4'>
-    Your browser does not support the video tag.
-  </video>
-</td>
-</tr>
-</table>
-<script>
-const videos = [
-  document.getElementById('video1'),
-  document.getElementById('video2'),
-  document.getElementById('diffVideo'),
-];
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UI Diff Report</title>
+</head>
+<body>
+  <h2>UI Diff</h2>
+  <table>
+    <tr>
+      <td width='33%'>
+        <p><strong>Video 1</strong></p>
+        <video id='video1' width='100%' autoplay muted onplay='syncVideos()'>
+          <source src='$VIDEO1_SRC' type='video/mp4'>
+          Your browser does not support the video tag.
+        </video>
+      </td>
+      <td width='33%'>
+        <p><strong>Video 2</strong></p>
+        <video id='video2' width='100%' autoplay muted onplay='syncVideos()'>
+          <source src='$VIDEO2_SRC' type='video/mp4'>
+          Your browser does not support the video tag.
+        </video>
+      </td>
+      <td width='33%'>
+        <p><strong>Pixel Diff</strong></p>
+        <video id='diffVideo' width='100%' autoplay muted>
+          <source src='$DIFF_SRC' type='video/mp4'>
+          Your browser does not support the video tag.
+        </video>
+      </td>
+    </tr>
+  </table>
+  <hr>
+  <p><strong>Results:</strong> $RESULT_TEXT</p>
+  <script>
+    const videos = [
+      document.getElementById('video1'),
+      document.getElementById('video2'),
+      document.getElementById('diffVideo'),
+    ];
 
-const isEnded = (v) => v.ended || (Number.isFinite(v.duration) && v.currentTime >= (v.duration - 0.05));
-const playAll = () => videos.forEach((v) => v.play());
+    const isEnded = (v) => v.ended || (Number.isFinite(v.duration) && v.currentTime >= (v.duration - 0.05));
+    const playAll = () => videos.forEach((v) => v.play());
 
-function syncVideos() {
-  const t = Math.min(...videos.map((v) => v.currentTime));
-  videos.forEach((v) => { v.currentTime = t; });
-  playAll();
-}
+    function syncVideos() {
+      const t = Math.min(...videos.map((v) => v.currentTime));
+      videos.forEach((v) => { v.currentTime = t; });
+      playAll();
+    }
 
-function handleEnded(endedVideo) {
-  endedVideo.pause();
-  if (videos.every(isEnded)) {
-    videos.forEach((v) => { v.currentTime = 0; });
-    playAll();
-  }
-}
-
-videos.forEach((v) => {
-  v.addEventListener('timeupdate', () => {
-    videos.forEach((other) => {
-      if (other !== v && !isEnded(other) && Math.abs(v.currentTime - other.currentTime) > 0.1) {
-        other.currentTime = v.currentTime;
-        if (other.paused) other.play();
+    function handleEnded(endedVideo) {
+      endedVideo.pause();
+      if (videos.every(isEnded)) {
+        videos.forEach((v) => { v.currentTime = 0; });
+        playAll();
       }
-    });
-  });
-  v.addEventListener('ended', () => handleEnded(v));
-});
-</script>
-<hr>
-<p><strong>Results:</strong> $RESULT_TEXT</p>
+    }
 
+    videos.forEach((v) => {
+      v.addEventListener('timeupdate', () => {
+        videos.forEach((other) => {
+          if (other !== v && !isEnded(other) && Math.abs(v.currentTime - other.currentTime) > 0.1) {
+            other.currentTime = v.currentTime;
+            if (other.paused) other.play();
+          }
+        });
+      });
+      v.addEventListener('ended', () => handleEnded(v));
+    });
+  </script>
+</body>
+</html>
