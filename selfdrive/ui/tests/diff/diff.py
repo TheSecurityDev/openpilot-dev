@@ -75,9 +75,9 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
   placeholders = {
-    "VIDEO1_SRC": os.path.basename(videos[0]),
-    "VIDEO2_SRC": os.path.basename(videos[1]),
-    "DIFF_SRC": diff_video_name,
+    "VIDEO1_SRC": os.path.join(basedir, os.path.basename(videos[0])),
+    "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
+    "DIFF_SRC": os.path.join(basedir, diff_video_name),
     "RESULT_TEXT": result_text,
   }
   for key, value in placeholders.items():
