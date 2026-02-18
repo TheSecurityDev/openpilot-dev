@@ -5,7 +5,6 @@ import subprocess
 import webbrowser
 import argparse
 from pathlib import Path
-from string import Template
 from openpilot.common.basedir import BASEDIR
 
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
@@ -73,13 +72,17 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
-  template = Template(HTML_TEMPLATE_PATH.read_text())
-  html = template.substitute(
-    VIDEO1_SRC=os.path.basename(videos[0]),
-    VIDEO2_SRC=os.path.basename(videos[1]),
-    DIFF_SRC=diff_video_name,
-    RESULT_TEXT=result_text,
-  )
+  # Load HTML template and replace placeholders
+  html = HTML_TEMPLATE_PATH.read_text()
+  placeholders = {
+    "VIDEO1_SRC": os.path.basename(videos[0]),
+    "VIDEO2_SRC": os.path.basename(videos[1]),
+    "DIFF_SRC": diff_video_name,
+    "RESULT_TEXT": result_text,
+  }
+  for key, value in placeholders.items():
+    html = html.replace(f"${key}", value)
+
   return html
 
 

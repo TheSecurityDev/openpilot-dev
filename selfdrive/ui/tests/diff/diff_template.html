@@ -7,39 +7,28 @@
 </head>
 <body>
   <h2>UI Diff</h2>
-  <table>
-    <tr>
-      <td width='33%'>
-        <h3>Video 1</h3>
-        <video id='video1' width='100%' autoplay muted onplay='syncVideos()'>
-          <source src='$VIDEO1_SRC' type='video/mp4'>
-          Your browser does not support the video tag.
-        </video>
-      </td>
-      <td width='33%'>
-        <h3>Video 2</h3>
-        <video id='video2' width='100%' autoplay muted onplay='syncVideos()'>
-          <source src='$VIDEO2_SRC' type='video/mp4'>
-          Your browser does not support the video tag.
-        </video>
-      </td>
-      <td width='33%'>
-        <h3>Pixel Diff</h3>
-        <video id='diffVideo' width='100%' autoplay muted>
-          <source src='$DIFF_SRC' type='video/mp4'>
-          Your browser does not support the video tag.
-        </video>
-      </td>
-    </tr>
-  </table>
+  <table id='videoTable'></table>
   <hr>
   <p><strong>Results:</strong> $RESULT_TEXT</p>
   <script>
-    const videos = [
-      document.getElementById('video1'),
-      document.getElementById('video2'),
-      document.getElementById('diffVideo'),
+    const videoDefs = [
+      { id: 'video1', title: 'Video 1', src: '$VIDEO1_SRC', sync: true },
+      { id: 'video2', title: 'Video 2', src: '$VIDEO2_SRC', sync: true },
+      { id: 'diffVideo', title: 'Pixel Diff', src: '$DIFF_SRC', sync: false },
     ];
+
+    const row = document.getElementById('videoTable').insertRow();
+    videoDefs.forEach(({ id, title, src, sync }) => {
+      const td = row.insertCell();
+      td.width = '33%';
+      td.innerHTML = `<h3>${title}</h3>
+        <video id='${id}' width='100%' autoplay muted ${sync ? "onplay='syncVideos()'" : ''}>
+          <source src='${src}' type='video/mp4'>
+          Your browser does not support the video tag.
+        </video>`;
+    });
+
+    const videos = videoDefs.map(({ id }) => document.getElementById(id));
 
     const isEnded = (v) => v.ended || (Number.isFinite(v.duration) && v.currentTime >= (v.duration - 0.05));
     const playAll = () => videos.forEach((v) => v.play());
