@@ -4,11 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UI Diff Report</title>
-  <style>
-    h1, h2, h3, h4 {
-      margin: 0.5em 0 0.25em;
-    }
-  </style>
 </head>
 <body>
   <h2>UI Diff</h2>
@@ -26,7 +21,7 @@
     videoDefs.forEach(({ id, title, src, sync }) => {
       const td = row.insertCell();
       td.width = '33%';
-      td.innerHTML = `<h4>${title}</h4>
+      td.innerHTML = `<p><strong>${title}</strong></p>
         <video id='${id}' width='100%' autoplay muted ${sync ? "onplay='syncVideos()'" : ''}>
           <source src='${src}' type='video/mp4'>
           Your browser does not support the video tag.
