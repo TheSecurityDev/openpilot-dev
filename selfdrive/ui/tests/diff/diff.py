@@ -49,18 +49,32 @@ def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
   return different_frames, (len(hashes1), len(hashes2))
 
 
-def compute_chunks(different_frames: list[int]) -> list[list[int]]:
-  """Group consecutive frame indices into contiguous chunks."""
+def compute_chunks(different_frames: list[int], max_same_frames: int = 0) -> list[list[int]]:
+  """Group differing frame indices into contiguous chunks.
+
+  By default (max_same_frames=0) any gap of >=1 same frames breaks a chunk
+  (existing behavior). If `max_same_frames` > 0, then gaps of up to that
+  many identical frames between differing frames will be merged into the
+  same chunk.
+  """
   if not different_frames:
     return []
+  if max_same_frames < 0:
+    max_same_frames = 0
+
   chunks: list[list[int]] = []
   current_chunk = [different_frames[0]]
   for i in range(1, len(different_frames)):
-    if different_frames[i] == different_frames[i - 1] + 1:
-      current_chunk.append(different_frames[i])
+    prev = different_frames[i - 1]
+    cur = different_frames[i]
+    gap = cur - prev - 1
+    # If the number of identical frames between prev and cur is <= tolerance,
+    # treat them as contiguous and keep in the same chunk.
+    if gap <= max_same_frames:
+      current_chunk.append(cur)
     else:
       chunks.append(current_chunk)
-      current_chunk = [different_frames[i]]
+      current_chunk = [cur]
   chunks.append(current_chunk)
   return chunks
 
@@ -75,6 +89,7 @@ def get_video_fps(video_path: str) -> float:
 
 
 CLIP_PADDING = 30  # extra frames of context to include before/after each chunk
+MAX_SAME_FRAMES = 0  # allow up to this many identical frames between diffs in a single chunk
 
 
 def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> None:
@@ -206,7 +221,7 @@ def main():
   if different_frames is None:
     sys.exit(1)
 
-  chunks = compute_chunks(different_frames)
+  chunks = compute_chunks(different_frames, MAX_SAME_FRAMES)
   clip_sets: list[dict] = []
   if chunks:
     print(f"\nExtracting {len(chunks)} different section(s)...")
