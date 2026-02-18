@@ -38,7 +38,7 @@
     videoDefs.forEach(({ id, title, src, sync }) => {
       const td = row.insertCell();
       td.width = '33%';
-      td.innerHTML = `<p><strong>${title}</strong></p>
+      td.innerHTML = `<h4>${title}</h4>
         <video id='${id}' width='100%' autoplay muted ${sync ? "onplay='syncVideos()'" : ''}>
           <source src='${src}' type='video/mp4'>
           Your browser does not support the video tag.
