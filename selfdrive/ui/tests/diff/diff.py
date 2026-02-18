@@ -73,15 +73,11 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
-  video1_src = os.path.join(basedir, os.path.basename(videos[0]))
-  video2_src = os.path.join(basedir, os.path.basename(videos[1]))
-  diff_src = os.path.join(basedir, os.path.basename(diff_video_name))
-
   template = Template(HTML_TEMPLATE_PATH.read_text())
   html = template.substitute(
-    VIDEO1_SRC=video1_src,
-    VIDEO2_SRC=video2_src,
-    DIFF_SRC=diff_src,
+    VIDEO1_SRC=os.path.basename(videos[0]),
+    VIDEO2_SRC=os.path.basename(videos[1]),
+    DIFF_SRC=diff_video_name,
     RESULT_TEXT=result_text,
   )
   return html
