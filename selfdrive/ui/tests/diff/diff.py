@@ -87,7 +87,8 @@ def get_video_fps(video_path: str) -> float:
 def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> None:
   """Extract [start_frame, end_frame] plus padding before/after into *output_path*."""
   padded_start = max(0, start_frame - CLIP_PADDING_BEFORE)
-  total_frames = (end_frame - start_frame + 1) + CLIP_PADDING_BEFORE + CLIP_PADDING_AFTER
+  padding_before = start_frame - padded_start
+  total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
   start_time = padded_start / fps
   # Use frame-accurate extraction: seek after input and request an exact frame count.
   # Using -frames:v avoids duration-to-frame rounding that can include adjacent frames.
@@ -220,9 +221,6 @@ def main():
   create_diff_video(args.video1, args.video2, diff_video_path)
 
   different_frames, frame_counts = find_differences(args.video1, args.video2)
-
-  if different_frames is None:
-    sys.exit(1)
 
   chunks = compute_chunks(different_frames)
   clip_sets: list[dict] = []
