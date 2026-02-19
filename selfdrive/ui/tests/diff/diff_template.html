@@ -7,6 +7,12 @@
   <style>
     h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
     table.videos { width: 100%; }
+    details { border: 1px solid #ccc; border-radius: 4px; margin: 0.4em 0; }
+    details > summary { cursor: pointer; padding: 0.5em 0.75em; font-weight: bold; list-style: none; user-select: none; }
+    details > summary:hover { background: #f5f5f5; }
+    details > summary::before { content: '▶ '; font-size: 0.75em; }
+    details[open] > summary::before { content: '▼ '; }
+    details > .content { padding: 0 0.5em 0.5em; }
     @media (max-width: 800px) {
       table.videos tr { display: flex; flex-direction: column; }
       table.videos td { width: 100% !important; }
@@ -22,35 +28,42 @@
   <script>
     const LABELS = ['Video 1', 'Video 2', 'Pixel Diff'];
 
-    // Shared helper: renders a 3-column video row; attrs[] passes extra attributes per video.
-    function videoRow(srcs, attrs = []) {
+    // Renders a 3-column video row. Pass lazy=true to use data-src (deferred loading).
+    function videoRow(srcs, { attrs = [], lazy = false } = {}) {
       const cells = srcs.map((src, i) => `
         <td width='33%'><h4>${LABELS[i]}</h4>
-          <video width='100%' autoplay muted playsinline ${attrs[i] ?? ''}>
-            <source src='${src}' type='video/mp4'>
+          <video width='100%' muted playsinline preload='${lazy ? 'none' : 'auto'}' ${attrs[i] ?? ''}>
+            <source ${lazy ? `data-src='${src}'` : `src='${src}'`} type='video/mp4'>
           </video></td>`).join('');
       return `<table class='videos'><tbody><tr>${cells}</tr></tbody></table>`;
     }
 
-    // --- Main full-video section with sync ---
-    const IDS = ['v1', 'v2', 'vd'];
-    document.getElementById('main').innerHTML = videoRow(
-      ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'],
-      [`id='v1' onplay='sync()'`, `id='v2' onplay='sync()'`, `id='vd'`],
-    );
-    const videos = IDS.map(id => document.getElementById(id));
-
-    const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
-    const playAll = () => videos.forEach(v => v.play());
-
-    function sync() {
-      const t = Math.min(...videos.map(v => v.currentTime));
-      videos.forEach(v => { v.currentTime = t; });
-      playAll();
+    // Copy data-src → src and call load() so the browser starts fetching.
+    function loadVideos(el) {
+      el.querySelectorAll('source[data-src]').forEach(s => {
+        s.src = s.dataset.src;
+        delete s.dataset.src;
+        s.parentElement.load();
+      });
     }
 
-    videos.forEach(v => {
-      v.addEventListener('timeupdate', () => videos.forEach(o => {
+    // --- Main full-video section (always visible, synced) ---
+    const mainEl = document.getElementById('main');
+    mainEl.innerHTML = videoRow(
+      ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'],
+      { attrs: [`id='v1' autoplay onplay='syncMain()'`, `id='v2' autoplay onplay='syncMain()'`, `id='vd' autoplay loop`] },
+    );
+    const mainVids = ['v1', 'v2', 'vd'].map(id => document.getElementById(id));
+
+    const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
+
+    function syncMain() {
+      const t = Math.min(...mainVids.map(v => v.currentTime));
+      mainVids.forEach(v => { v.currentTime = t; v.play(); });
+    }
+
+    mainVids.forEach(v => {
+      v.addEventListener('timeupdate', () => mainVids.forEach(o => {
         if (o !== v && !isEnded(o) && Math.abs(v.currentTime - o.currentTime) > 0.1) {
           o.currentTime = v.currentTime;
           if (o.paused) o.play();
@@ -58,18 +71,44 @@
       }));
       v.addEventListener('ended', () => {
         v.pause();
-        if (videos.every(isEnded)) { videos.forEach(v => v.currentTime = 0); playAll(); }
+        if (mainVids.every(isEnded)) { mainVids.forEach(v => { v.currentTime = 0; v.play(); }); }
       });
     });
 
-    // --- Chunk sections ---
+    // --- Chunk sections as an accordion ---
     const chunks = $CHUNKS_JSON;
     if (chunks.length) {
-      document.getElementById('chunks').innerHTML = '<hr><h2>Different Sections</h2>'
-        + chunks.map(({ start_frame, end_frame, duration, clips }, i) => `
-          <h3>Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration} frame${duration !== 1 ? 's' : ''})</h3>
-          ${videoRow([clips.video1, clips.video2, clips.diff], ['loop', 'loop', 'loop'])}`
-        ).join('');
+      const container = document.getElementById('chunks');
+      container.innerHTML = '<hr><h2>Different Sections</h2>';
+
+      const detailEls = chunks.map(({ start_frame, end_frame, duration, clips }, i) => {
+        const d = document.createElement('details');
+        d.innerHTML = `
+          <summary>Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration} frame${duration !== 1 ? 's' : ''})</summary>
+          <div class='content'>${videoRow([clips.video1, clips.video2, clips.diff], { lazy: true, attrs: ['loop', 'loop', 'loop'] })}</div>`;
+        container.appendChild(d);
+        return d;
+      });
+
+      // Background preload queue — staggered so open sections stay prioritised.
+      let bgQueue = [...detailEls];
+      function bgPreload() {
+        const next = bgQueue.shift();
+        if (!next) return;
+        if (!next.open) loadVideos(next);   // skip if already loaded by user opening it
+        setTimeout(bgPreload, 800);
+      }
+      setTimeout(bgPreload, 1500);
+
+      detailEls.forEach(d => d.addEventListener('toggle', () => {
+        if (d.open) {
+          // Load (if not yet loaded) and play.
+          loadVideos(d);
+          d.querySelectorAll('video').forEach(v => { v.preload = 'auto'; v.play(); });
+        } else {
+          d.querySelectorAll('video').forEach(v => v.pause());
+        }
+      }));
     }
   </script>
 </body>
