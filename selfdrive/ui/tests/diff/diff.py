@@ -12,8 +12,8 @@ DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
 CLIP_PADDING_BEFORE = 30  # extra frames of context to include before each chunk
-CLIP_PADDING_AFTER = 30   # extra frames of context to include after each chunk
-CHUNK_FRAME_GAP_TOLERANCE  = 60  # allow up to this many identical frames between diffs in a single chunk
+CLIP_PADDING_AFTER = 30  # extra frames of context to include after each chunk
+CHUNK_FRAME_GAP_TOLERANCE = 60  # allow up to this many identical frames between diffs in a single chunk
 
 
 def extract_framehashes(video_path):
@@ -64,9 +64,8 @@ def compute_chunks(different_frames: list[int]) -> list[list[int]]:
     prev = different_frames[i - 1]
     cur = different_frames[i]
     gap = cur - prev - 1
-    # If the number of identical frames between prev and cur is <= tolerance,
-    # treat them as contiguous and keep in the same chunk.
     if gap <= CHUNK_FRAME_GAP_TOLERANCE:
+      # Treat small gaps of identical frames as part of the same chunk to avoid excessive fragmentation
       current_chunk.append(cur)
     else:
       chunks.append(current_chunk)
@@ -77,8 +76,7 @@ def compute_chunks(different_frames: list[int]) -> list[list[int]]:
 
 def get_video_fps(video_path: str) -> float:
   """Return the frame-rate of a video file."""
-  cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0',
-         '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', str(video_path)]
+  cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', str(video_path)]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   num, den = result.stdout.strip().split('/')
   return int(num) / int(den)
@@ -90,8 +88,6 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
   start_time = padded_start / fps
-  # Use frame-accurate extraction: seek after input and request an exact frame count.
-  # Using -frames:v avoids duration-to-frame rounding that can include adjacent frames.
   cmd = [
     'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path),
     '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)
@@ -102,10 +98,7 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
 def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -> None:
   """Create a single-frame PNG thumbnail at the given frame index."""
   t = frame / fps
-  cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path), '-ss', f"{t:.6f}",
-    '-frames:v', '1', '-y', str(out_path)
-  ]
+  cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-y', str(out_path)]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
