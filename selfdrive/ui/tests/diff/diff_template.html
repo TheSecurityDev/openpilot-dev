@@ -19,9 +19,11 @@
     #nav button.type-delete { border-color: #c0392b; }
     #nav button.type-delete.active { border-color: #922b21; background: #fde8e6; }
     table.videos { width: 100%; }
-    .vid-wrap { position: relative; }
-    .vid-badge { position: absolute; top: 4px; left: 4px; z-index: 2; font-size: 0.72rem; font-weight: 700;
-                 padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+    .col-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 6px 0; }
+    .col-header h4 { margin: 0; font-size: 1rem; }
+    .vid-wrap { display: block; }
+    .vid-badge { position: relative; z-index: 2; font-size: 0.78rem; font-weight: 700;
+      padding: 4px 8px; border-radius: 4px; pointer-events: none; display: inline-block; }
     .badge-insert { background: #2a9d2a; color: #fff; }
     .badge-delete { background: #c0392b; color: #fff; }
     .badge-replace { background: #d4860a; color: #fff; }
@@ -68,9 +70,12 @@
 
     // Build the static 3-video player; badge spans are toggled per-scene.
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
-      ${LABELS.map((label, i) => `<td width='33%'><h4>${label}</h4>
-        <div class='vid-wrap'><span id='badge${i}' class='vid-badge' style='display:none'></span>
-        <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video></div></td>`).join('')}
+      ${LABELS.map((label, i) => `<td width='33%'>
+        <div class='col-header'><h4>${label}</h4><span id='badge${i}' class='vid-badge' style='display:none'></span></div>
+        <div class='vid-wrap'>
+          <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
+        </div>
+      </td>`).join('')}
     </tr></tbody></table>`;
     const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
 
