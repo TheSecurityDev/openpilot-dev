@@ -5,77 +5,72 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UI Diff Report</title>
   <style>
-    h1, h2, h3, h4 {
-      margin: 0.5em 0 0.25em;
-    }
-    #videoTable {
-      width: 100%;
-    }
+    h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
+    table.videos { width: 100%; }
     @media (max-width: 800px) {
-      #videoTable tr {
-        display: flex;
-        flex-direction: column;
-      }
-      #videoTable td {
-        width: 100% !important;
-      }
+      table.videos tr { display: flex; flex-direction: column; }
+      table.videos td { width: 100% !important; }
     }
   </style>
 </head>
 <body>
   <h2>UI Diff</h2>
-  <table id='videoTable'></table>
+  <div id='main'></div>
   <hr>
   <p><strong>Results:</strong> $RESULT_TEXT</p>
-  $CHUNKS_HTML
+  <div id='chunks'></div>
   <script>
-    const videoDefs = [
-      { id: 'video1', title: 'Video 1', src: '$VIDEO1_SRC', sync: true },
-      { id: 'video2', title: 'Video 2', src: '$VIDEO2_SRC', sync: true },
-      { id: 'diffVideo', title: 'Pixel Diff', src: '$DIFF_SRC', sync: false },
-    ];
+    const LABELS = ['Video 1', 'Video 2', 'Pixel Diff'];
 
-    const row = document.getElementById('videoTable').insertRow();
-    videoDefs.forEach(({ id, title, src, sync }) => {
-      const td = row.insertCell();
-      td.width = '33%';
-      td.innerHTML = `<h4>${title}</h4>
-        <video id='${id}' width='100%' autoplay muted ${sync ? "onplay='syncVideos()'" : ''}>
-          <source src='${src}' type='video/mp4'>
-          Your browser does not support the video tag.
-        </video>`;
-    });
+    // Shared helper: renders a 3-column video row; attrs[] passes extra attributes per video.
+    function videoRow(srcs, attrs = []) {
+      const cells = srcs.map((src, i) => `
+        <td width='33%'><h4>${LABELS[i]}</h4>
+          <video width='100%' autoplay muted playsinline ${attrs[i] ?? ''}>
+            <source src='${src}' type='video/mp4'>
+          </video></td>`).join('');
+      return `<table class='videos'><tbody><tr>${cells}</tr></tbody></table>`;
+    }
 
-    const videos = videoDefs.map(({ id }) => document.getElementById(id));
+    // --- Main full-video section with sync ---
+    const IDS = ['v1', 'v2', 'vd'];
+    document.getElementById('main').innerHTML = videoRow(
+      ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'],
+      [`id='v1' onplay='sync()'`, `id='v2' onplay='sync()'`, `id='vd'`],
+    );
+    const videos = IDS.map(id => document.getElementById(id));
 
-    const isEnded = (v) => v.ended || (Number.isFinite(v.duration) && v.currentTime >= (v.duration - 0.05));
-    const playAll = () => videos.forEach((v) => v.play());
+    const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
+    const playAll = () => videos.forEach(v => v.play());
 
-    function syncVideos() {
-      const t = Math.min(...videos.map((v) => v.currentTime));
-      videos.forEach((v) => { v.currentTime = t; });
+    function sync() {
+      const t = Math.min(...videos.map(v => v.currentTime));
+      videos.forEach(v => { v.currentTime = t; });
       playAll();
     }
 
-    function handleEnded(endedVideo) {
-      endedVideo.pause();
-      if (videos.every(isEnded)) {
-        videos.forEach((v) => { v.currentTime = 0; });
-        playAll();
-      }
-    }
-
-    videos.forEach((v) => {
-      v.addEventListener('timeupdate', () => {
-        videos.forEach((other) => {
-          if (other !== v && !isEnded(other) && Math.abs(v.currentTime - other.currentTime) > 0.1) {
-            other.currentTime = v.currentTime;
-            if (other.paused) other.play();
-          }
-        });
+    videos.forEach(v => {
+      v.addEventListener('timeupdate', () => videos.forEach(o => {
+        if (o !== v && !isEnded(o) && Math.abs(v.currentTime - o.currentTime) > 0.1) {
+          o.currentTime = v.currentTime;
+          if (o.paused) o.play();
+        }
+      }));
+      v.addEventListener('ended', () => {
+        v.pause();
+        if (videos.every(isEnded)) { videos.forEach(v => v.currentTime = 0); playAll(); }
       });
-      v.addEventListener('ended', () => handleEnded(v));
     });
+
+    // --- Chunk sections ---
+    const chunks = $CHUNKS_JSON;
+    if (chunks.length) {
+      document.getElementById('chunks').innerHTML = '<hr><h2>Different Sections</h2>'
+        + chunks.map(({ start_frame, end_frame, duration, clips }, i) => `
+          <h3>Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration} frame${duration !== 1 ? 's' : ''})</h3>
+          ${videoRow([clips.video1, clips.video2, clips.diff], ['loop', 'loop', 'loop'])}`
+        ).join('');
+    }
   </script>
 </body>
 </html>

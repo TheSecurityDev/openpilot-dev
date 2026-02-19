@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import json
 import os
 import sys
 import subprocess
@@ -130,28 +131,6 @@ def extract_chunk_clips(
   return clip_sets
 
 
-def generate_chunks_html(clip_sets: list[dict], basedir: str) -> str:
-  if not clip_sets:
-    return ""
-  parts = ["<h2>Different Sections</h2>"]
-  for i, cs in enumerate(clip_sets):
-    parts.append(
-      f"<h3>Section {i + 1}: frames {cs['start_frame']}\u2013{cs['end_frame']} "
-      f"({cs['duration']} frame{'s' if cs['duration'] != 1 else ''})</h3>"
-    )
-    parts.append("<table><tbody><tr>")
-    for label, key in [('Video 1', 'video1'), ('Video 2', 'video2'), ('Pixel Diff', 'diff')]:
-      src = os.path.join(basedir, cs['clips'][key])
-      parts.append(
-        f"<td width='33%'><p><strong>{label}</strong></p>"
-        f"<video width='100%' autoplay loop muted>"
-        f"<source src='{src}' type='video/mp4'>"
-        f"Your browser does not support the video tag.</video></td>"
-      )
-    parts.append("</tr></tbody></table>")
-  return "\n".join(parts)
-
-
 def generate_html_report(
   videos: tuple[str, str],
   basedir: str,
@@ -171,7 +150,11 @@ def generate_html_report(
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
-  chunks_html = generate_chunks_html(clip_sets or [], basedir)
+  # Pre-join basedir into clip paths so the template needs no path logic
+  processed_sets = [
+    {**cs, 'clips': {k: os.path.join(basedir, v) if basedir else v for k, v in cs['clips'].items()}}
+    for cs in (clip_sets or [])
+  ]
 
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
@@ -180,7 +163,7 @@ def generate_html_report(
     "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
     "DIFF_SRC": os.path.join(basedir, diff_video_name),
     "RESULT_TEXT": result_text,
-    "CHUNKS_HTML": chunks_html,
+    "CHUNKS_JSON": json.dumps(processed_sets),
   }
   for key, value in placeholders.items():
     html = html.replace(f"${key}", value)
