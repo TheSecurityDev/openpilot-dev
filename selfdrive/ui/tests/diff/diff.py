@@ -126,7 +126,7 @@ def extract_chunk_clips(
     os.makedirs(chunk_dir, exist_ok=True)
     for name, src in [('video1', video1), ('video2', video2), ('diff', diff_video)]:
       out_path = chunk_dir / f"{i:03d}_{name}.mp4"
-      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}–{end_frame} into {folder_name}/{out_path.name}…")
+      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}–{end_frame} into '{folder_name}/{out_path.name}'…")
       extract_clip(src, start_frame, end_frame, str(out_path), fps)
       # Store relative path under the report base dir: <diff-stem>-chunks/<file>
       clips[name] = os.path.join(folder_name, out_path.name)
@@ -135,7 +135,7 @@ def extract_chunk_clips(
       diff_frame = chunk[len(chunk) // 2]
       thumb_name = f"{i:03d}_thumb.png"
       thumb_path = chunk_dir / thumb_name
-      print(f"  Extracting chunk {i + 1}/{len(chunks)} (thumb) frame {diff_frame} into {folder_name}/{thumb_name}…")
+      print(f"  Extracting chunk {i + 1}/{len(chunks)} (thumb) frame {diff_frame} into '{folder_name}/{thumb_name}'…")
       generate_thumbnail(diff_video, diff_frame, str(thumb_path), fps)
       thumb_rel = os.path.join(folder_name, thumb_name)
     except Exception:
