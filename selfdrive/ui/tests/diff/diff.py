@@ -11,8 +11,8 @@ from openpilot.common.basedir import BASEDIR
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
-CLIP_PADDING_BEFORE = 15  # extra frames of context to include before each chunk
-CLIP_PADDING_AFTER = 15   # extra frames of context to include after each chunk
+CLIP_PADDING_BEFORE = 30  # extra frames of context to include before each chunk
+CLIP_PADDING_AFTER = 30   # extra frames of context to include after each chunk
 CHUNK_FRAME_GAP_TOLERANCE  = 60  # allow up to this many identical frames between diffs in a single chunk
 
 
