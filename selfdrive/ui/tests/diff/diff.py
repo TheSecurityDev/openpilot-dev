@@ -102,7 +102,7 @@ def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -
   """Create a single-frame PNG thumbnail at the given frame index."""
   t = frame / fps
   cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-ss', f"{t:.6f}", '-i', str(video_path),
+    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path), '-ss', f"{t:.6f}",
     '-frames:v', '1', '-y', str(out_path)
   ]
   subprocess.run(cmd, capture_output=True, check=True)
@@ -123,22 +123,22 @@ def extract_chunk_clips(
     start_frame, end_frame = chunk[0], chunk[-1]
     clips: dict[str, str] = {}
 
-    # Use a single top-level folder based on the diff video name, e.g. '<diff-stem>-chunks'
+    # Create a per-diff folder for chunk media (relative to the final HTML report path).
     folder_name = f"{Path(diff_video).stem}-chunks"
     chunk_dir = output_dir / folder_name
     os.makedirs(chunk_dir, exist_ok=True)
     for name, src in [('video1', video1), ('video2', video2), ('diff', diff_video)]:
       out_path = chunk_dir / f"{i:03d}_{name}.mp4"
-      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}–{end_frame} into '{folder_name}/{out_path.name}'…")
+      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}-{end_frame} -> '{folder_name}/{out_path.name}'")
       extract_clip(src, start_frame, end_frame, str(out_path), fps)
-      # Store relative path under the report base dir: <diff-stem>-chunks/<file>
+      # Store paths relative to the report directory so the HTML can reference them directly.
       clips[name] = os.path.join(folder_name, out_path.name)
 
     # Use the middle frame of the chunk as the thumbnail frame
     diff_frame = chunk[len(chunk) // 2]
     thumb_name = f"{i:03d}_thumb.png"
     thumb_path = chunk_dir / thumb_name
-    print(f"  Extracting chunk {i + 1}/{len(chunks)} (thumb) frame {diff_frame} into '{folder_name}/{thumb_name}'…")
+    print(f"  Extracting chunk {i + 1}/{len(chunks)} (thumb) frame {diff_frame} -> '{folder_name}/{thumb_name}'")
     generate_thumbnail(diff_video, diff_frame, str(thumb_path), fps)
     thumb_rel = os.path.join(folder_name, thumb_name)
 
