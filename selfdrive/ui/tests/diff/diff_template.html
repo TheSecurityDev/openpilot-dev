@@ -29,7 +29,7 @@
     const scenes = [
       { label: 'Full Video', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
       ...chunks.map(({ start_frame, end_frame, duration, clips }, i) => ({
-        label: `Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration}f)`,
+        label: `Diff Group ${i + 1}: frames ${start_frame}-${end_frame} (${duration}f)`,
         srcs: [clips.video1, clips.video2, clips.diff],
         loop: true,
       })),
