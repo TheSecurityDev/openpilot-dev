@@ -156,7 +156,8 @@
     if (scenes.length > 1) {
       scenes.forEach((s, i) => {
         const b = document.createElement('button');
-        if (s.type) b.classList.add(TYPE_NAV[s.type] || '');
+        const navClass = TYPE_NAV[s.type];
+        if (navClass) b.classList.add(navClass);
         if (s.thumb) {
           const img = document.createElement('img');
           img.src = s.thumb;
