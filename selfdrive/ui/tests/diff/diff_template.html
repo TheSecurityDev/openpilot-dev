@@ -57,12 +57,16 @@
       });
     });
 
-    // Switch to a scene: swap sources, reload, play.
+    // Switch to a scene: swap sources, reload, play, and update ?chunk query param.
     function switchTo(i) {
       vids.forEach(v => v.pause());
       const { srcs, loop } = scenes[i];
       vids.forEach((v, j) => { v.loop = loop; v.querySelector('source').src = srcs[j]; v.load(); v.play().catch(() => {}); });
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === i));
+      // Minimal URL update without page reload.
+      const newUrl = new URL(window.location);
+      i > 0 ? newUrl.searchParams.set('chunk', i) : newUrl.searchParams.delete('chunk');
+      history.replaceState(null, '', newUrl);
     }
 
     // Build nav buttons.
@@ -74,7 +78,13 @@
       navEl.appendChild(b);
     });
 
-    switchTo(0);
+    // On load: if ?chunk=N is present, select that scene; otherwise default to 0.
+    (function selectInitialFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const v = parseInt(params.get('chunk') || '0', 10);
+      const initial = (!Number.isNaN(v) && v >= 0 && v < scenes.length) ? v : 0;
+      switchTo(initial);
+    })();
   </script>
 </body>
 </html>
