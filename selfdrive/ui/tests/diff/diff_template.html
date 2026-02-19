@@ -57,7 +57,7 @@
       });
     });
 
-    // Switch to a scene: swap sources, reload, play, and update ?chunk query param.
+    // Switch to a scene: swap sources, reload, play, and update ?selected query param.
     function switchTo(i) {
       vids.forEach(v => v.pause());
       const { srcs, loop } = scenes[i];
@@ -65,7 +65,7 @@
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === i));
       // Minimal URL update without page reload.
       const newUrl = new URL(window.location);
-      i > 0 ? newUrl.searchParams.set('chunk', i) : newUrl.searchParams.delete('chunk');
+      i > 0 ? newUrl.searchParams.set('selected', i) : newUrl.searchParams.delete('selected');
       history.replaceState(null, '', newUrl);
     }
 
@@ -78,10 +78,10 @@
       navEl.appendChild(b);
     });
 
-    // On load: if ?chunk=N is present, select that scene; otherwise default to 0.
+    // On load: if ?selected=N is present, select that scene; otherwise default to 0.
     (function selectInitialFromQuery() {
       const params = new URLSearchParams(window.location.search);
-      const v = parseInt(params.get('chunk') || '0', 10);
+      const v = parseInt(params.get('selected') || '0', 10);
       const initial = (!Number.isNaN(v) && v >= 0 && v < scenes.length) ? v : 0;
       switchTo(initial);
     })();
