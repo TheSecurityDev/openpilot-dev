@@ -69,14 +69,18 @@
       history.replaceState(null, '', newUrl);
     }
 
-    // Build nav buttons.
+    // Build nav buttons (hide the nav entirely when there are no diff segments).
     const navEl = document.getElementById('nav');
-    scenes.forEach((s, i) => {
-      const b = document.createElement('button');
-      b.textContent = s.label;
-      b.onclick = () => switchTo(i);
-      navEl.appendChild(b);
-    });
+    if (scenes.length > 1) {
+      scenes.forEach((s, i) => {
+        const b = document.createElement('button');
+        b.textContent = s.label;
+        b.onclick = () => switchTo(i);
+        navEl.appendChild(b);
+      });
+    } else {
+      navEl.style.display = 'none';
+    }
 
     // On load: if ?selected=N is present, select that scene; otherwise default to 0.
     (function selectInitialFromQuery() {
