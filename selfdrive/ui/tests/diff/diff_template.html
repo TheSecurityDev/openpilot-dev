@@ -37,7 +37,7 @@
 
     // Static 3-video player — sources are swapped on scene change.
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
-      ${LABELS.map((lbl, i) => `<td width='33%'><h4>${lbl}</h4>
+      ${LABELS.map((label, i) => `<td width='33%'><h4>${label}</h4>
         <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video></td>`).join('')}
     </tr></tbody></table>`;
     const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
