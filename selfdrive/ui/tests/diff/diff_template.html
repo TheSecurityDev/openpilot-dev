@@ -5,14 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>UI Diff Report</title>
   <style>
-    h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
+    body { font-family: sans-serif; margin: 1em; }
+    h2, h4 { margin: 0.5em 0 0.25em; }
+    #nav { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.75em 0; }
+    #nav button { padding: 0.35em 0.75em; border: 1px solid #aaa; border-radius: 4px; cursor: pointer; background: #f5f5f5; }
+    #nav button.active { background: #0078d4; color: #fff; border-color: #0078d4; }
     table.videos { width: 100%; }
-    details { border: 1px solid #ccc; border-radius: 4px; margin: 0.4em 0; }
-    details > summary { cursor: pointer; padding: 0.5em 0.75em; font-weight: bold; list-style: none; user-select: none; }
-    details > summary:hover { background: #f5f5f5; }
-    details > summary::before { content: '▶ '; font-size: 0.75em; }
-    details[open] > summary::before { content: '▼ '; }
-    details > .content { padding: 0 0.5em 0.5em; }
     @media (max-width: 800px) {
       table.videos tr { display: flex; flex-direction: column; }
       table.videos td { width: 100% !important; }
@@ -21,49 +19,33 @@
 </head>
 <body>
   <h2>UI Diff</h2>
-  <div id='main'></div>
-  <hr>
   <p><strong>Results:</strong> $RESULT_TEXT</p>
-  <div id='chunks'></div>
+  <div id='player'></div>
+  <div id='nav'></div>
   <script>
     const LABELS = ['Video 1', 'Video 2', 'Pixel Diff'];
+    const chunks = $CHUNKS_JSON;
 
-    // Renders a 3-column video row. Pass lazy=true to use data-src (deferred loading).
-    function videoRow(srcs, { attrs = [], lazy = false } = {}) {
-      const cells = srcs.map((src, i) => `
-        <td width='33%'><h4>${LABELS[i]}</h4>
-          <video width='100%' muted playsinline preload='${lazy ? 'none' : 'auto'}' ${attrs[i] ?? ''}>
-            <source ${lazy ? `data-src='${src}'` : `src='${src}'`} type='video/mp4'>
-          </video></td>`).join('');
-      return `<table class='videos'><tbody><tr>${cells}</tr></tbody></table>`;
-    }
+    const scenes = [
+      { label: 'Full Video', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
+      ...chunks.map(({ start_frame, end_frame, duration, clips }, i) => ({
+        label: `Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration}f)`,
+        srcs: [clips.video1, clips.video2, clips.diff],
+        loop: true,
+      })),
+    ];
 
-    // Copy data-src → src and call load() so the browser starts fetching.
-    function loadVideos(el) {
-      el.querySelectorAll('source[data-src]').forEach(s => {
-        s.src = s.dataset.src;
-        delete s.dataset.src;
-        s.parentElement.load();
-      });
-    }
+    // Static 3-video player — sources are swapped on scene change.
+    document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
+      ${LABELS.map((lbl, i) => `<td width='33%'><h4>${lbl}</h4>
+        <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video></td>`).join('')}
+    </tr></tbody></table>`;
+    const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
 
-    // --- Main full-video section (always visible, synced) ---
-    const mainEl = document.getElementById('main');
-    mainEl.innerHTML = videoRow(
-      ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'],
-      { attrs: [`id='v1' autoplay onplay='syncMain()'`, `id='v2' autoplay onplay='syncMain()'`, `id='vd' autoplay loop`] },
-    );
-    const mainVids = ['v1', 'v2', 'vd'].map(id => document.getElementById(id));
-
+    // Sync: keep all three videos at the same playhead.
     const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
-
-    function syncMain() {
-      const t = Math.min(...mainVids.map(v => v.currentTime));
-      mainVids.forEach(v => { v.currentTime = t; v.play(); });
-    }
-
-    mainVids.forEach(v => {
-      v.addEventListener('timeupdate', () => mainVids.forEach(o => {
+    vids.forEach(v => {
+      v.addEventListener('timeupdate', () => vids.forEach(o => {
         if (o !== v && !isEnded(o) && Math.abs(v.currentTime - o.currentTime) > 0.1) {
           o.currentTime = v.currentTime;
           if (o.paused) o.play();
@@ -71,45 +53,40 @@
       }));
       v.addEventListener('ended', () => {
         v.pause();
-        if (mainVids.every(isEnded)) { mainVids.forEach(v => { v.currentTime = 0; v.play(); }); }
+        if (vids.every(isEnded)) { vids.forEach(v => { v.currentTime = 0; v.play(); }); }
       });
     });
 
-    // --- Chunk sections as an accordion ---
-    const chunks = $CHUNKS_JSON;
-    if (chunks.length) {
-      const container = document.getElementById('chunks');
-      container.innerHTML = '<hr><h3>Different Sections</h3>';
-
-      const detailEls = chunks.map(({ start_frame, end_frame, duration, clips }, i) => {
-        const d = document.createElement('details');
-        d.innerHTML = `
-          <summary>Section ${i + 1}: frames ${start_frame}\u2013${end_frame} (${duration} frame${duration !== 1 ? 's' : ''})</summary>
-          <div class='content'>${videoRow([clips.video1, clips.video2, clips.diff], { lazy: true, attrs: ['loop', 'loop', 'loop'] })}</div>`;
-        container.appendChild(d);
-        return d;
-      });
-
-      // Background preload queue — staggered so open sections stay prioritised.
-      let bgQueue = [...detailEls];
-      function bgPreload() {
-        const next = bgQueue.shift();
-        if (!next) return;
-        if (!next.open) loadVideos(next);   // skip if already loaded by user opening it
-        setTimeout(bgPreload, 800);
-      }
-      setTimeout(bgPreload, 1500);
-
-      detailEls.forEach(d => d.addEventListener('toggle', () => {
-        if (d.open) {
-          // Load (if not yet loaded) and play.
-          loadVideos(d);
-          d.querySelectorAll('video').forEach(v => { v.preload = 'auto'; v.play(); });
-        } else {
-          d.querySelectorAll('video').forEach(v => v.pause());
-        }
-      }));
+    // Switch to a scene: swap sources, reload, play.
+    function switchTo(i) {
+      vids.forEach(v => v.pause());
+      const { srcs, loop } = scenes[i];
+      vids.forEach((v, j) => { v.loop = loop; v.querySelector('source').src = srcs[j]; v.load(); v.play().catch(() => {}); });
+      document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === i));
     }
+
+    // Build nav buttons.
+    const navEl = document.getElementById('nav');
+    scenes.forEach((s, i) => {
+      const b = document.createElement('button');
+      b.textContent = s.label;
+      b.onclick = () => switchTo(i);
+      navEl.appendChild(b);
+    });
+
+    switchTo(0);
+
+    // Background preload remaining scenes via <link rel="preload"> hints.
+    const bgQueue = scenes.map((_, i) => i).slice(1);
+    function bgPreload() {
+      const i = bgQueue.shift();
+      if (i === undefined) return;
+      scenes[i].srcs.forEach(src => document.head.appendChild(
+        Object.assign(document.createElement('link'), { rel: 'preload', as: 'video', href: src }),
+      ));
+      setTimeout(bgPreload, 1000);
+    }
+    setTimeout(bgPreload, 2000);
   </script>
 </body>
 </html>
