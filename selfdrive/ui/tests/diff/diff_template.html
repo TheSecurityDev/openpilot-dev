@@ -14,9 +14,18 @@
     #nav button .nav-desc { font-size: 0.60rem; padding: 0.12rem 0.25rem 0.35rem; text-align: center; color: #333; }
     #nav button.active { border-color: #0078d4; background: #e5f2fc; }
     #nav button.active .nav-title { color: #0078d4; }
+    #nav button.type-insert { border-color: #2a9d2a; }
+    #nav button.type-insert.active { border-color: #1a7a1a; background: #e6f7e6; }
+    #nav button.type-delete { border-color: #c0392b; }
+    #nav button.type-delete.active { border-color: #922b21; background: #fde8e6; }
     table.videos { width: 100%; }
+    .vid-wrap { position: relative; }
+    .vid-badge { position: absolute; top: 4px; left: 4px; z-index: 2; font-size: 0.72rem; font-weight: 700;
+                 padding: 2px 6px; border-radius: 4px; pointer-events: none; }
+    .badge-insert { background: #2a9d2a; color: #fff; }
+    .badge-delete { background: #c0392b; color: #fff; }
+    .badge-replace { background: #d4860a; color: #fff; }
     @media (max-width: 800px) {
-      /* responsive grid for nav: 2–3 columns that fill the row */
       #nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5em; margin: 0.5em 0; }
       #nav button { width: 100%; }
       table.videos tr { display: flex; flex-direction: column; }
@@ -33,48 +42,107 @@
     const LABELS = ['Video 1', 'Video 2', 'Pixel Diff'];
     const chunks = $CHUNKS_JSON;
 
+    const TYPE_ICON  = { replace: '✏️', insert: '➕', delete: '➖' };
+    const TYPE_BADGE = { replace: 'badge-replace', insert: 'badge-insert', delete: 'badge-delete' };
+    const TYPE_NAV   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
+
     const scenes = [
-      { title: 'Full Video', desc: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
-      ...chunks.map(({ start_frame, end_frame, duration, clips, thumb }, i) => ({
-        title: `Diff Group ${i + 1}`,
-        desc: `frames ${start_frame}-${end_frame} (${duration}f, ${(duration / 30.0).toFixed(2)}s)`,
-        srcs: [clips.video1, clips.video2, clips.diff],
-        thumb: thumb || '',
-        loop: true,
-      })),
+      { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
+      ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
+        const icon = TYPE_ICON[type] || '';
+        const counts = (type === 'insert')
+          ? `+${v2_count}f`
+          : (type === 'delete')
+            ? `-${v1_count}f`
+            : (v1_count !== v2_count ? `${v1_count}→${v2_count}f` : `${duration}f`);
+        return {
+          title: `${icon} Group ${i + 1}`,
+          desc: `frames ${start_frame}–${end_frame} (${counts}, ${(Math.max(v1_count||0, v2_count||0) / 30.0).toFixed(2)}s)`,
+          type: type || '',
+          srcs: [clips.video1, clips.video2, clips.diff],
+          thumb: thumb || '',
+          loop: true,
+        };
+      }),
     ];
 
-    // Static 3-video player — sources are swapped on scene change.
+    // Build the static 3-video player; badge spans are toggled per-scene.
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
       ${LABELS.map((label, i) => `<td width='33%'><h4>${label}</h4>
-        <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video></td>`).join('')}
+        <div class='vid-wrap'><span id='badge${i}' class='vid-badge' style='display:none'></span>
+        <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video></div></td>`).join('')}
     </tr></tbody></table>`;
     const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
 
-    // Sync: keep all three videos at the same playhead.
+    // Whether the current scene should loop (managed manually — NOT via v.loop — so that
+    // videos of different lengths don't fight each other through the sync handler).
+    let currentLoop = false;
+
+    // True while a collective restart is in flight (prevents re-entrant restart triggers).
+    let restarting = false;
+
+    // isEnded: a video counts as "done" once it reaches its natural end.
     const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
+
+    // Sync: keep playing videos at the same playhead.
+    // Clamp the target time to the destination video's duration so we never force
+    // a shorter video past its end via synchronisation.
     vids.forEach(v => {
-      v.addEventListener('timeupdate', () => vids.forEach(o => {
-        if (o !== v && !isEnded(o) && Math.abs(v.currentTime - o.currentTime) > 0.1) {
-          o.currentTime = v.currentTime;
-          if (o.paused) o.play();
-        }
-      }));
+      v.addEventListener('timeupdate', () => {
+        if (restarting) return;
+        vids.forEach(o => {
+          if (o === v || isEnded(o)) return;
+          const target = Number.isFinite(o.duration) ? Math.min(v.currentTime, o.duration) : v.currentTime;
+          if (Math.abs(target - o.currentTime) > 0.1) {
+            o.currentTime = target;
+            if (o.paused) o.play().catch(() => {});
+          }
+        });
+      });
+
+      // When a video ends: pause it and let the longer ones continue.
+      // Only restart the whole scene once ALL videos have finished.
       v.addEventListener('ended', () => {
         v.pause();
-        if (vids.every(isEnded)) { vids.forEach(v => { v.currentTime = 0; v.play(); }); }
+        if (!restarting && currentLoop && vids.every(isEnded)) {
+          restarting = true;
+          vids.forEach(v => { v.currentTime = 0; });
+          // Brief delay so all currentTime resets settle before we call play().
+          setTimeout(() => {
+            restarting = false;
+            vids.forEach(v => v.play().catch(() => {}));
+          }, 50);
+        }
       });
     });
 
     // Switch to a scene: swap sources, reload, play, and update ?selected query param.
-    function switchTo(i) {
-      vids.forEach(v => v.pause());
-      const { srcs, loop } = scenes[i];
-      vids.forEach((v, j) => { v.loop = loop; v.querySelector('source').src = srcs[j]; v.load(); v.play().catch(() => {}); });
-      document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === i));
-      // Minimal URL update without page reload.
+    function switchTo(idx) {
+      restarting = false;
+      vids.forEach(v => { v.pause(); v.loop = false; });   // never use native loop
+      const { srcs, loop, type } = scenes[idx];
+      currentLoop = loop;
+
+      // Update type badges
+      const badgeLabels = { replace: ['changed', 'changed', 'diff'], insert: ['(none)', 'added', 'added'], delete: ['removed', '(none)', 'removed'] };
+      const badgeTexts = badgeLabels[type] || ['', '', ''];
+      vids.forEach((v, j) => {
+        const badge = document.getElementById(`badge${j}`);
+        if (type && badgeTexts[j]) {
+          badge.textContent = badgeTexts[j];
+          badge.className = `vid-badge ${TYPE_BADGE[type] || ''}`;
+          badge.style.display = '';
+        } else {
+          badge.style.display = 'none';
+        }
+        v.querySelector('source').src = srcs[j];
+        v.load();
+        v.play().catch(() => {});
+      });
+
+      document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === idx));
       const newUrl = new URL(window.location);
-      i > 0 ? newUrl.searchParams.set('selected', i) : newUrl.searchParams.delete('selected');
+      idx > 0 ? newUrl.searchParams.set('selected', idx) : newUrl.searchParams.delete('selected');
       history.replaceState(null, '', newUrl);
     }
 
@@ -83,6 +151,7 @@
     if (scenes.length > 1) {
       scenes.forEach((s, i) => {
         const b = document.createElement('button');
+        if (s.type) b.classList.add(TYPE_NAV[s.type] || '');
         if (s.thumb) {
           const img = document.createElement('img');
           img.src = s.thumb;

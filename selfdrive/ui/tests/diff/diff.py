@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
+import difflib
 import json
 import os
+import shutil
 import sys
 import subprocess
 import webbrowser
@@ -31,59 +33,98 @@ def extract_framehashes(video_path):
 
 
 def create_diff_video(video1, video2, output_path):
-  """Create a diff video using ffmpeg blend filter with difference mode."""
+  """Create a diff video using ffmpeg blend filter with difference mode (covers the common-length prefix)."""
   print("Creating diff video...")
   cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output_path]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
+def find_differences(video1, video2) -> tuple[list[str], list[str]]:
+  """Hash every frame of both videos and return the two hash lists."""
   print(f"Hashing frames from {video1}...")
   hashes1 = extract_framehashes(video1)
 
   print(f"Hashing frames from {video2}...")
   hashes2 = extract_framehashes(video2)
 
-  print(f"Comparing {len(hashes1)} frames...")
-  different_frames = []
-
-  for i, (h1, h2) in enumerate(zip(hashes1, hashes2, strict=False)):
-    if h1 != h2:
-      different_frames.append(i)
-
-  return different_frames, (len(hashes1), len(hashes2))
+  print(f"Comparing {len(hashes1)} vs {len(hashes2)} frames...")
+  return hashes1, hashes2
 
 
-def compute_chunks(different_frames: list[int]) -> list[list[int]]:
-  """Group differing frame indices into contiguous chunks."""
-  if not different_frames:
+def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[dict]:
+  """
+  Use SequenceMatcher to produce a proper diff (handles mid-video insertions/deletions).
+  Nearby non-equal opcodes are merged so that small identical stretches don't create
+  excessive fragmentation. Each returned chunk has:
+    type        – 'replace' | 'insert' | 'delete'
+    v1_start, v1_end, v1_count  – frame range in video 1 (count == 0 for 'insert')
+    v2_start, v2_end, v2_count  – frame range in video 2 (count == 0 for 'delete')
+  """
+  matcher = difflib.SequenceMatcher(None, hashes1, hashes2, autojunk=False)
+
+  # Collect only the non-equal opcodes as mutable lists for merging.
+  diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']
+
+  if not diff_ops:
     return []
-  chunks: list[list[int]] = []
-  current_chunk = [different_frames[0]]
-  for i in range(1, len(different_frames)):
-    prev = different_frames[i - 1]
-    cur = different_frames[i]
-    gap = cur - prev - 1
-    if gap <= CHUNK_FRAME_GAP_TOLERANCE:
-      # Treat small gaps of identical frames as part of the same chunk to avoid excessive fragmentation
-      current_chunk.append(cur)
+
+  # Merge nearby ops: if the gap (in equal frames) between two consecutive ops is
+  # small enough in BOTH videos, fold them into one 'replace' op.
+  merged: list[list] = [diff_ops[0]]
+  for op in diff_ops[1:]:
+    prev = merged[-1]
+    gap_v1 = op[1] - prev[2]   # equal frames between ops in video 1
+    gap_v2 = op[3] - prev[4]   # equal frames between ops in video 2
+    if max(gap_v1, gap_v2) <= CHUNK_FRAME_GAP_TOLERANCE:
+      # Absorb this op into previous, widening both ranges.
+      merged[-1] = ['replace', prev[1], op[2], prev[3], op[4]]
     else:
-      chunks.append(current_chunk)
-      current_chunk = [cur]
-  chunks.append(current_chunk)
+      merged.append(op)
+
+  chunks = []
+  for tag, i1, i2, j1, j2 in merged:
+    chunks.append({
+      'type': tag,
+      'v1_start': i1, 'v1_end': i2 - 1, 'v1_count': i2 - i1,
+      'v2_start': j1, 'v2_end': j2 - 1, 'v2_count': j2 - j1,
+    })
   return chunks
 
 
-def get_video_fps(video_path: str) -> float:
-  """Return the frame-rate of a video file."""
-  cmd = ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'csv=p=0', str(video_path)]
+def count_different_frames(chunks: list[dict]) -> int:
+  """Return a headline 'different frame' count for the summary."""
+  return sum(max(c['v1_count'], c['v2_count']) for c in chunks)
+
+
+def get_video_info(video_path: str) -> tuple[float, int, int]:
+  """Return (fps, width, height) for a video file."""
+  cmd = [
+    'ffprobe', '-v', 'error', '-select_streams', 'v:0',
+    '-show_entries', 'stream=r_frame_rate,width,height',
+    '-of', 'json', str(video_path),
+  ]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-  num, den = result.stdout.strip().split('/')
-  return int(num) / int(den)
+  info = json.loads(result.stdout)['streams'][0]
+  num, den = info['r_frame_rate'].split('/')
+  fps = int(num) / int(den)
+  return fps, int(info['width']), int(info['height'])
 
 
-def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> None:
-  """Extract [start_frame, end_frame] plus padding before/after into *output_path*."""
+def create_black_clip(output_path: str, width: int, height: int, fps: float, num_frames: int) -> None:
+  """Generate a solid-black video clip (used as a placeholder for insert/delete lanes)."""
+  duration = num_frames / fps
+  cmd = [
+    'ffmpeg', '-hide_banner', '-loglevel', 'error',
+    '-f', 'lavfi', '-i', f'color=c=black:size={width}x{height}:rate={fps}',
+    '-t', f'{duration:.6f}', '-frames:v', str(num_frames),
+    '-y', output_path,
+  ]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
+def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> int:
+  """Extract [start_frame, end_frame] plus padding before/after into *output_path*.
+  Returns the actual number of frames written."""
   padded_start = max(0, start_frame - CLIP_PADDING_BEFORE)
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
@@ -93,6 +134,7 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
     '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)
   ]
   subprocess.run(cmd, capture_output=True, check=True)
+  return total_frames
 
 
 def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -> None:
@@ -106,38 +148,97 @@ def extract_chunk_clips(
   video1: str,
   video2: str,
   diff_video: str,
-  chunks: list[list[int]],
+  chunks: list[dict],
   fps: float,
+  width: int,
+  height: int,
   output_dir: Path,
 ) -> list[dict]:
-  """For each chunk extract a short clip from video1, video2 and the diff video."""
+  """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
   clip_sets: list[dict] = []
+  folder_name = f"{Path(diff_video).stem}-chunks"
+  chunk_dir = output_dir / folder_name
+  os.makedirs(chunk_dir, exist_ok=True)
+  n = len(chunks)
 
   for i, chunk in enumerate(chunks):
-    start_frame, end_frame = chunk[0], chunk[-1]
+    chunk_type = chunk['type']   # 'replace' | 'insert' | 'delete'
+    v1_start, v1_end, v1_count = chunk['v1_start'], chunk['v1_end'], chunk['v1_count']
+    v2_start, v2_end, v2_count = chunk['v2_start'], chunk['v2_end'], chunk['v2_count']
     clips: dict[str, str] = {}
 
-    # Create a per-diff folder for chunk media (relative to the final HTML report path).
-    folder_name = f"{Path(diff_video).stem}-chunks"
-    chunk_dir = output_dir / folder_name
-    os.makedirs(chunk_dir, exist_ok=True)
-    for name, src in [('video1', video1), ('video2', video2), ('diff', diff_video)]:
-      out_path = chunk_dir / f"{i:03d}_{name}.mp4"
-      print(f"  Extracting chunk {i + 1}/{len(chunks)} ({name}) frames {start_frame}-{end_frame} -> '{folder_name}/{out_path.name}'")
-      extract_clip(src, start_frame, end_frame, str(out_path), fps)
-      # Store paths relative to the report directory so the HTML can reference them directly.
-      clips[name] = os.path.join(folder_name, out_path.name)
+    def _rel(p: Path) -> str:
+      return os.path.join(folder_name, p.name)
 
-    # Use the middle frame of the chunk as the thumbnail frame
-    diff_frame = chunk[len(chunk) // 2]
+    # --- video1 clip ---
+    v1_clip = chunk_dir / f"{i:03d}_video1.mp4"
+    if chunk_type != 'insert':
+      print(f"  Chunk {i + 1}/{n} (v1/{chunk_type}) frames {v1_start}-{v1_end}")
+      v1_frames = extract_clip(video1, v1_start, v1_end, str(v1_clip), fps)
+    else:
+      # Pure insertion: video1 has nothing here — generate a black placeholder of
+      # the same total length as the video2 clip (content + padding).
+      padding = min(v2_start, CLIP_PADDING_BEFORE)
+      v1_frames = padding + v2_count + CLIP_PADDING_AFTER
+      print(f"  Chunk {i + 1}/{n} (v1/insert-placeholder) {v1_frames} black frames")
+      create_black_clip(str(v1_clip), width, height, fps, v1_frames)
+    clips['video1'] = _rel(v1_clip)
+
+    # --- video2 clip ---
+    v2_clip = chunk_dir / f"{i:03d}_video2.mp4"
+    if chunk_type != 'delete':
+      print(f"  Chunk {i + 1}/{n} (v2/{chunk_type}) frames {v2_start}-{v2_end}")
+      v2_frames = extract_clip(video2, v2_start, v2_end, str(v2_clip), fps)
+    else:
+      # Pure deletion: video2 has nothing here.
+      padding = min(v1_start, CLIP_PADDING_BEFORE)
+      v2_frames = padding + v1_count + CLIP_PADDING_AFTER
+      print(f"  Chunk {i + 1}/{n} (v2/delete-placeholder) {v2_frames} black frames")
+      create_black_clip(str(v2_clip), width, height, fps, v2_frames)
+    clips['video2'] = _rel(v2_clip)
+
+    # --- diff/highlight clip ---
+    diff_clip = chunk_dir / f"{i:03d}_diff.mp4"
+    if chunk_type == 'replace':
+      # Pixel-difference blend of the two clips (stops at the shorter one).
+      cmd = [
+        'ffmpeg', '-hide_banner', '-loglevel', 'error',
+        '-i', str(v1_clip), '-i', str(v2_clip),
+        '-filter_complex', 'blend=all_mode=difference',
+        '-vsync', '0', '-y', str(diff_clip),
+      ]
+      subprocess.run(cmd, capture_output=True, check=True)
+    elif chunk_type == 'delete':
+      shutil.copy(str(v1_clip), str(diff_clip))   # show what was removed
+    else:  # insert
+      shutil.copy(str(v2_clip), str(diff_clip))   # show what was added
+
+    clips['diff'] = _rel(diff_clip)
+
+    # --- thumbnail (middle frame of the diff content inside the clip) ---
+    padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
+    content_count = v1_count if chunk_type != 'insert' else v2_count
+    thumb_frame_in_clip = padding_used + content_count // 2
     thumb_name = f"{i:03d}_thumb.png"
     thumb_path = chunk_dir / thumb_name
-    print(f"  Extracting chunk {i + 1}/{len(chunks)} (thumb) frame {diff_frame} -> '{folder_name}/{thumb_name}'")
-    generate_thumbnail(diff_video, diff_frame, str(thumb_path), fps)
-    thumb_rel = os.path.join(folder_name, thumb_name)
+    print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
+    generate_thumbnail(str(diff_clip), thumb_frame_in_clip, str(thumb_path), fps)
 
-    # Store clip paths and metadata for this chunk to be used in the HTML report
-    clip_sets.append({'start_frame': start_frame, 'end_frame': end_frame, 'duration': end_frame - start_frame + 1, 'clips': clips, 'thumb': thumb_rel})
+    # Headline frame numbers for the report (expressed in video1 coordinates where
+    # possible, video2 for pure inserts).
+    display_start = v1_start if chunk_type != 'insert' else v2_start
+    display_end   = v1_end   if chunk_type != 'insert' else v2_end
+
+    clip_sets.append({
+      'type': chunk_type,
+      'start_frame': display_start,
+      'end_frame': display_end,
+      'duration': max(v1_count, v2_count),
+      'v1_count': v1_count,
+      'v2_count': v2_count,
+      'clips': clips,
+      'thumb': _rel(thumb_path),
+    })
 
   return clip_sets
 
@@ -145,19 +246,18 @@ def extract_chunk_clips(
 def generate_html_report(
   videos: tuple[str, str],
   basedir: str,
-  different_frames: list[int],
+  diff_frame_count: int,
   frame_counts: tuple[int, int],
   diff_video_name: str,
   clip_sets: list[dict] | None = None,
 ) -> str:
   total_frames = max(frame_counts)
   frame_delta = frame_counts[1] - frame_counts[0]
-  different_total = len(different_frames) + abs(frame_delta)
 
   result_text = (
     f"✅ Videos are identical! ({total_frames} frames)"
-    if different_total == 0
-    else f"❌ Found {different_total} different frames out of {total_frames} total ({different_total / total_frames * 100:.1f}%)."
+    if diff_frame_count == 0
+    else f"❌ Found {diff_frame_count} different frames out of {total_frames} total ({diff_frame_count / total_frames * 100:.1f}%)."
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
@@ -214,18 +314,21 @@ def main():
   diff_video_path = str(DIFF_OUT_DIR / diff_video_name)
   create_diff_video(args.video1, args.video2, diff_video_path)
 
-  different_frames, frame_counts = find_differences(args.video1, args.video2)
+  hashes1, hashes2 = find_differences(args.video1, args.video2)
+  frame_counts = (len(hashes1), len(hashes2))
 
-  chunks = compute_chunks(different_frames)
+  chunks = compute_diff_chunks(hashes1, hashes2)
+  diff_frame_count = count_different_frames(chunks)
+
   clip_sets = []
   if chunks:
     print(f"\nExtracting {len(chunks)} different section(s)...")
-    fps = get_video_fps(args.video1)
-    clip_sets = extract_chunk_clips(args.video1, args.video2, diff_video_path, chunks, fps, DIFF_OUT_DIR)
+    fps, width, height = get_video_info(args.video1)
+    clip_sets = extract_chunk_clips(args.video1, args.video2, diff_video_path, chunks, fps, width, height, DIFF_OUT_DIR)
 
   print()
   print("Generating HTML report...")
-  html = generate_html_report((args.video1, args.video2), args.basedir, different_frames, frame_counts, diff_video_name, clip_sets)
+  html = generate_html_report((args.video1, args.video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
 
   with open(DIFF_OUT_DIR / args.output, 'w') as f:
     f.write(html)
@@ -235,8 +338,7 @@ def main():
     print(f"Opening {args.output} in browser...")
     webbrowser.open(f'file://{os.path.abspath(DIFF_OUT_DIR / args.output)}')
 
-  extra_frames = abs(frame_counts[0] - frame_counts[1])
-  return 0 if (len(different_frames) + extra_frames) == 0 else 1
+  return 0 if diff_frame_count == 0 else 1
 
 
 if __name__ == "__main__":
