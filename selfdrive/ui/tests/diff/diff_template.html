@@ -7,9 +7,12 @@
   <style>
     body { font-family: sans-serif; margin: 1em; }
     h2, h4 { margin: 0.5em 0 0.25em; }
-    #nav { display: flex; flex-wrap: wrap; gap: 0.4em; margin: 0.75em 0; }
-    #nav button { padding: 0.35em 0.75em; border: 1px solid #aaa; border-radius: 4px; cursor: pointer; background: #f5f5f5; }
-    #nav button.active { background: #0078d4; color: #fff; border-color: #0078d4; }
+    #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 0.75em 0; }
+    #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; overflow: hidden; width: 140px; }
+    #nav button img { width: 100%; height: auto; display: block; }
+    #nav button span { font-size: 0.72rem; padding: 0.3em 0.4em; text-align: center; line-height: 1.3; }
+    #nav button.active { border-color: #0078d4; background: #e5f2fc; }
+    #nav button.active span { color: #0078d4; font-weight: 600; }
     table.videos { width: 100%; }
     @media (max-width: 800px) {
       table.videos tr { display: flex; flex-direction: column; }
@@ -28,9 +31,10 @@
 
     const scenes = [
       { label: 'Full Video', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
-      ...chunks.map(({ start_frame, end_frame, duration, clips }, i) => ({
+      ...chunks.map(({ start_frame, end_frame, duration, clips, thumb }, i) => ({
         label: `Diff Group ${i + 1}: frames ${start_frame}-${end_frame} (${duration}f)`,
         srcs: [clips.video1, clips.video2, clips.diff],
+        thumb: thumb || '',
         loop: true,
       })),
     ];
@@ -74,7 +78,16 @@
     if (scenes.length > 1) {
       scenes.forEach((s, i) => {
         const b = document.createElement('button');
-        b.textContent = s.label;
+        if (s.thumb) {
+          const img = document.createElement('img');
+          img.src = s.thumb;
+          img.alt = s.label;
+          b.appendChild(img);
+        }
+        const span = document.createElement('span');
+        span.textContent = s.label;
+        b.title = s.label;
+        b.appendChild(span);
         b.onclick = () => switchTo(i);
         navEl.appendChild(b);
       });
