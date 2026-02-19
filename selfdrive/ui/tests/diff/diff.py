@@ -11,6 +11,10 @@ from openpilot.common.basedir import BASEDIR
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
+CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
+CLIP_PADDING_AFTER = 0   # extra frames of context to include after each chunk
+MAX_IDENTICAL_FRAME_GAP = 30  # allow up to this many identical frames between diffs in a single chunk
+
 
 def extract_framehashes(video_path):
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
@@ -62,7 +66,7 @@ def compute_chunks(different_frames: list[int]) -> list[list[int]]:
     gap = cur - prev - 1
     # If the number of identical frames between prev and cur is <= tolerance,
     # treat them as contiguous and keep in the same chunk.
-    if gap <= MAX_SAME_FRAMES:
+    if gap <= MAX_IDENTICAL_FRAME_GAP:
       current_chunk.append(cur)
     else:
       chunks.append(current_chunk)
@@ -80,18 +84,17 @@ def get_video_fps(video_path: str) -> float:
   return int(num) / int(den)
 
 
-CLIP_PADDING_BEFORE = 10  # extra frames of context to include before each chunk
-CLIP_PADDING_AFTER = 10   # extra frames of context to include after each chunk
-MAX_SAME_FRAMES = 0  # allow up to this many identical frames between diffs in a single chunk
-
-
 def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> None:
   """Extract [start_frame, end_frame] plus padding before/after into *output_path*."""
   padded_start = max(0, start_frame - CLIP_PADDING_BEFORE)
   total_frames = (end_frame - start_frame + 1) + CLIP_PADDING_BEFORE + CLIP_PADDING_AFTER
   start_time = padded_start / fps
-  duration = total_frames / fps
-  cmd = ['ffmpeg', '-i', str(video_path), '-ss', str(start_time), '-t', str(duration), '-y', str(output_path)]
+  # Use frame-accurate extraction: seek after input and request an exact frame count.
+  # Using -frames:v avoids duration-to-frame rounding that can include adjacent frames.
+  cmd = [
+    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path),
+    '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)
+  ]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
