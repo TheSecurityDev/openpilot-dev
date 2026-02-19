@@ -60,7 +60,7 @@
             : (v1_count !== v2_count ? `${v1_count}→${v2_count}f` : `${duration}f`);
         return {
           title: `${icon} Group ${i + 1}`,
-          desc: `frames ${start_frame}–${end_frame} (${counts}, ${(Math.max(v1_count||0, v2_count||0) / 30.0).toFixed(2)}s)`,
+          desc: `frames ${start_frame + 1}–${end_frame + 1} (${counts}, ${(Math.max(v1_count||0, v2_count||0) / 30.0).toFixed(2)}s)`,
           type: type || '',
           srcs: [clips.video1, clips.video2, clips.diff],
           thumb: thumb || '',
