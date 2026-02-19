@@ -79,7 +79,7 @@
     const chunks = $CHUNKS_JSON;
     if (chunks.length) {
       const container = document.getElementById('chunks');
-      container.innerHTML = '<hr><h2>Different Sections</h2>';
+      container.innerHTML = '<hr><h3>Different Sections</h3>';
 
       const detailEls = chunks.map(({ start_frame, end_frame, duration, clips }, i) => {
         const d = document.createElement('details');
