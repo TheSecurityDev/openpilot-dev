@@ -75,18 +75,6 @@
     });
 
     switchTo(0);
-
-    // Background preload remaining scenes via <link rel="preload"> hints.
-    const bgQueue = scenes.map((_, i) => i).slice(1);
-    function bgPreload() {
-      const i = bgQueue.shift();
-      if (i === undefined) return;
-      scenes[i].srcs.forEach(src => document.head.appendChild(
-        Object.assign(document.createElement('link'), { rel: 'preload', as: 'video', href: src }),
-      ));
-      setTimeout(bgPreload, 1000);
-    }
-    setTimeout(bgPreload, 2000);
   </script>
 </body>
 </html>
