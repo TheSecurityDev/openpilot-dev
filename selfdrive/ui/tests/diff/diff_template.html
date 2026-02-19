@@ -49,7 +49,7 @@
     const TYPE_NAV   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
 
     const scenes = [
-      { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: false },
+      { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
         const icon = TYPE_ICON[type] || '';
         const counts = (type === 'insert')
