@@ -27,6 +27,7 @@
     .badge-insert { background: #2a9d2a; color: #fff; }
     .badge-delete { background: #c0392b; color: #fff; }
     .badge-replace { background: #d4860a; color: #fff; }
+    .badge-none { background: #9aa0a6; color: #fff; }
     @media (max-width: 800px) {
       #nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5em; margin: 0.5em 0; }
       #nav button { width: 100%; }
@@ -135,7 +136,9 @@
         const badge = document.getElementById(`badge${j}`);
         if (type && badgeTexts[j]) {
           badge.textContent = badgeTexts[j];
-          badge.className = `vid-badge ${TYPE_BADGE[type] || ''}`;
+          // Use a grey 'none' badge when the label is explicitly '(none)'
+          const badgeClass = (badgeTexts[j] === '(none)') ? 'badge-none' : (TYPE_BADGE[type] || '');
+          badge.className = `vid-badge ${badgeClass}`.trim();
           badge.style.display = '';
         } else {
           badge.style.display = 'none';
