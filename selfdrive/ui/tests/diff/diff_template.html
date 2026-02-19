@@ -56,14 +56,13 @@
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
-        // Build an explicit action label like "12 Frames Added" / "8 Frames Removed" / "3→5 Frames Modified"
         let actionText;
         if (type === 'insert') {
           actionText = `Added ${v2_count} frames`;
         } else if (type === 'delete') {
           actionText = `Removed ${v1_count} frames`;
         } else if (type === 'replace') {
-          actionText = (v1_count === v2_count) ? `Modified ${v1_count} Frames` : `Modified ${v1_count}→${v2_count} Frames`;
+          actionText = (v1_count === v2_count) ? `Changed ${v1_count} Frames` : `Changed ${v1_count}→${v2_count} Frames`;
         } else {
           actionText = `${Math.max(v1_count||0, v2_count||0)} Frames`;
         }
