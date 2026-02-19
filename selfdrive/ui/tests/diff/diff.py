@@ -138,6 +138,7 @@ def extract_chunk_clips(
 
     # Store clip paths and metadata for this chunk to be used in the HTML report
     clip_sets.append({'start_frame': start_frame, 'end_frame': end_frame, 'duration': end_frame - start_frame + 1, 'clips': clips, 'thumb': thumb_rel})
+
   return clip_sets
 
 
@@ -216,7 +217,7 @@ def main():
   different_frames, frame_counts = find_differences(args.video1, args.video2)
 
   chunks = compute_chunks(different_frames)
-  clip_sets: list[dict] = []
+  clip_sets = []
   if chunks:
     print(f"\nExtracting {len(chunks)} different section(s)...")
     fps = get_video_fps(args.video1)
