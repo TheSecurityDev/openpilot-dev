@@ -11,9 +11,9 @@ from openpilot.common.basedir import BASEDIR
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
-CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
-CLIP_PADDING_AFTER = 0   # extra frames of context to include after each chunk
-MAX_IDENTICAL_FRAME_GAP = 30  # allow up to this many identical frames between diffs in a single chunk
+CLIP_PADDING_BEFORE = 15  # extra frames of context to include before each chunk
+CLIP_PADDING_AFTER = 15   # extra frames of context to include after each chunk
+CHUNK_FRAME_GAP_TOLERANCE  = 60  # allow up to this many identical frames between diffs in a single chunk
 
 
 def extract_framehashes(video_path):
@@ -66,7 +66,7 @@ def compute_chunks(different_frames: list[int]) -> list[list[int]]:
     gap = cur - prev - 1
     # If the number of identical frames between prev and cur is <= tolerance,
     # treat them as contiguous and keep in the same chunk.
-    if gap <= MAX_IDENTICAL_FRAME_GAP:
+    if gap <= CHUNK_FRAME_GAP_TOLERANCE:
       current_chunk.append(cur)
     else:
       chunks.append(current_chunk)
