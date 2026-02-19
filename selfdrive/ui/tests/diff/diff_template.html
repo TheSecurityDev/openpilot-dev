@@ -8,7 +8,7 @@
     body { font-family: sans-serif; margin: 0.75em; }
     h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
     #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 0.75em 0; }
-    #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; overflow: hidden; width: 200px; }
+    #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; overflow: hidden; width: 200px; position: relative; }
     #nav button img { width: 100%; height: auto; display: block; }
     #nav button .nav-title { font-size: 0.82rem; padding-top: 0.3rem; text-align: center; font-weight: 600; }
     #nav button .nav-desc { font-size: 0.60rem; padding: 0.12rem 0.25rem 0.35rem; text-align: center; color: #333; }
@@ -19,6 +19,10 @@
     #nav button.type-delete { border-color: #c0392b; }
     #nav button.type-delete.active { border-color: #922b21; background: #fde8e6; }
     table.videos { width: 100%; }
+    .nav-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+    .nav-index { position: absolute; left: 8px; bottom: 6px; font-weight: 600; color: #777; font-size: 0.82rem; }
+    .nav-index.hidden { display: none; }
+    .nav-action { flex: 1; text-align: center; font-size: 0.92rem; font-weight: 600; color: #222; }
     .col-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 6px 0; }
     .col-header h4 { margin: 0; font-size: 1rem; }
     .vid-wrap { display: block; }
@@ -52,15 +56,21 @@
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
-        const icon = TYPE_ICON[type] || '';
-        const counts = (type === 'insert')
-          ? `+${v2_count}f`
-          : (type === 'delete')
-            ? `-${v1_count}f`
-            : (v1_count !== v2_count ? `${v1_count}→${v2_count}f` : `${duration}f`);
+        // Build an explicit action label like "12 Frames Added" / "8 Frames Removed" / "3→5 Frames Modified"
+        let actionText;
+        if (type === 'insert') {
+          actionText = `Added ${v2_count} frames`;
+        } else if (type === 'delete') {
+          actionText = `Removed ${v1_count} frames`;
+        } else if (type === 'replace') {
+          actionText = (v1_count === v2_count) ? `Modified ${v1_count} Frames` : `Modified ${v1_count}→${v2_count} Frames`;
+        } else {
+          actionText = `${Math.max(v1_count||0, v2_count||0)} Frames`;
+        }
         return {
-          title: `${icon} Group ${i + 1}`,
-          desc: `frames ${start_frame + 1}–${end_frame + 1} (${counts}, ${(Math.max(v1_count||0, v2_count||0) / 30.0).toFixed(2)}s)`,
+          idx: i + 1,
+          title: actionText || `Group ${i + 1}`,
+          desc: `frames ${start_frame + 1}–${end_frame + 1} (${(Math.max(v1_count||0, v2_count||0) / 30.0).toFixed(2)}s)`,
           type: type || '',
           srcs: [clips.video1, clips.video2, clips.diff],
           thumb: thumb || '',
@@ -167,14 +177,26 @@
           img.alt = s.title;
           b.appendChild(img);
         }
-        const title = document.createElement('span');
-        title.className = 'nav-title';
-        title.textContent = s.title;
+        const header = document.createElement('div');
+        header.className = 'nav-row';
+        const idxEl = document.createElement('span');
+        idxEl.className = 'nav-index';
+        if (s.idx) {
+          idxEl.textContent = s.idx + '.';
+        } else {
+          idxEl.classList.add('hidden');
+        }
+        const actionEl = document.createElement('span');
+        actionEl.className = 'nav-action';
+        const icon = TYPE_ICON[s.type] || '';
+        actionEl.textContent = (icon ? icon + ' ' : '') + s.title;
+        header.appendChild(actionEl);
+        header.appendChild(idxEl);
         const desc = document.createElement('span');
         desc.className = 'nav-desc';
         desc.textContent = s.desc || '';
-        b.title = (s.title + (s.desc ? ' — ' + s.desc : '')).trim();
-        b.appendChild(title);
+        b.title = ((s.title || '') + (s.desc ? ' — ' + s.desc : '')).trim();
+        b.appendChild(header);
         b.appendChild(desc);
         b.onclick = () => switchTo(i);
         navEl.appendChild(b);
