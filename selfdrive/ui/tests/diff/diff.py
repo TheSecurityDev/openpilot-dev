@@ -191,7 +191,7 @@ def main():
   parser.add_argument('video1', help='First video file')
   parser.add_argument('video2', help='Second video file')
   parser.add_argument('output', nargs='?', default='diff.html', help='Output HTML file (default: diff.html)')
-  parser.add_argument("--basedir", type=str, help="Base directory or URL for output, for correct src locations in HTML report", default="")
+  parser.add_argument("--basedir", type=str, help="Base path for files in HTML report", default="")
   parser.add_argument('--no-open', action='store_true', help='Do not open HTML report in browser')
 
   args = parser.parse_args()
