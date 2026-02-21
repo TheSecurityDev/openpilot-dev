@@ -26,6 +26,7 @@
     .col-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 6px 0; }
     .col-header h4 { margin: 0; font-size: 1rem; }
     .vid-wrap { display: block; }
+    .no-video { display: none; width: 100%; min-height: 180px; border: 1px dashed #aaa; border-radius: 4px; background: #fafafa; color: #666; font-size: 0.95rem; align-items: center; justify-content: center; text-align: center; }
     .vid-badge { position: relative; z-index: 2; font-size: 0.78rem; font-weight: 700; padding: 4px 8px; border-radius: 4px; pointer-events: none; display: inline-block; }
     .badge-insert { background: #2a9d2a; color: #fff; }
     .badge-delete { background: #c0392b; color: #fff; }
@@ -86,10 +87,13 @@
         <div class='col-header'><h4>${label}</h4><span id='badge${i}' class='vid-badge' style='display:none'></span></div>
         <div class='vid-wrap'>
           <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
+          <div id='nv${i}' class='no-video'>No video</div>
         </div>
       </td>`).join('')}
     </tr></tbody></table>`;
     const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
+    const noVideoEls = [0, 1, 2].map(i => document.getElementById(`nv${i}`));
+    let active = [true, true, true];
 
     // Whether the current scene should loop (managed manually — NOT via v.loop — so that
     // videos of different lengths don't fight each other through the sync handler).
@@ -99,16 +103,16 @@
     let restarting = false;
 
     // isEnded: a video counts as "done" once it reaches its natural end.
-    const isEnded = v => v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
+    const isEnded = (v, i) => !active[i] || v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
 
     // Sync: keep playing videos at the same playhead.
     // Clamp the target time to the destination video's duration so we never force
     // a shorter video past its end via synchronisation.
-    vids.forEach(v => {
+    vids.forEach((v, vi) => {
       v.addEventListener('timeupdate', () => {
-        if (restarting) return;
-        vids.forEach(o => {
-          if (o === v || isEnded(o)) return;
+        if (restarting || !active[vi]) return;
+        vids.forEach((o, oi) => {
+          if (o === v || !active[oi] || isEnded(o, oi)) return;
           const target = Number.isFinite(o.duration) ? Math.min(v.currentTime, o.duration) : v.currentTime;
           if (Math.abs(target - o.currentTime) > 0.1) {
             o.currentTime = target;
@@ -120,14 +124,15 @@
       // When a video ends: pause it and let the longer ones continue.
       // Only restart the whole scene once ALL videos have finished.
       v.addEventListener('ended', () => {
+        if (!active[vi]) return;
         v.pause();
-        if (!restarting && currentLoop && vids.every(isEnded)) {
+        if (!restarting && currentLoop && vids.every((x, i) => isEnded(x, i))) {
           restarting = true;
-          vids.forEach(v => { v.currentTime = 0; });
+          vids.forEach((x, i) => { if (active[i]) x.currentTime = 0; });
           // Brief delay so all currentTime resets settle before we call play().
           setTimeout(() => {
             restarting = false;
-            vids.forEach(v => v.play().catch(() => {}));
+            vids.forEach((x, i) => { if (active[i]) x.play().catch(() => {}); });
           }, 50);
         }
       });
@@ -145,6 +150,8 @@
       const badgeTexts = badgeLabels[type] || ['', '', ''];
       vids.forEach((v, j) => {
         const badge = document.getElementById(`badge${j}`);
+        const src = srcs[j];
+        active[j] = !!src;
         if (type && badgeTexts[j]) {
           badge.textContent = badgeTexts[j];
           // Use a grey 'none' badge when the label is explicitly 'none'
@@ -154,9 +161,17 @@
         } else {
           badge.style.display = 'none';
         }
-        v.querySelector('source').src = srcs[j];
+        const source = v.querySelector('source');
+        source.src = src || '';
         v.load();
-        v.play().catch(() => {});
+        if (active[j]) {
+          v.style.display = '';
+          noVideoEls[j].style.display = 'none';
+          v.play().catch(() => {});
+        } else {
+          v.style.display = 'none';
+          noVideoEls[j].style.display = 'flex';
+        }
       });
 
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === idx));

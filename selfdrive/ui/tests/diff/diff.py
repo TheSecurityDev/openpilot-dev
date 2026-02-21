@@ -2,7 +2,6 @@
 import difflib
 import json
 import os
-import shutil
 import sys
 import subprocess
 import webbrowser
@@ -84,30 +83,17 @@ def count_different_frames(chunks: list[Chunk]) -> int:
   return sum(max(c.v1_count, c.v2_count) for c in chunks)
 
 
-def get_video_info(video_path: str) -> tuple[float, int, int]:
-  """Return (fps, width, height) for a video file."""
+def get_video_fps(video_path: str) -> float:
+  """Return fps for a video file."""
   cmd = [
     'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-    '-show_entries', 'stream=r_frame_rate,width,height',
+    '-show_entries', 'stream=r_frame_rate',
     '-of', 'json', str(video_path),
   ]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   info = json.loads(result.stdout)['streams'][0]
   num, den = info['r_frame_rate'].split('/')
-  fps = int(num) / int(den)
-  return fps, int(info['width']), int(info['height'])
-
-
-def create_black_clip(output_path: str, width: int, height: int, fps: float, num_frames: int) -> None:
-  """Generate a solid-black video clip (used as a placeholder for insert/delete lanes)."""
-  duration = num_frames / fps
-  cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error',
-    '-f', 'lavfi', '-i', f'color=c=black:size={width}x{height}:rate={fps}',
-    '-t', f'{duration:.6f}', '-frames:v', str(num_frames),
-    '-y', output_path,
-  ]
-  subprocess.run(cmd, capture_output=True, check=True)
+  return int(num) / int(den)
 
 
 def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path: str, fps: float) -> int:
@@ -138,8 +124,6 @@ def extract_chunk_clips(
   diff_video: str,
   chunks: list[Chunk],
   fps: float,
-  width: int,
-  height: int,
   output_dir: Path,
 ) -> list[dict]:
   """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
@@ -153,7 +137,7 @@ def extract_chunk_clips(
     chunk_type = chunk.type
     v1_start, v1_end, v1_count = chunk.v1_start, chunk.v1_end, chunk.v1_count
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
-    clips: dict[str, str] = {}
+    clips: dict[str, str | None] = {'video1': None, 'video2': None, 'diff': None}
 
     def _rel(p: Path) -> str:
       return os.path.join(folder_name, p.name)
@@ -162,28 +146,15 @@ def extract_chunk_clips(
     v1_clip = chunk_dir / f"{i:03d}_video1.mp4"
     if chunk_type != 'insert':
       print(f"  Chunk {i + 1}/{n} (v1/{chunk_type}) frames {v1_start}-{v1_end}")
-      v1_frames = extract_clip(video1, v1_start, v1_end, str(v1_clip), fps)
-    else:
-      # Pure insertion: video1 has nothing here — generate a black placeholder of
-      # the same total length as the video2 clip (content + padding).
-      padding = min(v2_start, CLIP_PADDING_BEFORE)
-      v1_frames = padding + v2_count + CLIP_PADDING_AFTER
-      print(f"  Chunk {i + 1}/{n} (v1/insert-placeholder) {v1_frames} black frames")
-      create_black_clip(str(v1_clip), width, height, fps, v1_frames)
-    clips['video1'] = _rel(v1_clip)
+      extract_clip(video1, v1_start, v1_end, str(v1_clip), fps)
+      clips['video1'] = _rel(v1_clip)
 
     # --- video2 clip ---
     v2_clip = chunk_dir / f"{i:03d}_video2.mp4"
     if chunk_type != 'delete':
       print(f"  Chunk {i + 1}/{n} (v2/{chunk_type}) frames {v2_start}-{v2_end}")
-      v2_frames = extract_clip(video2, v2_start, v2_end, str(v2_clip), fps)
-    else:
-      # Pure deletion: video2 has nothing here.
-      padding = min(v1_start, CLIP_PADDING_BEFORE)
-      v2_frames = padding + v1_count + CLIP_PADDING_AFTER
-      print(f"  Chunk {i + 1}/{n} (v2/delete-placeholder) {v2_frames} black frames")
-      create_black_clip(str(v2_clip), width, height, fps, v2_frames)
-    clips['video2'] = _rel(v2_clip)
+      extract_clip(video2, v2_start, v2_end, str(v2_clip), fps)
+      clips['video2'] = _rel(v2_clip)
 
     # --- diff/highlight clip ---
     diff_clip = chunk_dir / f"{i:03d}_diff.mp4"
@@ -196,12 +167,7 @@ def extract_chunk_clips(
         '-vsync', '0', '-y', str(diff_clip),
       ]
       subprocess.run(cmd, capture_output=True, check=True)
-    elif chunk_type == 'delete':
-      shutil.copy(str(v1_clip), str(diff_clip))   # show what was removed
-    else:  # insert
-      shutil.copy(str(v2_clip), str(diff_clip))   # show what was added
-
-    clips['diff'] = _rel(diff_clip)
+      clips['diff'] = _rel(diff_clip)
 
     # --- thumbnail (middle frame of the diff content inside the clip) ---
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
@@ -209,8 +175,9 @@ def extract_chunk_clips(
     thumb_frame_in_clip = padding_used + content_count // 2
     thumb_name = f"{i:03d}_thumb.png"
     thumb_path = chunk_dir / thumb_name
+    thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
     print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
-    generate_thumbnail(str(diff_clip), thumb_frame_in_clip, str(thumb_path), fps)
+    generate_thumbnail(str(thumb_source), thumb_frame_in_clip, str(thumb_path), fps)
 
     # Headline frame numbers for the report (expressed in video1 coordinates where
     # possible, video2 for pure inserts).
@@ -253,7 +220,7 @@ def generate_html_report(
   processed_sets = [
     {
       **cs,
-      'clips': {k: os.path.join(basedir, v) if basedir else v for k, v in cs['clips'].items()},
+      'clips': {k: (os.path.join(basedir, v) if (basedir and v) else v) for k, v in cs['clips'].items()},
       'thumb': os.path.join(basedir, cs['thumb']) if (basedir and cs.get('thumb')) else cs.get('thumb', ''),
     }
     for cs in (clip_sets or [])
@@ -311,8 +278,8 @@ def main():
   clip_sets = []
   if chunks:
     print(f"\nExtracting {len(chunks)} different section(s)...")
-    fps, width, height = get_video_info(args.video1)
-    clip_sets = extract_chunk_clips(args.video1, args.video2, diff_video_path, chunks, fps, width, height, DIFF_OUT_DIR)
+    fps = get_video_fps(args.video1)
+    clip_sets = extract_chunk_clips(args.video1, args.video2, diff_video_path, chunks, fps, DIFF_OUT_DIR)
 
   print()
   print("Generating HTML report...")
