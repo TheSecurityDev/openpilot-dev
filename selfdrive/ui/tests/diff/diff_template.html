@@ -44,9 +44,9 @@
     const chunks = $CHUNKS_JSON;
 
     const frames_label = (n) => `${n} frame${n !== 1 ? 's' : ''}`;
-    const frames_range_label = (prefix, start, end) =>
-      prefix + (start === end ? `frame ${start + 1}` : `frames ${start + 1}–${end + 1}`);
-    const video_frames_range_label = (v, start, end) => frames_range_label(`video ${v}: `, start, end);
+    const frames_range_label = (start, end) =>
+      start === end ? `frame ${start + 1}` : `frames ${start + 1}–${end + 1}`;
+    const video_frames_range_label = (v, start, end) => `video ${v}: ${frames_range_label(start, end)}`;
 
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
