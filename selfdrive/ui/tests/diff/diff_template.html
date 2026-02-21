@@ -138,14 +138,14 @@
       currentLoop = loop;
 
       // Update type badges
-      const badgeLabels = { replace: ['changed', 'changed', 'diff'], insert: ['(none)', 'added', 'added'], delete: ['removed', '(none)', 'removed'] };
+      const badgeLabels = { replace: ['changed', 'changed', 'diff'], insert: ['none', 'added', 'added'], delete: ['removed', 'none', 'removed'] };
       const badgeTexts = badgeLabels[type] || ['', '', ''];
       vids.forEach((v, j) => {
         const badge = document.getElementById(`badge${j}`);
         if (type && badgeTexts[j]) {
           badge.textContent = badgeTexts[j];
-          // Use a grey 'none' badge when the label is explicitly '(none)'
-          const badgeClass = (badgeTexts[j] === '(none)') ? 'badge-none' : (TYPE_BADGE[type] || '');
+          // Use a grey 'none' badge when the label is explicitly 'none'
+          const badgeClass = (badgeTexts[j] === 'none') ? 'badge-none' : (TYPE_BADGE[type] || '');
           badge.className = `vid-badge ${badgeClass}`.trim();
           badge.style.display = '';
         } else {
