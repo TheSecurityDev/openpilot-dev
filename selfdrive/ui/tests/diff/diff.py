@@ -84,8 +84,7 @@ def get_video_fps(video_path: Path) -> float:
 
 
 def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path: Path, fps: float) -> int:
-  """Extract [start_frame, end_frame] plus padding before/after into *output_path*.
-  Returns the actual number of frames written."""
+  """Extract [start_frame, end_frame] plus padding before/after into *output_path*. Returns the actual number of frames written."""
   padded_start = max(0, start_frame - CLIP_PADDING_BEFORE)
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
@@ -160,7 +159,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
 
 
 def generate_html_report(
-  videos: tuple[str, str], basedir: str, diff_frame_count: int, frame_counts: tuple[int, int], diff_video_name: str, clip_sets: list[dict] | None = None
+  videos: tuple[str, str], basedir: str, diff_frame_count: int, frame_counts: tuple[int, int], diff_video_name: str, clip_sets: list[dict]
 ) -> str:
   total_frames = max(frame_counts)
   frame_delta = frame_counts[1] - frame_counts[0]
@@ -172,16 +171,6 @@ def generate_html_report(
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
-  # Pre-join basedir into clip paths and thumb so the template needs no path logic
-  processed_sets = [
-    {
-      **cs,
-      'clips': {k: (os.path.join(basedir, v) if (basedir and v) else v) for k, v in cs['clips'].items()},
-      'thumb': os.path.join(basedir, cs['thumb']) if (basedir and cs.get('thumb')) else cs.get('thumb', ''),
-    }
-    for cs in (clip_sets or [])
-  ]
-
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
   placeholders = {
@@ -189,7 +178,7 @@ def generate_html_report(
     "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
     "DIFF_SRC": os.path.join(basedir, diff_video_name),
     "RESULT_TEXT": result_text,
-    "CHUNKS_JSON": json.dumps(processed_sets),
+    "CHUNKS_JSON": json.dumps(clip_sets),
   }
   for key, value in placeholders.items():
     html = html.replace(f"${key}", value)
