@@ -18,13 +18,6 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
-def create_diff_video(video1: str, video2: str, output_path: str) -> None:
-  """Create a diff video using ffmpeg blend filter with difference mode."""
-  print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
-  subprocess.run(cmd, capture_output=True, check=True)
-
-
 def extract_framehashes(video_path: str) -> list[str]:
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -37,6 +30,14 @@ def extract_framehashes(video_path: str) -> list[str]:
       continue
     hashes.append(parts[-1].strip())
   return hashes
+
+
+def create_diff_video(video1: str, video2: str, output_path: str) -> None:
+  """Create a diff video using ffmpeg blend filter with difference mode."""
+  print("Creating diff video...")
+  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  subprocess.run(cmd, capture_output=True, check=True)
+
 
 
 def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
