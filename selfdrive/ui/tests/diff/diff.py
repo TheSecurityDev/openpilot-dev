@@ -51,7 +51,7 @@ def find_differences(video1, video2) -> tuple[list[str], list[str]]:
 
 
 def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[dict]:
-  # Use SequenceMatcher to produce a proper diff (handles mid-video insertions/deletions).
+  """Use difflib to compute diff chunks from the two hash lists. Returns a list of dicts with chunk info."""
   matcher = difflib.SequenceMatcher(a=hashes1, b=hashes2, autojunk=False)
   # Collect only the non-equal opcodes
   diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']
