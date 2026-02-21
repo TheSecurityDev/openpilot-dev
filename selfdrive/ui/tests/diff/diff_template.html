@@ -46,7 +46,7 @@
     const chunks = $CHUNKS_JSON;
 
     const TYPE_ICON  = { replace: '✏️', insert: '➕', delete: '➖' };
-    const TYPE_NAV   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
+    const TYPE_NAV_CLASSES   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
 
     const frames_label = (n) => `${n} frame${n !== 1 ? 's' : ''}`;
 
@@ -166,7 +166,7 @@
     if (scenes.length > 1) {
       scenes.forEach((scene, i) => {
         const btn = document.createElement('button');
-        const navClass = TYPE_NAV[scene.type];
+        const navClass = TYPE_NAV_CLASSES[scene.type];
         if (navClass) btn.classList.add(navClass);
         if (scene.thumb) {
           const img = document.createElement('img');
