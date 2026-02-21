@@ -51,6 +51,7 @@
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ v1_start, v1_end, v2_start, v2_end, v1_count, v2_count, type, clips, thumb }, i) => {
+        // Build action text based on type and frame counts
         let actionText;
         if (type === 'insert') {
           actionText = `Added ${frames_label(v2_count)}`;
@@ -62,7 +63,7 @@
           actionText = frames_label(Math.max(v1_count || 0, v2_count || 0));
         }
 
-        // Build a clear description with explicit per-video ranges.
+        // Build description with frame ranges
         let desc = '';
         if (type === 'insert') {
           desc = video_frames_range_label(2, v2_start, v2_end);
@@ -91,7 +92,7 @@
       }),
     ];
 
-    // Build the static 3-video player layout
+    // Build video player table
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
         ${LABELS.map((label, i) => `<td width='33%'>
           <div class='col-header'><h4>${label}</h4></div>
@@ -101,27 +102,20 @@
           </div>
         </td>`).join('')}
       </tr></tbody></table>`;
-    const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
+    const videos = [0, 1, 2].map(i => document.getElementById(`v${i}`));
     const noVideoEls = [0, 1, 2].map(i => document.getElementById(`nv${i}`));
-    let active = [true, true, true];
+    let active = [true, true, true];  // Whether each video is active/exists for the current scene
 
-    // Whether the current scene should loop (managed manually — NOT via v.loop — so that
-    // videos of different lengths don't fight each other through the sync handler).
-    let currentLoop = false;
+    let currentLoop = false;  // Whether current scene should loop (managed manually — NOT via v.loop — so that videos of different lengths don't fight each other through the sync handler).
+    let restarting = false;  // True while a collective restart is in flight (prevents re-entrant restart triggers).
 
-    // True while a collective restart is in flight (prevents re-entrant restart triggers).
-    let restarting = false;
-
-    // isEnded: a video counts as "done" once it reaches its natural end.
     const isEnded = (v, i) => !active[i] || v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
 
-    // Sync: keep playing videos at the same playhead.
-    // Clamp the target time to the destination video's duration so we never force
-    // a shorter video past its end via synchronization.
-    vids.forEach((v, vi) => {
+    // Sync: keep playing videos at the same playhead
+    videos.forEach((v, vi) => {
       v.addEventListener('timeupdate', () => {
         if (restarting || !active[vi]) return;
-        vids.forEach((o, oi) => {
+        videos.forEach((o, oi) => {
           if (o === v || !active[oi] || isEnded(o, oi)) return;
           const target = Number.isFinite(o.duration) ? Math.min(v.currentTime, o.duration) : v.currentTime;
           if (Math.abs(target - o.currentTime) > 0.1) {
@@ -131,43 +125,42 @@
         });
       });
 
-      // When a video ends: pause it and let the longer ones continue.
-      // Only restart the whole scene once ALL videos have finished.
+      // When a video ends, pause it and let the longer ones continue. Only restart the whole scene once ALL videos have finished.
       v.addEventListener('ended', () => {
         if (!active[vi]) return;
         v.pause();
-        if (!restarting && currentLoop && vids.every((x, i) => isEnded(x, i))) {
+        if (!restarting && currentLoop && videos.every((x, i) => isEnded(x, i))) {
           restarting = true;
-          vids.forEach((x, i) => { if (active[i]) x.currentTime = 0; });
+          videos.forEach((x, i) => { if (active[i]) x.currentTime = 0; });
           // Brief delay so all currentTime resets settle before we call play().
           setTimeout(() => {
             restarting = false;
-            vids.forEach((x, i) => { if (active[i]) x.play().catch(() => {}); });
+            videos.forEach((x, i) => { if (active[i]) x.play().catch(() => {}); });
           }, 50);
         }
       });
     });
 
-    // Switch to a scene: swap sources, reload, play, and update ?selected query param.
+    // Switch to a different scene (chunk group)
     function switchTo(idx) {
       restarting = false;
-      vids.forEach(v => { v.pause(); v.loop = false; });   // never use native loop
+      videos.forEach(v => { v.pause(); v.loop = false; });  // never use native loop
       const { srcs, loop, type } = scenes[idx];
       currentLoop = loop;
 
-      vids.forEach((v, j) => {
-        const src = srcs[j];
-        active[j] = !!src;
+      videos.forEach((v, vi) => {
+        const src = srcs[vi];
+        active[vi] = !!src;
         const source = v.querySelector('source');
         source.src = src || '';
         v.load();
-        if (active[j]) {
+        if (active[vi]) {
           v.style.display = '';
-          noVideoEls[j].style.display = 'none';
+          noVideoEls[vi].style.display = 'none';
           v.play().catch(() => {});
         } else {
           v.style.display = 'none';
-          noVideoEls[j].style.display = 'flex';
+          noVideoEls[vi].style.display = 'flex';
         }
       });
 

@@ -132,7 +132,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       extract_clip(video2, v2_start, v2_end, v2_clip, fps)
       clips['video2'] = _rel_path(v2_clip)
 
-    # --- diff/highlight clip ---
+    # --- diff clip ---
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
     if chunk_type == 'replace':
       create_diff_video(v1_clip, v2_clip, diff_clip)
