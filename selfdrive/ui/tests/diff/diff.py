@@ -142,12 +142,12 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     # --- thumbnail (middle frame of the diff content inside the clip) ---
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
     content_count = v1_count if chunk_type != 'insert' else v2_count
-    thumb_frame_in_clip = padding_used + content_count // 2
+    thumb_frame = padding_used + content_count // 2
     thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity; JPG is smaller for the other thumbnails
     thumb_path = output_dir / f"{i:03d}_thumb.{thumb_ext}"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
-    print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
-    generate_thumbnail(thumb_source, thumb_frame_in_clip, thumb_path, fps)
+    print(f"  Chunk {i + 1}/{n} (thumb) frame {thumb_frame}")
+    generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
     clip_sets.append({
       'type': chunk_type,
