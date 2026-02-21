@@ -164,22 +164,21 @@
     const TYPE_ICON = { replace: '✏️', insert: '➕', delete: '➖' };
     const TYPE_NAV_CLASSES = { insert: 'type-insert', delete: 'type-delete' };
 
-    // Build nav buttons (hide the nav entirely when there are no diff segments).
+    // Build nav buttons for each scene/chunk
     const navEl = document.getElementById('nav');
     if (scenes.length === 0) {
-      navEl.style.display = 'none';
+      navEl.style.display = 'none';  // hide the nav container if there are no diff chunks
     } else {
       let navHtml = '';
       scenes.forEach(({ idx, type, title, desc, thumb }, i) => {
-        const navClass = TYPE_NAV_CLASSES[type] ? TYPE_NAV_CLASSES[type] : '';
-        const icon = TYPE_ICON[type] || '';
         const thumbHtml = thumb ? `<img src="${thumb}" alt="${title}">` : '';
-        const descHtml = `<span class="nav-desc">${desc || ''}</span>`;
+        const icon = TYPE_ICON[type] || '';
         const titleHtml = `<span class="nav-title">${icon ? icon + ' ' : ''}${title}</span>`;
-        const idxHtml = `<span class="${idx ? 'nav-index' : 'nav-index hidden'}">${idx ? idx + '.' : ''}</span>`;
+        const descHtml = `<span class="nav-desc">${desc || ''}</span>`;
+        const idxHtml = `<span class="nav-index${idx ? '' : ' hidden'}">${idx ? idx + '.' : ''}</span>`;
         const headerHtml = `<div>${titleHtml}${idxHtml}</div>`;
         const btnTitle = ((title || '') + (desc ? ' — ' + desc : '')).trim();
-        navHtml += `<button class="${navClass}" title="${btnTitle}" data-idx="${i}">${thumbHtml}${headerHtml}${descHtml}</button>`;
+        navHtml += `<button class="${TYPE_NAV_CLASSES[type] || ''}" title="${btnTitle}" data-idx="${i}">${thumbHtml}${headerHtml}${descHtml}</button>`;
       });
       navEl.innerHTML = navHtml;
       Array.from(navEl.children).forEach((btn, i) => {
