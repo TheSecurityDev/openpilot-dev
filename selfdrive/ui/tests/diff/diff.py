@@ -115,7 +115,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
     clips: dict[str, str | None] = {'video1': None, 'video2': None, 'diff': None}
 
-    def _html_rel_path(p: Path) -> str:
+    def _rel_path(p: Path) -> str:
       """ Return path relative to the basedir."""
       return os.path.join(basedir, folder_name, p.name)
 
@@ -124,20 +124,20 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     if chunk_type != 'insert':
       print(f"  Chunk {i + 1}/{n} (v1/{chunk_type}) frames {v1_start}-{v1_end}")
       extract_clip(video1, v1_start, v1_end, v1_clip, fps)
-      clips['video1'] = _html_rel_path(v1_clip)
+      clips['video1'] = _rel_path(v1_clip)
 
     # --- video2 clip ---
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
     if chunk_type != 'delete':
       print(f"  Chunk {i + 1}/{n} (v2/{chunk_type}) frames {v2_start}-{v2_end}")
       extract_clip(video2, v2_start, v2_end, v2_clip, fps)
-      clips['video2'] = _html_rel_path(v2_clip)
+      clips['video2'] = _rel_path(v2_clip)
 
     # --- diff/highlight clip ---
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
     if chunk_type == 'replace':
       create_diff_video(v1_clip, v2_clip, diff_clip)
-      clips['diff'] = _html_rel_path(diff_clip)
+      clips['diff'] = _rel_path(diff_clip)
 
     # --- thumbnail (middle frame of the diff content inside the clip) ---
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
@@ -153,7 +153,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       'type': chunk_type,
       'v1_start': v1_start, 'v1_end': v1_end, 'v1_count': v1_count,
       'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
-      'clips': clips, 'thumb': _html_rel_path(thumb_path),
+      'clips': clips, 'thumb': _rel_path(thumb_path),
     })
 
   return clip_sets
