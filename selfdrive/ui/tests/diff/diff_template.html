@@ -117,7 +117,7 @@
 
     // Sync: keep playing videos at the same playhead.
     // Clamp the target time to the destination video's duration so we never force
-    // a shorter video past its end via synchronisation.
+    // a shorter video past its end via synchronization.
     vids.forEach((v, vi) => {
       v.addEventListener('timeupdate', () => {
         if (restarting || !active[vi]) return;

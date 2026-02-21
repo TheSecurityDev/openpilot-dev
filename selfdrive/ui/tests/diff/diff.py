@@ -18,6 +18,13 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
+def create_diff_video(video1: str, video2: str, output_path: str) -> None:
+  """Create a diff video using ffmpeg blend filter with difference mode."""
+  print("Creating diff video...")
+  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
 def extract_framehashes(video_path: str) -> list[str]:
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -30,14 +37,6 @@ def extract_framehashes(video_path: str) -> list[str]:
       continue
     hashes.append(parts[-1].strip())
   return hashes
-
-
-def create_diff_video(video1: str, video2: str, output_path: str) -> None:
-  """Create a diff video using ffmpeg blend filter with difference mode."""
-  print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
-  subprocess.run(cmd, capture_output=True, check=True)
-
 
 
 def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
@@ -65,9 +64,7 @@ class Chunk:
 def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
   """Use difflib to compute diff chunks from the two hash lists. Returns a list of Chunk objects."""
   matcher = difflib.SequenceMatcher(a=hashes1, b=hashes2, autojunk=False)
-  # Collect only the non-equal opcodes
-  diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']
-  # Create chunks with frame ranges and counts for each video
+  diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']  # filter out equal chunks
   chunks: list[Chunk] = []
   for tag, i1, i2, j1, j2 in diff_ops:
     chunks.append(Chunk(
@@ -78,17 +75,11 @@ def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
   return chunks
 
 
-def count_different_frames(chunks: list[Chunk]) -> int:
-  """Return a headline 'different frame' count for the summary."""
-  return sum(max(c.v1_count, c.v2_count) for c in chunks)
-
-
 def get_video_fps(video_path: str) -> float:
   """Return fps for a video file."""
   cmd = [
-    'ffprobe', '-v', 'error', '-select_streams', 'v:0',
-    '-show_entries', 'stream=r_frame_rate',
-    '-of', 'json', str(video_path),
+    'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
+    'stream=r_frame_rate', '-of', 'json', str(video_path)
   ]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   info = json.loads(result.stdout)['streams'][0]
@@ -239,6 +230,8 @@ def main():
   if not args.output.lower().endswith('.html'):
     args.output += '.html'
 
+  diff_video_name = Path(args.output).stem + '.mp4'
+
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   print("=" * 60)
@@ -247,10 +240,10 @@ def main():
   print(f"Video 1: {args.video1}")
   print(f"Video 2: {args.video2}")
   print(f"Output: {args.output}")
+  print(f"Diff video: {diff_video_name}")
   print()
 
   # Create diff video with name derived from output HTML
-  diff_video_name = Path(args.output).stem + '.mp4'
   diff_video_path = str(DIFF_OUT_DIR / diff_video_name)
   create_diff_video(args.video1, args.video2, diff_video_path)
 
@@ -258,7 +251,7 @@ def main():
   frame_counts = (len(hashes1), len(hashes2))
 
   chunks = compute_diff_chunks(hashes1, hashes2)
-  diff_frame_count = count_different_frames(chunks)
+  diff_frame_count = sum(max(c.v1_count, c.v2_count) for c in chunks)
 
   clip_sets = []
   if chunks:
@@ -270,13 +263,16 @@ def main():
   print("Generating HTML report...")
   html = generate_html_report((args.video1, args.video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
 
-  with open(DIFF_OUT_DIR / args.output, 'w') as f:
+  output_path = DIFF_OUT_DIR / args.output
+  with open(output_path, 'w') as f:
     f.write(html)
+
+  print(f"Report generated at '{output_path}'")
 
   # Open in browser by default
   if not args.no_open:
     print(f"Opening {args.output} in browser...")
-    webbrowser.open(f'file://{os.path.abspath(DIFF_OUT_DIR / args.output)}')
+    webbrowser.open(f'file://{os.path.abspath(output_path)}')
 
   return 0 if diff_frame_count == 0 else 1
 
