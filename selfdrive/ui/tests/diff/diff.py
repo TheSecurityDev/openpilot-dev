@@ -173,8 +173,7 @@ def extract_chunk_clips(
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
     content_count = v1_count if chunk_type != 'insert' else v2_count
     thumb_frame_in_clip = padding_used + content_count // 2
-    thumb_name = f"{i:03d}_thumb.png"
-    thumb_path = chunk_dir / thumb_name
+    thumb_path = chunk_dir / f"{i:03d}_thumb.png"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
     print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
     generate_thumbnail(str(thumb_source), thumb_frame_in_clip, str(thumb_path), fps)
