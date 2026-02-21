@@ -11,7 +11,6 @@
     #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; overflow: hidden; width: 200px; position: relative; }
     #nav button img { width: 100%; height: auto; display: block; }
     #nav button.active { border-color: #0078d4; background: #e5f2fc; border-width: 3px; }
-    #nav button.active .nav-title { color: #0078d4; }
     #nav button.type-insert { border-color: #2a9d2a; }
     #nav button.type-insert.active { border-color: #1a7a1a; background: #e6f7e6; }
     #nav button.type-delete { border-color: #c0392b; }
@@ -106,8 +105,8 @@
     const noVideoEls = [0, 1, 2].map(i => document.getElementById(`nv${i}`));
     let active = [true, true, true];  // Whether each video is active/exists for the current scene
 
-    let currentLoop = false;  // Whether current scene should loop (managed manually — NOT via v.loop — so that videos of different lengths don't fight each other through the sync handler).
-    let restarting = false;  // True while a collective restart is in flight (prevents re-entrant restart triggers).
+    let loopEnabled = false;
+    let restarting = false;
 
     const isEnded = (v, i) => !active[i] || v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
 
@@ -129,7 +128,7 @@
       v.addEventListener('ended', () => {
         if (!active[vi]) return;
         v.pause();
-        if (!restarting && currentLoop && videos.every((x, i) => isEnded(x, i))) {
+        if (!restarting && loopEnabled && videos.every((x, i) => isEnded(x, i))) {
           restarting = true;
           videos.forEach((x, i) => { if (active[i]) x.currentTime = 0; });
           // Brief delay so all currentTime resets settle before we call play().
@@ -146,7 +145,7 @@
       restarting = false;
       videos.forEach(v => { v.pause(); v.loop = false; });  // never use native loop
       const { srcs, loop, type } = scenes[idx];
-      currentLoop = loop;
+      loopEnabled = loop;
 
       videos.forEach((v, vi) => {
         const src = srcs[vi];
@@ -171,7 +170,7 @@
     }
 
     const TYPE_ICON = { replace: '✏️', insert: '➕', delete: '➖' };
-    const TYPE_NAV_CLASSES = { replace: '', insert: 'type-insert', delete: 'type-delete' };
+    const TYPE_NAV_CLASSES = { insert: 'type-insert', delete: 'type-delete' };
 
     // Build nav buttons (hide the nav entirely when there are no diff segments).
     const navEl = document.getElementById('nav');
