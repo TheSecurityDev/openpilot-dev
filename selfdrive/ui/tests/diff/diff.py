@@ -114,7 +114,10 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
 def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -> None:
   """Create a single-frame PNG thumbnail at the given frame index."""
   t = frame / fps
-  cmd = ['ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-y', str(out_path)]
+  cmd = [
+    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path),
+    '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)
+  ]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -173,7 +176,8 @@ def extract_chunk_clips(
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
     content_count = v1_count if chunk_type != 'insert' else v2_count
     thumb_frame_in_clip = padding_used + content_count // 2
-    thumb_path = chunk_dir / f"{i:03d}_thumb.png"
+    thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity, JPG for the video ones for better compression
+    thumb_path = chunk_dir / f"{i:03d}_thumb.{thumb_ext}"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
     print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
     generate_thumbnail(str(thumb_source), thumb_frame_in_clip, str(thumb_path), fps)
