@@ -18,6 +18,13 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
+def create_diff_video(video1: str, video2: str, output_path: str) -> None:
+  """Create a diff video using ffmpeg blend filter with difference mode."""
+  print("Creating diff video...")
+  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
 def extract_framehashes(video_path: str) -> list[str]:
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -32,22 +39,14 @@ def extract_framehashes(video_path: str) -> list[str]:
   return hashes
 
 
-def create_diff_video(video1: str, video2: str, output_path: str) -> None:
-  """Create a diff video using ffmpeg blend filter with difference mode."""
-  print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
-  subprocess.run(cmd, capture_output=True, check=True)
-
-
-def find_differences(video1, video2) -> tuple[list[str], list[str]]:
+def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
   """Hash every frame of both videos and return the two hash lists."""
-  print(f"Hashing frames from {video1}...")
+  print(f"Hashing frames from '{video1}'...")
   hashes1 = extract_framehashes(video1)
-
-  print(f"Hashing frames from {video2}...")
+  print(f"  Found {len(hashes1)} frames in '{video1}'.")
+  print(f"Hashing frames from '{video2}'...")
   hashes2 = extract_framehashes(video2)
-
-  print(f"Comparing {len(hashes1)} vs {len(hashes2)} frames...")
+  print(f"  Found {len(hashes2)} frames in '{video2}'.")
   return hashes1, hashes2
 
 
@@ -254,7 +253,7 @@ def main():
   diff_video_path = str(DIFF_OUT_DIR / diff_video_name)
   create_diff_video(args.video1, args.video2, diff_video_path)
 
-  hashes1, hashes2 = find_differences(args.video1, args.video2)
+  hashes1, hashes2 = get_video_frame_hashes(args.video1, args.video2)
   frame_counts = (len(hashes1), len(hashes2))
 
   chunks = compute_diff_chunks(hashes1, hashes2)
