@@ -17,10 +17,10 @@
     #nav button.type-insert.active { border-color: #1a7a1a; background: #e6f7e6; }
     #nav button.type-delete { border-color: #c0392b; }
     #nav button.type-delete.active { border-color: #922b21; background: #fde8e6; }
+    .nav-title { flex: 1; text-align: center; font-weight: 600; }
+    .nav-desc { font-size: 0.60rem; padding: 0.12rem 0.25rem 0.35rem; text-align: center; }
     .nav-index { position: absolute; left: 6px; bottom: 4px; font-weight: 600; color: #777; }
     .nav-index.hidden { display: none; }
-    .nav-action { flex: 1; text-align: center; font-weight: 600; }
-    .nav-desc { font-size: 0.60rem; padding: 0.12rem 0.25rem 0.35rem; text-align: center; }
     @media (max-width: 800px) {
       table.videos tr { display: flex; flex-direction: column; }
       table.videos td { width: 100%; }
@@ -47,16 +47,16 @@
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ v1_start, v1_end, v2_start, v2_end, v1_count, v2_count, type, clips, thumb }, i) => {
-        // Build action text based on type and frame counts
-        let actionText;
+        // Build title based on type and frame counts
+        let title;
         if (type === 'insert') {
-          actionText = `Added ${frames_label(v2_count)}`;
+          title = `Added ${frames_label(v2_count)}`;
         } else if (type === 'delete') {
-          actionText = `Removed ${frames_label(v1_count)}`;
+          title = `Removed ${frames_label(v1_count)}`;
         } else if (type === 'replace') {
-          actionText = (v1_count === v2_count) ? `Changed ${frames_label(v1_count)}` : `Changed ${v1_count}→${v2_count} frames`;
+          title = (v1_count === v2_count) ? `Changed ${frames_label(v1_count)}` : `Changed ${v1_count}→${v2_count} frames`;
         } else {
-          actionText = frames_label(Math.max(v1_count || 0, v2_count || 0));
+          title = frames_label(Math.max(v1_count || 0, v2_count || 0));
         }
 
         // Build description with frame ranges
@@ -77,13 +77,8 @@
         }
 
         return {
-          idx: i + 1,
-          title: actionText || `Group ${i + 1}`,
-          desc: desc,
-          type: type || '',
+          idx: i + 1, title, desc, type, thumb, loop: true,
           srcs: [clips.video1, clips.video2, clips.diff],
-          thumb: thumb || '',
-          loop: true,
         };
       }),
     ];
@@ -171,42 +166,25 @@
 
     // Build nav buttons (hide the nav entirely when there are no diff segments).
     const navEl = document.getElementById('nav');
-    if (scenes.length > 1) {
-      scenes.forEach((scene, i) => {
-        const btn = document.createElement('button');
-        const navClass = TYPE_NAV_CLASSES[scene.type];
-        if (navClass) btn.classList.add(navClass);
-        if (scene.thumb) {
-          const img = document.createElement('img');
-          img.src = scene.thumb;
-          img.alt = scene.title;
-          btn.appendChild(img);
-        }
-        const header = document.createElement('div');
-        const idxEl = document.createElement('span');
-        idxEl.className = 'nav-index';
-        if (scene.idx) {
-          idxEl.textContent = scene.idx + '.';
-        } else {
-          idxEl.classList.add('hidden');
-        }
-        const actionEl = document.createElement('span');
-        actionEl.className = 'nav-action';
-        const icon = TYPE_ICON[scene.type] || '';
-        actionEl.textContent = (icon ? icon + ' ' : '') + scene.title;
-        header.appendChild(actionEl);
-        header.appendChild(idxEl);
-        const desc = document.createElement('span');
-        desc.className = 'nav-desc';
-        desc.textContent = scene.desc || '';
-        btn.title = ((scene.title || '') + (scene.desc ? ' — ' + scene.desc : '')).trim();
-        btn.appendChild(header);
-        btn.appendChild(desc);
-        btn.onclick = () => switchTo(i);
-        navEl.appendChild(btn);
-      });
-    } else {
+    if (scenes.length === 0) {
       navEl.style.display = 'none';
+    } else {
+      let navHtml = '';
+      scenes.forEach(({ idx, type, title, desc, thumb }, i) => {
+        const navClass = TYPE_NAV_CLASSES[type] ? TYPE_NAV_CLASSES[type] : '';
+        const icon = TYPE_ICON[type] || '';
+        const thumbHtml = thumb ? `<img src="${thumb}" alt="${title}">` : '';
+        const descHtml = `<span class="nav-desc">${desc || ''}</span>`;
+        const titleHtml = `<span class="nav-title">${icon ? icon + ' ' : ''}${title}</span>`;
+        const idxHtml = `<span class="${idx ? 'nav-index' : 'nav-index hidden'}">${idx ? idx + '.' : ''}</span>`;
+        const headerHtml = `<div>${titleHtml}${idxHtml}</div>`;
+        const btnTitle = ((title || '') + (desc ? ' — ' + desc : '')).trim();
+        navHtml += `<button class="${navClass}" title="${btnTitle}" data-idx="${i}">${thumbHtml}${headerHtml}${descHtml}</button>`;
+      });
+      navEl.innerHTML = navHtml;
+      Array.from(navEl.children).forEach((btn, i) => {
+        btn.onclick = () => switchTo(i);
+      });
     }
 
     // On load: if ?selected=N is present, select that scene; otherwise default to 0.
