@@ -15,7 +15,6 @@ HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
 CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
-CHUNK_FRAME_GAP_TOLERANCE = -1  # allow up to this many identical frames between diffs in a single chunk
 
 
 def extract_framehashes(video_path):
@@ -52,14 +51,7 @@ def find_differences(video1, video2) -> tuple[list[str], list[str]]:
 
 
 def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[dict]:
-  """
-  Use SequenceMatcher to produce a proper diff (handles mid-video insertions/deletions).
-  Nearby non-equal opcodes are merged so that small identical stretches don't create
-  excessive fragmentation. Each returned chunk has:
-    type        – 'replace' | 'insert' | 'delete'
-    v1_start, v1_end, v1_count  – frame range in video 1 (count == 0 for 'insert')
-    v2_start, v2_end, v2_count  – frame range in video 2 (count == 0 for 'delete')
-  """
+  # Use SequenceMatcher to produce a proper diff (handles mid-video insertions/deletions).
   matcher = difflib.SequenceMatcher(a=hashes1, b=hashes2, autojunk=False)
 
   # Collect only the non-equal opcodes as mutable lists for merging.
@@ -68,21 +60,8 @@ def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[dict]:
   if not diff_ops:
     return []
 
-  # Merge nearby ops: if the gap (in equal frames) between two consecutive ops is
-  # small enough in BOTH videos, fold them into one 'replace' op.
-  merged: list[list] = [diff_ops[0]]
-  for op in diff_ops[1:]:
-    prev = merged[-1]
-    gap_v1 = op[1] - prev[2]   # equal frames between ops in video 1
-    gap_v2 = op[3] - prev[4]   # equal frames between ops in video 2
-    if max(gap_v1, gap_v2) <= CHUNK_FRAME_GAP_TOLERANCE:
-      # Absorb this op into previous, widening both ranges.
-      merged[-1] = ['replace', prev[1], op[2], prev[3], op[4]]
-    else:
-      merged.append(op)
-
   chunks = []
-  for tag, i1, i2, j1, j2 in merged:
+  for tag, i1, i2, j1, j2 in diff_ops:
     chunks.append({
       'type': tag,
       'v1_start': i1, 'v1_end': i2 - 1, 'v1_count': i2 - i1,
