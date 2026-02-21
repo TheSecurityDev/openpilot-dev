@@ -18,13 +18,6 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
-def create_diff_video(video1: str, video2: str, output_path: str) -> None:
-  """Create a diff video using ffmpeg blend filter with difference mode."""
-  print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output_path]
-  subprocess.run(cmd, capture_output=True, check=True)
-
-
 def extract_framehashes(video_path: str) -> list[str]:
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
@@ -77,10 +70,7 @@ def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
 
 def get_video_fps(video_path: str) -> float:
   """Return fps for a video file."""
-  cmd = [
-    'ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries',
-    'stream=r_frame_rate', '-of', 'json', str(video_path)
-  ]
+  cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'json', str(video_path)]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   info = json.loads(result.stdout)['streams'][0]
   num, den = info['r_frame_rate'].split('/')
@@ -94,10 +84,7 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
   start_time = padded_start / fps
-  cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path),
-    '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)
-  ]
+  cmd = ['ffmpeg', '-i', str(video_path), '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)]
   subprocess.run(cmd, capture_output=True, check=True)
   return total_frames
 
@@ -105,10 +92,13 @@ def extract_clip(video_path: str, start_frame: int, end_frame: int, output_path:
 def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -> None:
   """Create a single-frame PNG thumbnail at the given frame index."""
   t = frame / fps
-  cmd = [
-    'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(video_path),
-    '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)
-  ]
+  cmd = ['ffmpeg', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
+def create_diff_video(video1: str, video2: str, output_path: str) -> None:
+  """Create a diff video of two clips using ffmpeg blend filter with difference mode."""
+  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output_path]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -146,12 +136,7 @@ def extract_chunk_clips(video1: str, video2: str, diff_video: str, chunks: list[
     # --- diff/highlight clip ---
     diff_clip = chunk_dir / f"{i:03d}_diff.mp4"
     if chunk_type == 'replace':
-      # Pixel-difference blend of the two clips (stops at the shorter one).
-      cmd = [
-        'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(v1_clip), '-i', str(v2_clip),
-        '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(diff_clip),
-      ]
-      subprocess.run(cmd, capture_output=True, check=True)
+      create_diff_video(str(v1_clip), str(v2_clip), str(diff_clip))
       clips['diff'] = _rel(diff_clip)
 
     # --- thumbnail (middle frame of the diff content inside the clip) ---
@@ -166,14 +151,9 @@ def extract_chunk_clips(video1: str, video2: str, diff_video: str, chunks: list[
 
     clip_sets.append({
       'type': chunk_type,
-      'v1_start': v1_start,
-      'v1_end': v1_end,
-      'v2_start': v2_start,
-      'v2_end': v2_end,
-      'v1_count': v1_count,
-      'v2_count': v2_count,
-      'clips': clips,
-      'thumb': _rel(thumb_path),
+      'v1_start': v1_start, 'v1_end': v1_end, 'v1_count': v1_count,
+      'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
+      'clips': clips, 'thumb': _rel(thumb_path),
     })
 
   return clip_sets
@@ -245,6 +225,7 @@ def main():
 
   # Create diff video with name derived from output HTML
   diff_video_path = str(DIFF_OUT_DIR / diff_video_name)
+  print("Creating diff video...")
   create_diff_video(args.video1, args.video2, diff_video_path)
 
   hashes1, hashes2 = get_video_frame_hashes(args.video1, args.video2)
