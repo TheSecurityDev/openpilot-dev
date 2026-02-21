@@ -18,7 +18,7 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
-def extract_framehashes(video_path):
+def extract_framehashes(video_path: str) -> list[str]:
   cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   hashes = []
@@ -32,7 +32,7 @@ def extract_framehashes(video_path):
   return hashes
 
 
-def create_diff_video(video1, video2, output_path):
+def create_diff_video(video1: str, video2: str, output_path: str) -> None:
   """Create a diff video using ffmpeg blend filter with difference mode."""
   print("Creating diff video...")
   cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
@@ -121,14 +121,7 @@ def generate_thumbnail(video_path: str, frame: int, out_path: str, fps: float) -
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def extract_chunk_clips(
-  video1: str,
-  video2: str,
-  diff_video: str,
-  chunks: list[Chunk],
-  fps: float,
-  output_dir: Path,
-) -> list[dict]:
+def extract_chunk_clips(video1: str, video2: str, diff_video: str, chunks: list[Chunk], fps: float, output_dir: Path) -> list[dict]:
   """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
   clip_sets: list[dict] = []
   folder_name = f"{Path(diff_video).stem}-chunks"
@@ -164,10 +157,8 @@ def extract_chunk_clips(
     if chunk_type == 'replace':
       # Pixel-difference blend of the two clips (stops at the shorter one).
       cmd = [
-        'ffmpeg', '-hide_banner', '-loglevel', 'error',
-        '-i', str(v1_clip), '-i', str(v2_clip),
-        '-filter_complex', 'blend=all_mode=difference',
-        '-vsync', '0', '-y', str(diff_clip),
+        'ffmpeg', '-hide_banner', '-loglevel', 'error', '-i', str(v1_clip), '-i', str(v2_clip),
+        '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(diff_clip),
       ]
       subprocess.run(cmd, capture_output=True, check=True)
       clips['diff'] = _rel(diff_clip)
@@ -198,12 +189,7 @@ def extract_chunk_clips(
 
 
 def generate_html_report(
-  videos: tuple[str, str],
-  basedir: str,
-  diff_frame_count: int,
-  frame_counts: tuple[int, int],
-  diff_video_name: str,
-  clip_sets: list[dict] | None = None,
+  videos: tuple[str, str], basedir: str, diff_frame_count: int, frame_counts: tuple[int, int], diff_video_name: str, clip_sets: list[dict] | None = None
 ) -> str:
   total_frames = max(frame_counts)
   frame_delta = frame_counts[1] - frame_counts[0]
