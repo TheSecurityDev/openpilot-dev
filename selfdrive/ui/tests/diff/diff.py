@@ -7,6 +7,8 @@ import sys
 import subprocess
 import webbrowser
 import argparse
+from dataclasses import dataclass
+from typing import Literal
 from pathlib import Path
 from openpilot.common.basedir import BASEDIR
 
@@ -50,25 +52,36 @@ def find_differences(video1, video2) -> tuple[list[str], list[str]]:
   return hashes1, hashes2
 
 
-def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[dict]:
-  """Use difflib to compute diff chunks from the two hash lists. Returns a list of dicts with chunk info."""
+@dataclass
+class Chunk:
+  type: Literal['replace', 'insert', 'delete']
+  v1_start: int
+  v1_end: int
+  v1_count: int
+  v2_start: int
+  v2_end: int
+  v2_count: int
+
+
+def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
+  """Use difflib to compute diff chunks from the two hash lists. Returns a list of Chunk objects."""
   matcher = difflib.SequenceMatcher(a=hashes1, b=hashes2, autojunk=False)
   # Collect only the non-equal opcodes
   diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']
   # Create chunks with frame ranges and counts for each video
-  chunks = []
+  chunks: list[Chunk] = []
   for tag, i1, i2, j1, j2 in diff_ops:
-    chunks.append({
-      'type': tag,
-      'v1_start': i1, 'v1_end': i2 - 1, 'v1_count': i2 - i1,
-      'v2_start': j1, 'v2_end': j2 - 1, 'v2_count': j2 - j1,
-    })
+    chunks.append(Chunk(
+      type=tag,
+      v1_start=i1, v1_end=i2 - 1, v1_count=i2 - i1,
+      v2_start=j1, v2_end=j2 - 1, v2_count=j2 - j1,
+    ))
   return chunks
 
 
-def count_different_frames(chunks: list[dict]) -> int:
+def count_different_frames(chunks: list[Chunk]) -> int:
   """Return a headline 'different frame' count for the summary."""
-  return sum(max(c['v1_count'], c['v2_count']) for c in chunks)
+  return sum(max(c.v1_count, c.v2_count) for c in chunks)
 
 
 def get_video_info(video_path: str) -> tuple[float, int, int]:
@@ -123,7 +136,7 @@ def extract_chunk_clips(
   video1: str,
   video2: str,
   diff_video: str,
-  chunks: list[dict],
+  chunks: list[Chunk],
   fps: float,
   width: int,
   height: int,
@@ -137,9 +150,9 @@ def extract_chunk_clips(
   n = len(chunks)
 
   for i, chunk in enumerate(chunks):
-    chunk_type = chunk['type']   # 'replace' | 'insert' | 'delete'
-    v1_start, v1_end, v1_count = chunk['v1_start'], chunk['v1_end'], chunk['v1_count']
-    v2_start, v2_end, v2_count = chunk['v2_start'], chunk['v2_end'], chunk['v2_count']
+    chunk_type = chunk.type
+    v1_start, v1_end, v1_count = chunk.v1_start, chunk.v1_end, chunk.v1_count
+    v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
     clips: dict[str, str] = {}
 
     def _rel(p: Path) -> str:
