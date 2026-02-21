@@ -52,23 +52,25 @@
     const TYPE_BADGE = { replace: 'badge-replace', insert: 'badge-insert', delete: 'badge-delete' };
     const TYPE_NAV   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
 
+    const frames_label = (n) => `${n} frame${n !== 1 ? 's' : ''}`;
+
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
         let actionText;
         if (type === 'insert') {
-          actionText = `Added ${v2_count} frames`;
+          actionText = `Added ${frames_label(v2_count)}`;
         } else if (type === 'delete') {
-          actionText = `Removed ${v1_count} frames`;
+          actionText = `Removed ${frames_label(v1_count)}`;
         } else if (type === 'replace') {
-          actionText = (v1_count === v2_count) ? `Changed ${v1_count} frames` : `Changed ${v1_count}→${v2_count} frames`;
+          actionText = (v1_count === v2_count) ? `Changed ${frames_label(v1_count)}` : `Changed ${v1_count}→${v2_count} frames`;
         } else {
-          actionText = `${Math.max(v1_count||0, v2_count||0)} Frames`;
+          actionText = frames_label(Math.max(v1_count||0, v2_count||0));
         }
         return {
           idx: i + 1,
           title: actionText || `Group ${i + 1}`,
-          desc: `frames ${start_frame + 1}–${end_frame + 1}`,
+          desc: start_frame === end_frame ? `frame ${start_frame + 1}` : `frames ${start_frame + 1}–${end_frame + 1}`,
           type: type || '',
           srcs: [clips.video1, clips.video2, clips.diff],
           thumb: thumb || '',
