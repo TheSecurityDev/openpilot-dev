@@ -32,9 +32,9 @@ def extract_framehashes(video_path):
 
 
 def create_diff_video(video1, video2, output_path):
-  """Create a diff video using ffmpeg blend filter with difference mode (covers the common-length prefix)."""
+  """Create a diff video using ffmpeg blend filter with difference mode."""
   print("Creating diff video...")
-  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
