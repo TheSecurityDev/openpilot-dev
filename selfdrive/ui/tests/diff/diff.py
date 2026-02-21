@@ -102,7 +102,7 @@ def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float)
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: float, folder_name: str) -> list[dict]:
+def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: float, basedir: str, folder_name: str) -> list[dict]:
   """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
   clip_sets: list[dict] = []
   output_dir = DIFF_OUT_DIR / folder_name
@@ -116,8 +116,8 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     clips: dict[str, str | None] = {'video1': None, 'video2': None, 'diff': None}
 
     def _html_rel_path(p: Path) -> str:
-      """ Return path relative to the HTML report file for use in src attributes."""
-      return os.path.join(folder_name, p.name)
+      """ Return path relative to the basedir."""
+      return os.path.join(basedir, folder_name, p.name)
 
     # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
@@ -202,7 +202,7 @@ def main():
   parser.add_argument('video1', help='First video file')
   parser.add_argument('video2', help='Second video file')
   parser.add_argument('output', nargs='?', default='diff.html', help='Output HTML file (default: diff.html)')
-  parser.add_argument("--basedir", type=str, help="Base directory for output", default="")
+  parser.add_argument("--basedir", type=str, help="Base directory or URL for output, for correct src locations in HTML report", default="")
   parser.add_argument('--no-open', action='store_true', help='Do not open HTML report in browser')
 
   args = parser.parse_args()
@@ -239,7 +239,7 @@ def main():
   if chunks:
     print(f"\nExtracting {len(chunks)} diff chunks(s)...")
     fps = get_video_fps(args.video1)
-    clip_sets = extract_chunk_clips(args.video1, args.video2, chunks, fps, chunks_folder_name)
+    clip_sets = extract_chunk_clips(args.video1, args.video2, chunks, fps, args.basedir, chunks_folder_name)
 
   print()
   print("Generating HTML report...")
