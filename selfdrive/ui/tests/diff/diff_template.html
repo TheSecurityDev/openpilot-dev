@@ -26,8 +26,7 @@
     .col-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 6px 0; }
     .col-header h4 { margin: 0; font-size: 1rem; }
     .vid-wrap { display: block; }
-    .vid-badge { position: relative; z-index: 2; font-size: 0.78rem; font-weight: 700;
-      padding: 4px 8px; border-radius: 4px; pointer-events: none; display: inline-block; }
+    .vid-badge { position: relative; z-index: 2; font-size: 0.78rem; font-weight: 700; padding: 4px 8px; border-radius: 4px; pointer-events: none; display: inline-block; }
     .badge-insert { background: #2a9d2a; color: #fff; }
     .badge-delete { background: #c0392b; color: #fff; }
     .badge-replace { background: #d4860a; color: #fff; }
@@ -166,39 +165,39 @@
     // Build nav buttons (hide the nav entirely when there are no diff segments).
     const navEl = document.getElementById('nav');
     if (scenes.length > 1) {
-      scenes.forEach((s, i) => {
-        const b = document.createElement('button');
-        const navClass = TYPE_NAV[s.type];
-        if (navClass) b.classList.add(navClass);
-        if (s.thumb) {
+      scenes.forEach((scene, i) => {
+        const btn = document.createElement('button');
+        const navClass = TYPE_NAV[scene.type];
+        if (navClass) btn.classList.add(navClass);
+        if (scene.thumb) {
           const img = document.createElement('img');
-          img.src = s.thumb;
-          img.alt = s.title;
-          b.appendChild(img);
+          img.src = scene.thumb;
+          img.alt = scene.title;
+          btn.appendChild(img);
         }
         const header = document.createElement('div');
         header.className = 'nav-row';
         const idxEl = document.createElement('span');
         idxEl.className = 'nav-index';
-        if (s.idx) {
-          idxEl.textContent = s.idx + '.';
+        if (scene.idx) {
+          idxEl.textContent = scene.idx + '.';
         } else {
           idxEl.classList.add('hidden');
         }
         const actionEl = document.createElement('span');
         actionEl.className = 'nav-action';
-        const icon = TYPE_ICON[s.type] || '';
-        actionEl.textContent = (icon ? icon + ' ' : '') + s.title;
+        const icon = TYPE_ICON[scene.type] || '';
+        actionEl.textContent = (icon ? icon + ' ' : '') + scene.title;
         header.appendChild(actionEl);
         header.appendChild(idxEl);
         const desc = document.createElement('span');
         desc.className = 'nav-desc';
-        desc.textContent = s.desc || '';
-        b.title = ((s.title || '') + (s.desc ? ' — ' + s.desc : '')).trim();
-        b.appendChild(header);
-        b.appendChild(desc);
-        b.onclick = () => switchTo(i);
-        navEl.appendChild(b);
+        desc.textContent = scene.desc || '';
+        btn.title = ((scene.title || '') + (scene.desc ? ' — ' + scene.desc : '')).trim();
+        btn.appendChild(header);
+        btn.appendChild(desc);
+        btn.onclick = () => switchTo(i);
+        navEl.appendChild(btn);
       });
     } else {
       navEl.style.display = 'none';
