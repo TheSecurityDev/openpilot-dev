@@ -44,10 +44,13 @@
     const chunks = $CHUNKS_JSON;
 
     const frames_label = (n) => `${n} frame${n !== 1 ? 's' : ''}`;
+    const frames_range_label = (prefix, start, end) =>
+      prefix + (start === end ? `frame ${start + 1}` : `frames ${start + 1}–${end + 1}`);
+    const video_frames_range_label = (v, start, end) => frames_range_label(`${v}: `, start, end);
 
     const scenes = [
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
-      ...chunks.map(({ start_frame, end_frame, duration, v1_count, v2_count, type, clips, thumb }, i) => {
+      ...chunks.map(({ v1_start, v1_end, v2_start, v2_end, v1_count, v2_count, type, clips, thumb }, i) => {
         let actionText;
         if (type === 'insert') {
           actionText = `Added ${frames_label(v2_count)}`;
@@ -56,12 +59,30 @@
         } else if (type === 'replace') {
           actionText = (v1_count === v2_count) ? `Changed ${frames_label(v1_count)}` : `Changed ${v1_count}→${v2_count} frames`;
         } else {
-          actionText = frames_label(Math.max(v1_count||0, v2_count||0));
+          actionText = frames_label(Math.max(v1_count || 0, v2_count || 0));
         }
+
+        // Build a clear description with explicit per-video ranges.
+        let desc = '';
+        if (type === 'insert') {
+          desc = video_frames_range_label('video2', v2_start, v2_end);
+        } else if (type === 'delete') {
+          desc = video_frames_range_label('video1', v1_start, v1_end);
+        } else if (type === 'replace') {
+          const a = video_frames_range_label('video1', v1_start, v1_end);
+          const b = video_frames_range_label('video2', v2_start, v2_end);
+          desc = `${a} → ${b}`;
+        } else {
+          const parts = [];
+          if (v1_count) parts.push(video_frames_range_label('video1', v1_start, v1_end));
+          if (v2_count) parts.push(video_frames_range_label('video2', v2_start, v2_end));
+          desc = parts.join(' | ');
+        }
+
         return {
           idx: i + 1,
           title: actionText || `Group ${i + 1}`,
-          desc: start_frame === end_frame ? `frame ${start_frame + 1}` : `frames ${start_frame + 1}–${end_frame + 1}`,
+          desc: desc,
           type: type || '',
           srcs: [clips.video1, clips.video2, clips.diff],
           thumb: thumb || '',
@@ -72,14 +93,14 @@
 
     // Build the static 3-video player layout
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
-      ${LABELS.map((label, i) => `<td width='33%'>
-        <div class='col-header'><h4>${label}</h4></div>
-        <div>
-          <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
-          <div id='nv${i}' class='no-video'>No video</div>
-        </div>
-      </td>`).join('')}
-    </tr></tbody></table>`;
+        ${LABELS.map((label, i) => `<td width='33%'>
+          <div class='col-header'><h4>${label}</h4></div>
+          <div>
+            <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
+            <div id='nv${i}' class='no-video'>No video</div>
+          </div>
+        </td>`).join('')}
+      </tr></tbody></table>`;
     const vids = [0, 1, 2].map(i => document.getElementById(`v${i}`));
     const noVideoEls = [0, 1, 2].map(i => document.getElementById(`nv${i}`));
     let active = [true, true, true];
@@ -156,8 +177,8 @@
       history.replaceState(null, '', newUrl);
     }
 
-    const TYPE_ICON  = { replace: '✏️', insert: '➕', delete: '➖' };
-    const TYPE_NAV_CLASSES   = { replace: '', insert: 'type-insert', delete: 'type-delete' };
+    const TYPE_ICON = { replace: '✏️', insert: '➕', delete: '➖' };
+    const TYPE_NAV_CLASSES = { replace: '', insert: 'type-insert', delete: 'type-delete' };
 
     // Build nav buttons (hide the nav entirely when there are no diff segments).
     const navEl = document.getElementById('nav');

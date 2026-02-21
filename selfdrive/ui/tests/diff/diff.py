@@ -178,16 +178,12 @@ def extract_chunk_clips(
     print(f"  Chunk {i + 1}/{n} (thumb) clip-frame {thumb_frame_in_clip}")
     generate_thumbnail(str(thumb_source), thumb_frame_in_clip, str(thumb_path), fps)
 
-    # Headline frame numbers for the report (expressed in video1 coordinates where
-    # possible, video2 for pure inserts).
-    display_start = v1_start if chunk_type != 'insert' else v2_start
-    display_end   = v1_end   if chunk_type != 'insert' else v2_end
-
     clip_sets.append({
       'type': chunk_type,
-      'start_frame': display_start,
-      'end_frame': display_end,
-      'duration': max(v1_count, v2_count),
+      'v1_start': v1_start,
+      'v1_end': v1_end,
+      'v2_start': v2_start,
+      'v2_end': v2_end,
       'v1_count': v1_count,
       'v2_count': v2_count,
       'clips': clips,
