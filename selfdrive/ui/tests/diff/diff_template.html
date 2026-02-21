@@ -7,9 +7,9 @@
   <style>
     body { font-family: sans-serif; margin: 0.75em; }
     h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
-    #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 0.75em 0; }
-    #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; overflow: hidden; width: 200px; position: relative; }
-    #nav button img { width: 100%; height: auto; }
+    #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 1em 0;}
+    #nav button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; width: 200px; position: relative; }
+    #nav button img { width: 100%; }
     #nav button.active { border-color: #0078d4; background: #e5f2fc; border-width: 3px; }
     #nav button.type-insert { border-color: #2a9d2a; }
     #nav button.type-insert.active { border-color: #1a7a1a; background: #e6f7e6; }
@@ -21,11 +21,9 @@
     .nav-index.hidden { display: none; }
     .nav-action { flex: 1; text-align: center; font-size: 0.86rem; font-weight: 600; color: #222; }
     .nav-desc { font-size: 0.60rem; padding: 0.12rem 0.25rem 0.35rem; text-align: center; color: #333; }
-    .col-header { display: flex; align-items: center; gap: 1rem; margin: 0 0 6px 0; }
-    .col-header h4 { margin: 0; font-size: 1rem; }
     .no-video { display: none; width: 100%; min-height: 180px; border: 1px dashed #aaa; border-radius: 4px; background: #fafafa; color: #666; font-size: 0.95rem; align-items: center; justify-content: center; text-align: center; }
     @media (max-width: 800px) {
-      #nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5em; margin: 0.5em 0; }
+      #nav { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5em; }
       #nav button { width: 100%; }
       table.videos tr { display: flex; flex-direction: column; }
       table.videos td { width: 100% !important; }
@@ -94,7 +92,7 @@
     // Build video player table
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
         ${LABELS.map((label, i) => `<td width='33%'>
-          <div class='col-header'><h4>${label}</h4></div>
+          <h4>${label}</h4>
           <div>
             <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
             <div id='nv${i}' class='no-video'>No video</div>
