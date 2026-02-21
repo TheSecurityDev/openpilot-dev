@@ -34,12 +34,12 @@ def extract_framehashes(video_path: str) -> list[str]:
 
 def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
   """Hash every frame of both videos and return the two hash lists."""
-  print(f"Hashing frames from '{video1}'...")
+  print("Hashing frames from video 1...")
   hashes1 = extract_framehashes(video1)
-  print(f"  Found {len(hashes1)} frames in '{video1}'.")
-  print(f"Hashing frames from '{video2}'...")
+  print(f"  Found {len(hashes1)} frames in video 1.")
+  print("Hashing frames from video 2...")
   hashes2 = extract_framehashes(video2)
-  print(f"  Found {len(hashes2)} frames in '{video2}'.")
+  print(f"  Found {len(hashes2)} frames in video 2.")
   return hashes1, hashes2
 
 
