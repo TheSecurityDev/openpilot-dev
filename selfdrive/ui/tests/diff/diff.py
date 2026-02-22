@@ -8,9 +8,10 @@ import webbrowser
 import argparse
 import threading
 from concurrent.futures import ThreadPoolExecutor
+from tqdm import tqdm
+from pathlib import Path
 from dataclasses import dataclass
 from typing import Literal
-from pathlib import Path
 from openpilot.common.basedir import BASEDIR
 
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
@@ -169,8 +170,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
   print(f"  Processing {len(chunks)} chunks with {max_workers} threads...")
   with ThreadPoolExecutor(max_workers) as executor:
     futures = [executor.submit(process_chunk, i, chunk) for i, chunk in enumerate(chunks)]
-    for future in futures:
-      print(f"  Processed chunk {futures.index(future) + 1}/{n}")
+    for future in tqdm(futures, desc="Processing chunks"):
       clip_sets.append(future.result())
 
   return clip_sets
