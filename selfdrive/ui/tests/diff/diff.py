@@ -21,7 +21,7 @@ CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
 def extract_framehashes(video_path: Path) -> list[str]:
-  cmd = ['ffmpeg', '-i', str(video_path), '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
+  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   hashes = []
   for line in result.stdout.splitlines():
@@ -94,7 +94,7 @@ def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CLIP_PADDING_AFTER
   start_time = padded_start / fps
-  cmd = ['ffmpeg', '-i', str(video_path), '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)]
+  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)]
   subprocess.run(cmd, capture_output=True, check=True)
   return total_frames
 
@@ -102,7 +102,7 @@ def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path
 def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float) -> None:
   """Create a single-frame PNG thumbnail at the given frame index."""
   t = frame / fps
-  cmd = ['ffmpeg', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)]
+  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -113,9 +113,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
   os.makedirs(output_dir, exist_ok=True)
   n = len(chunks)
 
-  # TODO: We should definitely try to do this in parallel, but it makes it more complex, so leaving for now
-
-  for i, chunk in enumerate(chunks):
+  def process_chunk(i: int, chunk: Chunk) -> dict:
     chunk_type = chunk.type
     v1_start, v1_end, v1_count = chunk.v1_start, chunk.v1_end, chunk.v1_count
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
@@ -128,20 +126,21 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
     if chunk_type != 'insert':
-      print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
+      # print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
       extract_clip(video1, v1_start, v1_end, v1_clip, fps)
       clips['video1'] = _rel_path(v1_clip)
 
     # --- video2 clip ---
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
     if chunk_type != 'delete':
-      print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
+      # print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
       extract_clip(video2, v2_start, v2_end, v2_clip, fps)
       clips['video2'] = _rel_path(v2_clip)
 
     # --- diff clip ---
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
     if chunk_type == 'replace':
+      # print(f"  [{i + 1}/{n}] diff: frames {v1_start}-{v1_end} vs {v2_start}-{v2_end}")
       create_diff_video(v1_clip, v2_clip, diff_clip)
       clips['diff'] = _rel_path(diff_clip)
 
@@ -152,15 +151,22 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity; JPG is smaller for the other thumbnails
     thumb_path = output_dir / f"{i:03d}_thumb.{thumb_ext}"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
-    print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
+    # print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
     generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
-    clip_sets.append({
-      'type': chunk_type,
+    return {
+      'type': chunk_type, 'clips': clips, 'thumb': _rel_path(thumb_path),
       'v1_start': v1_start, 'v1_end': v1_end, 'v1_count': v1_count,
       'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
-      'clips': clips, 'thumb': _rel_path(thumb_path),
-    })
+    }
+
+  max_workers = min(8, len(chunks))
+  print(f"  Running with up to {max_workers} threads...")
+  with ThreadPoolExecutor(max_workers) as executor:
+    futures = [executor.submit(process_chunk, i, chunk) for i, chunk in enumerate(chunks)]
+    for future in futures:
+      print(f"  Processed chunk {futures.index(future) + 1}/{n}")
+      clip_sets.append(future.result())
 
   return clip_sets
 
