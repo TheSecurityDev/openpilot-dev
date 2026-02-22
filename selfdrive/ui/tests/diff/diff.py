@@ -251,6 +251,7 @@ def main():
   print("[3/5] Computing diff chunks...")
   chunks = compute_diff_chunks(hashes1, hashes2)
   diff_frame_count = sum(max(c.v1_count, c.v2_count) for c in chunks)
+  print(f"  Found {len(chunks)} diff chunk(s) with a total of {diff_frame_count} different frames.")
 
   clip_sets = []
   if chunks:
