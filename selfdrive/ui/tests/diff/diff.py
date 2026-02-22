@@ -236,7 +236,7 @@ def main():
   print(f"Video 2    : {video2}")
   print(f"HTML output: {args.output}")
   print(f"Diff video : {diff_video_name}")
-  print(f"Diff chunks: {chunks_folder_name}")
+  print(f"Chunks dir : {chunks_folder_name}")
   print()
 
   print("[1/5] Starting diff video generation in background thread...")
