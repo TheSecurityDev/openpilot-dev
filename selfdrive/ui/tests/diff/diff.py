@@ -7,7 +7,7 @@ import subprocess
 import webbrowser
 import argparse
 import threading
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from tqdm import tqdm
 from pathlib import Path
 from dataclasses import dataclass
@@ -108,10 +108,8 @@ def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float)
 
 def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps: float, basedir: str, folder_name: str) -> list[dict]:
   """For each diff chunk, extract clips from video1, video2, a diff video (if both are available), and a thumbnail image."""
-  clip_sets: list[dict] = []
   output_dir = DIFF_OUT_DIR / folder_name
   os.makedirs(output_dir, exist_ok=True)
-  n: int = len(chunks)
 
   def get_rel_path(p: Path) -> str:
     """ Return path relative to the basedir."""
@@ -130,33 +128,29 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
     with ThreadPoolExecutor(max_workers=2) as executor:
       futures = []
       if chunk_type != 'insert':
-        # --- video 1 clip ---
-        # print(f"  [{i + 1}/{n}] video 1: frames {v1_start}-{v1_end}")
+        # video 1 clip
         futures.append(executor.submit(extract_clip, video1, v1_start, v1_end, v1_clip, fps))
         clips['video1'] = get_rel_path(v1_clip)
       if chunk_type != 'delete':
-        # --- video 2 clip ---
-        # print(f"  [{i + 1}/{n}] video 2: frames {v2_start}-{v2_end}")
+        # video 2 clip
         futures.append(executor.submit(extract_clip, video2, v2_start, v2_end, v2_clip, fps))
         clips['video2'] = get_rel_path(v2_clip)
       for future in futures:
         future.result()
 
-    # --- diff clip ---
+    # diff clip
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
     if chunk_type == 'replace':
-      # print(f"  [{i + 1}/{n}] diff: frames {v1_start}-{v1_end} vs {v2_start}-{v2_end}")
       create_diff_video(v1_clip, v2_clip, diff_clip)
       clips['diff'] = get_rel_path(diff_clip)
 
-    # --- thumbnail (middle frame of the diff content inside the clip) ---
+    # thumbnail (middle frame of the diff content inside the clip)
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
     content_count = v1_count if chunk_type != 'insert' else v2_count
     thumb_frame = padding_used + content_count // 2
     thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity; JPG is smaller for the other thumbnails
     thumb_path = output_dir / f"{i:03d}_thumb.{thumb_ext}"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
-    # print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
     generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
     return {
@@ -168,10 +162,13 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
   # Process chunks in parallel with a thread pool
   max_workers = min(8, len(chunks))
   print(f"  Processing {len(chunks)} chunks with {max_workers} threads...")
+  results = []
   with ThreadPoolExecutor(max_workers) as executor:
     futures = [executor.submit(process_chunk, i, chunk) for i, chunk in enumerate(chunks)]
-    for future in tqdm(futures, desc="Processing chunks"):
-      clip_sets.append(future.result())
+    for future in tqdm(as_completed(futures), total=len(futures), desc="Processing chunks"):
+      results.append(future.result())
+  # results will be out of order due to parallel processing, so sort them back to the original order based on v1_start frame index
+  clip_sets = sorted(results, key=lambda x: x['v1_start'])
 
   return clip_sets
 
@@ -239,7 +236,7 @@ def main():
   print(f"Chunks dir:   {chunks_folder_name}")
   print()
 
-  print("[1/5] Starting diff video generation in background thread...")
+  print("[1/5] Starting full video diff generation in background thread...")
   diff_thread = threading.Thread(target=create_diff_video, args=(video1, video2, DIFF_OUT_DIR / diff_video_name))
   diff_thread.start()
 
