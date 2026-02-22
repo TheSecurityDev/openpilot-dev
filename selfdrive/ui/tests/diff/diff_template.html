@@ -190,8 +190,8 @@
 
     // Build nav buttons for each scene/chunk
     const navEl = document.getElementById('nav');
-    if (scenes.length === 0) {
-      navEl.style.display = 'none';  // hide the nav container if there are no diff chunks
+    if (scenes.length <= 1) {
+      navEl.style.display = 'none';  // hide the nav container if there are no diff chunks (only the full video scene)
     } else {
       let navHtml = '';
       scenes.forEach(({ idx, type, title, desc, thumb }, i) => {
