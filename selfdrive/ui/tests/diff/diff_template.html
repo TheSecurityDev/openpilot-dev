@@ -9,7 +9,7 @@
     h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
     table.videos { width: 100%; }
     table.videos td { vertical-align: top; }
-    .no-video { display: none; width: 100%; min-height: 180px; border: 1px dashed #aaa; background: #fafafa; color: #666; align-items: center; justify-content: center; text-align: center; }
+    .no-video { display: none; width: 100%; align-items: center; justify-content: center; text-align: center; border: 1px dashed #aaa; box-sizing: border-box; background: #fafafa; color: #666; }
     #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 1em 0;}
     #nav button { width: 200px; display: flex; flex-direction: column; align-items: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; position: relative; }
     #nav button img { width: 100%; }
@@ -107,8 +107,23 @@
 
     const isEnded = (v, i) => !active[i] || v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
 
+    const applySceneAspectRatio = (ratio) => {
+      noVideoEls.forEach((el) => el.style.aspectRatio = ratio);
+    };
+
+    // Need to sync aspect ratio across videos so the no video placeholders will have the correct size
+    const syncAspectRatioFromAnyActiveVideo = () => {
+      const reference = videos.find((v, i) => active[i] && v.videoWidth > 0 && v.videoHeight > 0);
+      if (!reference) return;
+      applySceneAspectRatio(`${reference.videoWidth} / ${reference.videoHeight}`);
+    };
+
     // Sync: keep playing videos at the same playhead
     videos.forEach((v, vi) => {
+      v.addEventListener('loadedmetadata', () => {
+        if (active[vi]) syncAspectRatioFromAnyActiveVideo();
+      });
+
       v.addEventListener('timeupdate', () => {
         if (restarting || !active[vi]) return;
         videos.forEach((o, oi) => {
@@ -141,7 +156,7 @@
     function switchTo(idx) {
       restarting = false;
       videos.forEach(v => { v.pause(); v.loop = false; });  // never use native loop
-      const { srcs, loop, type } = scenes[idx];
+      const { srcs, loop } = scenes[idx];
       loopEnabled = loop;
 
       videos.forEach((v, vi) => {
