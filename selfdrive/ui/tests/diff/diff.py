@@ -50,7 +50,7 @@ def get_video_frame_hashes(video1: Path, video2: Path) -> tuple[list[str], list[
 
 
 @dataclass
-class Chunk:
+class DiffChunk:
   """Represents a contiguous chunk of differences between the two videos. Ranges (start-end) are inclusive."""
   type: Literal['replace', 'insert', 'delete']
   v1_start: int
@@ -61,13 +61,13 @@ class Chunk:
   v2_count: int
 
 
-def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
-  """Use difflib to compute diff chunks from the two hash lists. Returns a list of Chunk objects."""
+def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[DiffChunk]:
+  """Use difflib to compute diff chunks from the two hash lists. Returns a list of DiffChunk objects."""
   matcher = difflib.SequenceMatcher(a=hashes1, b=hashes2, autojunk=False)
   diff_ops: list[list] = [list(op) for op in matcher.get_opcodes() if op[0] != 'equal']  # filter out equal chunks
-  chunks: list[Chunk] = []
+  chunks: list[DiffChunk] = []
   for tag, i1, i2, j1, j2 in diff_ops:
-    chunks.append(Chunk(
+    chunks.append(DiffChunk(
       type=tag,
       v1_start=i1, v1_end=i2 - 1, v1_count=i2 - i1,
       v2_start=j1, v2_end=j2 - 1, v2_count=j2 - j1,
@@ -108,14 +108,14 @@ def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float)
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: float, basedir: str, folder_name: str) -> list[dict]:
+def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps: float, basedir: str, folder_name: str) -> list[dict]:
   """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
   clip_sets: list[dict] = []
   output_dir = DIFF_OUT_DIR / folder_name
   os.makedirs(output_dir, exist_ok=True)
   n = len(chunks)
 
-  def process_chunk(i: int, chunk: Chunk) -> dict:
+  def process_chunk(i: int, chunk: DiffChunk) -> dict:
     chunk_type = chunk.type
     v1_start, v1_end, v1_count = chunk.v1_start, chunk.v1_end, chunk.v1_count
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
