@@ -202,12 +202,10 @@
     }
 
     // On load: if ?selected=N is present, select that scene; otherwise default to 0.
-    (function selectInitialFromQuery() {
-      const params = new URLSearchParams(window.location.search);
-      const v = parseInt(params.get('selected') || '0', 10);
-      const initial = (!Number.isNaN(v) && v >= 0 && v < scenes.length) ? v : 0;
-      switchTo(initial);
-    })();
+    const params = new URLSearchParams(window.location.search);
+    const v = parseInt(params.get('selected') || '0', 10);
+    const initial = (!Number.isNaN(v) && v >= 0 && v < scenes.length) ? v : 0;
+    switchTo(initial);
   </script>
 </body>
 </html>
