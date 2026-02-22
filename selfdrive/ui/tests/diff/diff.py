@@ -131,13 +131,13 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     with ThreadPoolExecutor(max_workers=2) as executor:
       futures = []
       if chunk_type != 'insert':
-        clips['video1'] = _rel_path(v1_clip)
         # print(f"  [{i + 1}/{n}] video 1: frames {v1_start}-{v1_end}")
         futures.append(executor.submit(extract_clip, video1, v1_start, v1_end, v1_clip, fps))
+        clips['video1'] = _rel_path(v1_clip)
       if chunk_type != 'delete':
-        clips['video2'] = _rel_path(v2_clip)
         # print(f"  [{i + 1}/{n}] video 2: frames {v2_start}-{v2_end}")
         futures.append(executor.submit(extract_clip, video2, v2_start, v2_end, v2_clip, fps))
+        clips['video2'] = _rel_path(v2_clip)
       for future in futures:
         future.result()
 
