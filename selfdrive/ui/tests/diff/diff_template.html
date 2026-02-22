@@ -168,7 +168,8 @@
         v.load();
         v.style.display = src ? '' : 'none';
         if (src) v.play().catch(() => {});
-        noVideoEls[vi].style.display = 'flex';  // Show placeholder until metadata loads
+        noVideoEls[vi].style.display = 'flex';  // Show placeholder until video is ready
+        noVideoEls[vi].innerHTML = src ? 'Loading…' : 'No video';
       });
 
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === idx));
