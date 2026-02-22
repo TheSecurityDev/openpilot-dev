@@ -6,6 +6,7 @@ import sys
 import subprocess
 import webbrowser
 import argparse
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Literal
@@ -74,7 +75,7 @@ def compute_diff_chunks(hashes1: list[str], hashes2: list[str]) -> list[Chunk]:
 
 def create_diff_video(video1: Path, video2: Path, output: Path) -> None:
   """Create a diff video of two clips using ffmpeg blend filter with difference mode."""
-  cmd = ['ffmpeg', '-i', str(video1), '-i', str(video2), '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(output)]
+  cmd = ['ffmpeg', '-nostdin', '-i', str(video1), '-i', str(video2), '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(output)]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -111,6 +112,8 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
   output_dir = DIFF_OUT_DIR / folder_name
   os.makedirs(output_dir, exist_ok=True)
   n = len(chunks)
+
+  # TODO: We should definitely try to do this in parallel, but it makes it more complex, so leaving for now
 
   for i, chunk in enumerate(chunks):
     chunk_type = chunk.type
@@ -225,8 +228,9 @@ def main():
   print(f"Diff chunks: {chunks_folder_name}")
   print()
 
-  print("[1/4] Creating full diff video...")
-  create_diff_video(video1, video2, DIFF_OUT_DIR / diff_video_name)
+  print("[1/4] Starting full diff video in background...")
+  diff_thread = threading.Thread(target=create_diff_video, args=(video1, video2, DIFF_OUT_DIR / diff_video_name))
+  diff_thread.start()
 
   print("[2/4] Hashing frames...")
   hashes1, hashes2 = get_video_frame_hashes(video1, video2)
@@ -256,6 +260,9 @@ def main():
   if not args.no_open:
     print(f"Opening {args.output} in browser...")
     webbrowser.open(f'file://{os.path.abspath(output_path)}')
+
+  print("Waiting for full diff video to finish...")
+  diff_thread.join()
 
   return 0 if diff_frame_count == 0 else 1
 
