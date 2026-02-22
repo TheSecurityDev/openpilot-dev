@@ -19,8 +19,8 @@ CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
 CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
 
 
-def extract_framehashes(video_path: str) -> list[str]:
-  cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
+def extract_framehashes(video_path: Path) -> list[str]:
+  cmd = ['ffmpeg', '-i', str(video_path), '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   hashes = []
   for line in result.stdout.splitlines():
@@ -33,7 +33,7 @@ def extract_framehashes(video_path: str) -> list[str]:
   return hashes
 
 
-def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
+def get_video_frame_hashes(video1: Path, video2: Path) -> tuple[list[str], list[str]]:
   """Hash every frame of both videos in parallel and return the two hash lists."""
   with ThreadPoolExecutor(max_workers=2) as executor:
     print("Generating frame hashes for both videos...")
@@ -229,7 +229,7 @@ def main():
   create_diff_video(video1, video2, DIFF_OUT_DIR / diff_video_name)
 
   print("[2/4] Hashing frames...")
-  hashes1, hashes2 = get_video_frame_hashes(str(video1), str(video2))
+  hashes1, hashes2 = get_video_frame_hashes(video1, video2)
   frame_counts = (len(hashes1), len(hashes2))
 
   chunks = compute_diff_chunks(hashes1, hashes2)
