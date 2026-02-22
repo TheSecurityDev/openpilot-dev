@@ -6,6 +6,7 @@ import sys
 import subprocess
 import webbrowser
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Literal
 from pathlib import Path
@@ -34,11 +35,14 @@ def extract_framehashes(video_path: str) -> list[str]:
 
 def get_video_frame_hashes(video1: str, video2: str) -> tuple[list[str], list[str]]:
   """Hash every frame of both videos and return the two hash lists."""
-  print("Hashing frames from video 1...")
-  hashes1 = extract_framehashes(video1)
+  with ThreadPoolExecutor(max_workers=2) as executor:
+    print("Hashing frames from both videos in parallel...")
+    future1 = executor.submit(extract_framehashes, video1)
+    future2 = executor.submit(extract_framehashes, video2)
+    hashes1 = future1.result()
+    hashes2 = future2.result()
+
   print(f"  Found {len(hashes1)} frames in video 1.")
-  print("Hashing frames from video 2...")
-  hashes2 = extract_framehashes(video2)
   print(f"  Found {len(hashes2)} frames in video 2.")
   return hashes1, hashes2
 
@@ -108,7 +112,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
   os.makedirs(output_dir, exist_ok=True)
   n = len(chunks)
 
-  for i, chunk in enumerate(chunks):
+  def process_chunk(i: int, chunk: Chunk) -> dict:
     chunk_type = chunk.type
     v1_start, v1_end, v1_count = chunk.v1_start, chunk.v1_end, chunk.v1_count
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
@@ -118,25 +122,9 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       """ Return path relative to the basedir."""
       return os.path.join(basedir, folder_name, p.name)
 
-    # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
-    if chunk_type != 'insert':
-      print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
-      extract_clip(video1, v1_start, v1_end, v1_clip, fps)
-      clips['video1'] = _rel_path(v1_clip)
-
-    # --- video2 clip ---
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
-    if chunk_type != 'delete':
-      print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
-      extract_clip(video2, v2_start, v2_end, v2_clip, fps)
-      clips['video2'] = _rel_path(v2_clip)
-
-    # --- diff clip ---
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
-    if chunk_type == 'replace':
-      create_diff_video(v1_clip, v2_clip, diff_clip)
-      clips['diff'] = _rel_path(diff_clip)
 
     # --- thumbnail (middle frame of the diff content inside the clip) ---
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
@@ -144,16 +132,65 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     thumb_frame = padding_used + content_count // 2
     thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity; JPG is smaller for the other thumbnails
     thumb_path = output_dir / f"{i:03d}_thumb.{thumb_ext}"
-    thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
-    print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
-    generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
-    clip_sets.append({
+    with ThreadPoolExecutor(max_workers=3) as chunk_executor:
+      v1_future = None
+      v2_future = None
+      diff_future = None
+
+      if chunk_type != 'insert':
+        print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
+        v1_future = chunk_executor.submit(extract_clip, video1, v1_start, v1_end, v1_clip, fps)
+        clips['video1'] = _rel_path(v1_clip)
+
+      if chunk_type != 'delete':
+        print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
+        v2_future = chunk_executor.submit(extract_clip, video2, v2_start, v2_end, v2_clip, fps)
+        clips['video2'] = _rel_path(v2_clip)
+
+      if chunk_type == 'replace':
+        def _render_diff() -> None:
+          assert v1_future is not None and v2_future is not None
+          v1_future.result()
+          v2_future.result()
+          create_diff_video(v1_clip, v2_clip, diff_clip)
+
+        diff_future = chunk_executor.submit(_render_diff)
+        clips['diff'] = _rel_path(diff_clip)
+
+      def _render_thumbnail() -> None:
+        if chunk_type == 'replace':
+          assert diff_future is not None
+          diff_future.result()
+          thumb_source = diff_clip
+        elif chunk_type == 'delete':
+          assert v1_future is not None
+          v1_future.result()
+          thumb_source = v1_clip
+        else:
+          assert v2_future is not None
+          v2_future.result()
+          thumb_source = v2_clip
+
+        print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
+        generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
+
+      thumb_future = chunk_executor.submit(_render_thumbnail)
+      thumb_future.result()
+
+    return {
       'type': chunk_type,
       'v1_start': v1_start, 'v1_end': v1_end, 'v1_count': v1_count,
       'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
       'clips': clips, 'thumb': _rel_path(thumb_path),
-    })
+    }
+
+  # Process chunks in parallel
+  workers = max(1, min(8, os.cpu_count() or 1))
+  with ThreadPoolExecutor(max_workers=workers) as executor:
+    futures = [executor.submit(process_chunk, i, chunk) for i, chunk in enumerate(chunks)]
+    for future in futures:
+      clip_sets.append(future.result())
 
   return clip_sets
 
@@ -221,37 +258,44 @@ def main():
   print(f"Diff chunks: {chunks_folder_name}")
   print()
 
-  print("[1/4] Creating full diff video...")
-  create_diff_video(video1, video2, DIFF_OUT_DIR / diff_video_name)
-
-  print("[2/4] Hashing frames...")
-  hashes1, hashes2 = get_video_frame_hashes(str(video1), str(video2))
-  frame_counts = (len(hashes1), len(hashes2))
-
-  chunks = compute_diff_chunks(hashes1, hashes2)
-  diff_frame_count = sum(max(c.v1_count, c.v2_count) for c in chunks)
-
-  clip_sets = []
-  if chunks:
-    print(f"[3/4] Extracting {len(chunks)} diff chunk(s)...")
-    fps = get_video_fps(video1)
-    clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
-  else:
-    print("[3/4] No per-chunk differences found.")
-
-  print("[4/4] Generating HTML report...")
-  html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
-
+  print("[1/4] Starting full diff video in background...")
+  diff_executor = ThreadPoolExecutor(max_workers=1)
   output_path = DIFF_OUT_DIR / args.output
-  with open(output_path, 'w') as f:
-    f.write(html)
+  try:
+    diff_future = diff_executor.submit(create_diff_video, video1, video2, DIFF_OUT_DIR / diff_video_name)
 
-  print(f"Report generated at: {output_path}")
+    print("[2/4] Hashing frames...")
+    hashes1, hashes2 = get_video_frame_hashes(str(video1), str(video2))
+    frame_counts = (len(hashes1), len(hashes2))
 
-  # Open in browser by default
-  if not args.no_open:
-    print(f"Opening {args.output} in browser...")
-    webbrowser.open(f'file://{os.path.abspath(output_path)}')
+    chunks = compute_diff_chunks(hashes1, hashes2)
+    diff_frame_count = sum(max(c.v1_count, c.v2_count) for c in chunks)
+
+    clip_sets = []
+    if chunks:
+      print(f"[3/4] Extracting {len(chunks)} diff chunk(s)...")
+      fps = get_video_fps(video1)
+      clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
+    else:
+      print("[3/4] No per-chunk differences found.")
+
+    print("[4/4] Generating HTML report...")
+    html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
+
+    with open(output_path, 'w') as f:
+      f.write(html)
+
+    print(f"Report generated at: {output_path}")
+
+    # Open in browser by default
+    if not args.no_open:
+      print(f"Opening {args.output} in browser...")
+      webbrowser.open(f'file://{os.path.abspath(output_path)}')
+
+    print("Waiting for full diff video to finish...")
+    diff_future.result()
+  finally:
+    diff_executor.shutdown(wait=True)
 
   return 0 if diff_frame_count == 0 else 1
 
