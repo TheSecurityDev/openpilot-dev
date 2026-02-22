@@ -43,9 +43,6 @@ def get_video_frame_hashes(video1: Path, video2: Path) -> tuple[list[str], list[
     future2 = executor.submit(extract_framehashes, video2)
     hashes1 = future1.result()
     hashes2 = future2.result()
-
-  print(f"  Found {len(hashes1)} frames in video 1.")
-  print(f"  Found {len(hashes2)} frames in video 2.")
   return hashes1, hashes2
 
 
@@ -109,11 +106,15 @@ def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float)
 
 
 def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps: float, basedir: str, folder_name: str) -> list[dict]:
-  """For each diff chunk extract clips from video1, video2, and a diff/highlight video."""
+  """For each diff chunk, extract clips from video1, video2, a diff video (if both are available), and a thumbnail image."""
   clip_sets: list[dict] = []
   output_dir = DIFF_OUT_DIR / folder_name
   os.makedirs(output_dir, exist_ok=True)
-  n = len(chunks)
+  n: int = len(chunks)
+
+  def get_rel_path(p: Path) -> str:
+    """ Return path relative to the basedir."""
+    return os.path.join(basedir, folder_name, p.name)
 
   def process_chunk(i: int, chunk: DiffChunk) -> dict:
     chunk_type = chunk.type
@@ -121,24 +122,22 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
     v2_start, v2_end, v2_count = chunk.v2_start, chunk.v2_end, chunk.v2_count
     clips: dict[str, str | None] = {'video1': None, 'video2': None, 'diff': None}
 
-    def _rel_path(p: Path) -> str:
-      """ Return path relative to the basedir."""
-      return os.path.join(basedir, folder_name, p.name)
-
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
 
-    # Parallelize clip extractions within each chunk
+    # Parallelize video1/video2 clip extractions within each chunk
     with ThreadPoolExecutor(max_workers=2) as executor:
       futures = []
       if chunk_type != 'insert':
+        # --- video 1 clip ---
         # print(f"  [{i + 1}/{n}] video 1: frames {v1_start}-{v1_end}")
         futures.append(executor.submit(extract_clip, video1, v1_start, v1_end, v1_clip, fps))
-        clips['video1'] = _rel_path(v1_clip)
+        clips['video1'] = get_rel_path(v1_clip)
       if chunk_type != 'delete':
+        # --- video 2 clip ---
         # print(f"  [{i + 1}/{n}] video 2: frames {v2_start}-{v2_end}")
         futures.append(executor.submit(extract_clip, video2, v2_start, v2_end, v2_clip, fps))
-        clips['video2'] = _rel_path(v2_clip)
+        clips['video2'] = get_rel_path(v2_clip)
       for future in futures:
         future.result()
 
@@ -147,7 +146,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
     if chunk_type == 'replace':
       # print(f"  [{i + 1}/{n}] diff: frames {v1_start}-{v1_end} vs {v2_start}-{v2_end}")
       create_diff_video(v1_clip, v2_clip, diff_clip)
-      clips['diff'] = _rel_path(diff_clip)
+      clips['diff'] = get_rel_path(diff_clip)
 
     # --- thumbnail (middle frame of the diff content inside the clip) ---
     padding_used = min((v1_start if chunk_type != 'insert' else v2_start), CLIP_PADDING_BEFORE)
@@ -160,7 +159,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
     generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
     return {
-      'type': chunk_type, 'clips': clips, 'thumb': _rel_path(thumb_path),
+      'type': chunk_type, 'clips': clips, 'thumb': get_rel_path(thumb_path),
       'v1_start': v1_start, 'v1_end': v1_end, 'v1_count': v1_count,
       'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
     }
@@ -240,33 +239,35 @@ def main():
   print(f"Diff chunks: {chunks_folder_name}")
   print()
 
-  print("[1/4] Creating full diff video in background...")
+  print("[1/5] Starting diff video generation in background thread...")
   diff_thread = threading.Thread(target=create_diff_video, args=(video1, video2, DIFF_OUT_DIR / diff_video_name))
   diff_thread.start()
 
-  print("[2/4] Hashing frames...")
+  print("[2/5] Hashing frames...")
   hashes1, hashes2 = get_video_frame_hashes(video1, video2)
   frame_counts = (len(hashes1), len(hashes2))
+  print(f"  Found {frame_counts[0]} frames in video 1 and {frame_counts[1]} frames in video 2.")
 
+  print("[3/5] Computing diff chunks...")
   chunks = compute_diff_chunks(hashes1, hashes2)
   diff_frame_count = sum(max(c.v1_count, c.v2_count) for c in chunks)
 
   clip_sets = []
   if chunks:
-    print(f"[3/4] Extracting {len(chunks)} diff chunk(s)...")
+    print(f"[4/5] Extracting {len(chunks)} diff chunk(s)...")
     fps = get_video_fps(video1)
     clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
   else:
-    print("[3/4] No diff chunks found, skipping clip extraction.")
+    print("[4/5] No diff chunks found, skipping clip extraction.")
 
-  print("[4/4] Generating HTML report...")
+  print("[5/5] Generating HTML report...")
   html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
 
   output_path = DIFF_OUT_DIR / args.output
   with open(output_path, 'w') as f:
     f.write(html)
 
-  print(f"Report generated at: {output_path}")
+  print(f"  Report generated at: {output_path}")
 
   # Open in browser by default
   if not args.no_open:
