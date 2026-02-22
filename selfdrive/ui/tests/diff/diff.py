@@ -16,8 +16,9 @@ from openpilot.common.basedir import BASEDIR
 DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
-CLIP_PADDING_BEFORE = 0  # extra frames of context to include before each chunk
-CLIP_PADDING_AFTER = 0  # extra frames of context to include after each chunk
+# extra frames of context to include before/after each diff chunk
+CLIP_PADDING_BEFORE = 0
+CLIP_PADDING_AFTER = 0
 
 
 def extract_framehashes(video_path: Path) -> list[str]:
@@ -123,6 +124,8 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       """ Return path relative to the basedir."""
       return os.path.join(basedir, folder_name, p.name)
 
+    # TODO: We could further parallelize by doing some of these calls in parallel within each chunk
+
     # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
     if chunk_type != 'insert':
@@ -160,6 +163,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       'v2_start': v2_start, 'v2_end': v2_end, 'v2_count': v2_count,
     }
 
+  # Process chunks in parallel with a thread pool
   max_workers = min(8, len(chunks))
   print(f"  Running with up to {max_workers} threads...")
   with ThreadPoolExecutor(max_workers) as executor:
@@ -234,7 +238,7 @@ def main():
   print(f"Diff chunks: {chunks_folder_name}")
   print()
 
-  print("[1/4] Starting full diff video in background...")
+  print("[1/4] Creating full diff video in background...")
   diff_thread = threading.Thread(target=create_diff_video, args=(video1, video2, DIFF_OUT_DIR / diff_video_name))
   diff_thread.start()
 
@@ -251,7 +255,7 @@ def main():
     fps = get_video_fps(video1)
     clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
   else:
-    print("[3/4] No per-chunk differences found.")
+    print("[3/4] No diff chunks found, skipping clip extraction.")
 
   print("[4/4] Generating HTML report...")
   html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
@@ -267,7 +271,8 @@ def main():
     print(f"Opening {args.output} in browser...")
     webbrowser.open(f'file://{os.path.abspath(output_path)}')
 
-  print("Waiting for full diff video to finish...")
+  if (diff_thread.is_alive()):
+    print("Waiting for diff video generation to finish...")
   diff_thread.join()
 
   return 0 if diff_frame_count == 0 else 1
