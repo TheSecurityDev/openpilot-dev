@@ -124,21 +124,22 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
       """ Return path relative to the basedir."""
       return os.path.join(basedir, folder_name, p.name)
 
-    # TODO: We could further parallelize by doing some of these calls in parallel within each chunk
-
-    # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
-    if chunk_type != 'insert':
-      # print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
-      extract_clip(video1, v1_start, v1_end, v1_clip, fps)
-      clips['video1'] = _rel_path(v1_clip)
-
-    # --- video2 clip ---
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
-    if chunk_type != 'delete':
-      # print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
-      extract_clip(video2, v2_start, v2_end, v2_clip, fps)
-      clips['video2'] = _rel_path(v2_clip)
+
+    # Parallelize clip extractions within each chunk
+    with ThreadPoolExecutor(max_workers=2) as executor:
+      futures = []
+      if chunk_type != 'insert':
+        clips['video1'] = _rel_path(v1_clip)
+        # print(f"  [{i + 1}/{n}] video 1: frames {v1_start}-{v1_end}")
+        futures.append(executor.submit(extract_clip, video1, v1_start, v1_end, v1_clip, fps))
+      if chunk_type != 'delete':
+        clips['video2'] = _rel_path(v2_clip)
+        # print(f"  [{i + 1}/{n}] video 2: frames {v2_start}-{v2_end}")
+        futures.append(executor.submit(extract_clip, video2, v2_start, v2_end, v2_clip, fps))
+      for future in futures:
+        future.result()
 
     # --- diff clip ---
     diff_clip = output_dir / f"{i:03d}_diff.mp4"
