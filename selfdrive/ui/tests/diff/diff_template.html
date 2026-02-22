@@ -53,7 +53,7 @@
       { title: 'Full Video', desc: '', type: '', srcs: ['$VIDEO1_SRC', '$VIDEO2_SRC', '$DIFF_SRC'], loop: true },
       ...chunks.map(({ v1_start, v1_end, v2_start, v2_end, v1_count, v2_count, type, clips, thumb }, i) => {
         // Build title based on type and frame counts
-        let title;
+        let title = '';
         if (type === 'insert') {
           title = `➕ Added ${frames_label(v2_count)}`;
         } else if (type === 'delete') {
@@ -66,7 +66,7 @@
             title = `✏️${changeType} Changed ${v1_count}→${v2_count} frames`;
           }
         } else {
-          title = frames_label(Math.max(v1_count || 0, v2_count || 0));
+          title = frames_label(v1_count || 0, v2_count || 0);
         }
 
         // Build description with frame ranges
@@ -77,11 +77,6 @@
           desc = video_frames_range_label(1, v1_start, v1_end);
         } else if (type === 'replace') {
           desc = `${video_frames_range_label(1, v1_start, v1_end)} → ${video_frames_range_label(2, v2_start, v2_end)}`;
-        } else {
-          const parts = [];
-          if (v1_count) parts.push(video_frames_range_label(1, v1_start, v1_end));
-          if (v2_count) parts.push(video_frames_range_label(2, v2_start, v2_end));
-          desc = parts.join(' | ');
         }
 
         return {
