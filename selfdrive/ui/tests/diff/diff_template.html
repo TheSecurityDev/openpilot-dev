@@ -9,7 +9,10 @@
     h1, h2, h3, h4 { margin: 0.5em 0 0.25em; }
     table.videos { width: 100%; }
     table.videos td { vertical-align: top; }
-    .no-video { display: none; width: 100%; align-items: center; justify-content: center; text-align: center; border: 1px dashed #aaa; box-sizing: border-box; background: #fafafa; color: #666; }
+    .video-box { width: 100%; position: relative; aspect-ratio: var(--scene-aspect, 16/9); }
+    .video-box video, .video-box .no-video { position: absolute; top: 0; left: 0; right: 0; bottom: 0; width: 100%; height: 100%; }
+    .video-box video { object-fit: contain; }
+    .no-video { display: none; align-items: center; justify-content: center; text-align: center; border: 1px dashed #aaa; box-sizing: border-box; background: #fafafa; color: #666; }
     #nav { display: flex; flex-wrap: wrap; gap: 0.6em; margin: 1em 0;}
     #nav button { width: 200px; display: flex; flex-direction: column; align-items: center; padding: 0; border: 2px solid #aaa; border-radius: 6px; cursor: pointer; background: #f5f5f5; position: relative; }
     #nav button img { width: 100%; }
@@ -92,13 +95,14 @@
     document.getElementById('player').innerHTML = `<table class='videos'><tbody><tr>
         ${LABELS.map((label, i) => `<td width='33.33%'>
           <h4>${label}</h4>
-          <div>
-            <video id='v${i}' width='100%' muted playsinline><source type='video/mp4'></video>
+          <div class='video-box'>
+            <video id='v${i}' width='100%' muted playsinline preload='metadata'><source type='video/mp4'></video>
             <div id='nv${i}' class='no-video'>No video</div>
           </div>
         </td>`).join('')}
       </tr></tbody></table>`;
     const videos = [0, 1, 2].map(i => document.getElementById(`v${i}`));
+    const videoBoxes = Array.from(document.querySelectorAll('.video-box'));
     const noVideoEls = [0, 1, 2].map(i => document.getElementById(`nv${i}`));
     let active = [true, true, true];  // Whether each video is active/exists for the current scene
 
@@ -108,20 +112,17 @@
     const isEnded = (v, i) => !active[i] || v.ended || (Number.isFinite(v.duration) && v.currentTime >= v.duration - 0.05);
 
     const applySceneAspectRatio = (ratio) => {
-      noVideoEls.forEach((el) => el.style.aspectRatio = ratio);
-    };
-
-    // Need to sync aspect ratio across videos so the no video placeholders will have the correct size
-    const syncAspectRatioFromAnyActiveVideo = () => {
-      const reference = videos.find((v, i) => active[i] && v.videoWidth > 0 && v.videoHeight > 0);
-      if (!reference) return;
-      applySceneAspectRatio(`${reference.videoWidth} / ${reference.videoHeight}`);
+      videoBoxes.forEach(box => box.style.setProperty('--scene-aspect', ratio));
     };
 
     // Sync: keep playing videos at the same playhead
     videos.forEach((v, vi) => {
       v.addEventListener('loadedmetadata', () => {
-        if (active[vi]) syncAspectRatioFromAnyActiveVideo();
+        // Once metadata is available for this video, update scene ratio from this video and hide its placeholder
+        if (!active[vi]) return
+        if (v.videoWidth > 0 && v.videoHeight > 0) applySceneAspectRatio(`${v.videoWidth}/${v.videoHeight}`);
+        noVideoEls[vi].style.display = 'none';
+        v.style.display = '';
       });
 
       v.addEventListener('timeupdate', () => {
@@ -165,14 +166,9 @@
         const source = v.querySelector('source');
         source.src = src || '';
         v.load();
-        if (active[vi]) {
-          v.style.display = '';
-          noVideoEls[vi].style.display = 'none';
-          v.play().catch(() => {});
-        } else {
-          v.style.display = 'none';
-          noVideoEls[vi].style.display = 'flex';
-        }
+        v.style.display = src ? '' : 'none';
+        if (src) v.play().catch(() => {});
+        noVideoEls[vi].style.display = 'flex';  // Show placeholder until metadata loads
       });
 
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === idx));
