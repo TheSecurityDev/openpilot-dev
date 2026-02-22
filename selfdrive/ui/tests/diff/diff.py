@@ -166,7 +166,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[DiffChunk], fps
 
   # Process chunks in parallel with a thread pool
   max_workers = min(8, len(chunks))
-  print(f"  Running with up to {max_workers} threads...")
+  print(f"  Processing {len(chunks)} chunks with {max_workers} threads...")
   with ThreadPoolExecutor(max_workers) as executor:
     futures = [executor.submit(process_chunk, i, chunk) for i, chunk in enumerate(chunks)]
     for future in futures:
@@ -256,7 +256,9 @@ def main():
   clip_sets = []
   if chunks:
     print(f"[4/5] Extracting {len(chunks)} diff chunk(s)...")
+    print("  Getting video fps...", end=' ')
     fps = get_video_fps(video1)
+    print(f"{fps:.2f} fps")
     clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
   else:
     print("[4/5] No diff chunks found, skipping clip extraction.")
