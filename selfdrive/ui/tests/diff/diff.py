@@ -121,14 +121,14 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     # --- video1 clip ---
     v1_clip = output_dir / f"{i:03d}_video1.mp4"
     if chunk_type != 'insert':
-      print(f"  Chunk {i + 1}/{n} (v1/{chunk_type}) frames {v1_start}-{v1_end}")
+      print(f"  [{i + 1}/{n}] video1 ({chunk_type}): frames {v1_start}-{v1_end}")
       extract_clip(video1, v1_start, v1_end, v1_clip, fps)
       clips['video1'] = _rel_path(v1_clip)
 
     # --- video2 clip ---
     v2_clip = output_dir / f"{i:03d}_video2.mp4"
     if chunk_type != 'delete':
-      print(f"  Chunk {i + 1}/{n} (v2/{chunk_type}) frames {v2_start}-{v2_end}")
+      print(f"  [{i + 1}/{n}] video2 ({chunk_type}): frames {v2_start}-{v2_end}")
       extract_clip(video2, v2_start, v2_end, v2_clip, fps)
       clips['video2'] = _rel_path(v2_clip)
 
@@ -145,7 +145,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
     thumb_ext = 'png' if chunk_type == 'replace' else 'jpg'  # Use PNG for the diff thumbnails for clarity; JPG is smaller for the other thumbnails
     thumb_path = output_dir / f"{i:03d}_thumb.{thumb_ext}"
     thumb_source = diff_clip if chunk_type == 'replace' else (v1_clip if chunk_type == 'delete' else v2_clip)
-    print(f"  Chunk {i + 1}/{n} (thumb) frame {thumb_frame}")
+    print(f"  [{i + 1}/{n}] thumbnail: frame {thumb_frame}")
     generate_thumbnail(thumb_source, thumb_frame, thumb_path, fps)
 
     clip_sets.append({
@@ -159,7 +159,7 @@ def extract_chunk_clips(video1: Path, video2: Path, chunks: list[Chunk], fps: fl
 
 
 def generate_html_report(
-  videos: tuple[str, str], basedir: str, diff_frame_count: int, frame_counts: tuple[int, int], diff_video_name: str, clip_sets: list[dict]
+  videos: tuple[Path, Path], basedir: str, diff_frame_count: int, frame_counts: tuple[int, int], diff_video_name: str, clip_sets: list[dict]
 ) -> str:
   total_frames = max(frame_counts)
   frame_delta = frame_counts[1] - frame_counts[0]
@@ -174,8 +174,8 @@ def generate_html_report(
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
   placeholders = {
-    "VIDEO1_SRC": os.path.join(basedir, os.path.basename(videos[0])),
-    "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
+    "VIDEO1_SRC": os.path.join(basedir, videos[0].name),
+    "VIDEO2_SRC": os.path.join(basedir, videos[1].name),
     "DIFF_SRC": os.path.join(basedir, diff_video_name),
     "RESULT_TEXT": result_text,
     "CHUNKS_JSON": json.dumps(clip_sets),
@@ -199,6 +199,12 @@ def main():
   if not args.output.lower().endswith('.html'):
     args.output += '.html'
 
+  video1 = Path(args.video1)
+  video2 = Path(args.video2)
+  missing = [str(p) for p in (video1, video2) if not p.exists()]
+  if missing:
+    parser.error(f"Video file(s) not found: {', '.join(missing)}")
+
   output_stem = Path(args.output).stem
   diff_video_name = f"{output_stem}.mp4"
   chunks_folder_name = f"{output_stem}-chunks"
@@ -206,19 +212,20 @@ def main():
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   print("=" * 60)
-  print("VIDEO DIFF - HTML REPORT")
+  print("UI VIDEO DIFF REPORT")
   print("=" * 60)
-  print(f"Video 1: {args.video1}")
-  print(f"Video 2: {args.video2}")
-  print(f"Output: {args.output}")
-  print(f"Diff video: {diff_video_name}")
+  print(f"Video 1    : {video1}")
+  print(f"Video 2    : {video2}")
+  print(f"HTML output: {args.output}")
+  print(f"Diff video : {diff_video_name}")
   print(f"Diff chunks: {chunks_folder_name}")
   print()
 
-  print("Creating diff video...")
-  create_diff_video(args.video1, args.video2,  str(DIFF_OUT_DIR / diff_video_name))
+  print("[1/4] Creating full diff video...")
+  create_diff_video(video1, video2, DIFF_OUT_DIR / diff_video_name)
 
-  hashes1, hashes2 = get_video_frame_hashes(args.video1, args.video2)
+  print("[2/4] Hashing frames...")
+  hashes1, hashes2 = get_video_frame_hashes(str(video1), str(video2))
   frame_counts = (len(hashes1), len(hashes2))
 
   chunks = compute_diff_chunks(hashes1, hashes2)
@@ -226,19 +233,20 @@ def main():
 
   clip_sets = []
   if chunks:
-    print(f"\nExtracting {len(chunks)} diff chunks(s)...")
-    fps = get_video_fps(args.video1)
-    clip_sets = extract_chunk_clips(args.video1, args.video2, chunks, fps, args.basedir, chunks_folder_name)
+    print(f"[3/4] Extracting {len(chunks)} diff chunk(s)...")
+    fps = get_video_fps(video1)
+    clip_sets = extract_chunk_clips(video1, video2, chunks, fps, args.basedir, chunks_folder_name)
+  else:
+    print("[3/4] No per-chunk differences found.")
 
-  print()
-  print("Generating HTML report...")
-  html = generate_html_report((args.video1, args.video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
+  print("[4/4] Generating HTML report...")
+  html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
 
   output_path = DIFF_OUT_DIR / args.output
   with open(output_path, 'w') as f:
     f.write(html)
 
-  print(f"Report generated at '{output_path}'")
+  print(f"Report generated at: {output_path}")
 
   # Open in browser by default
   if not args.no_open:
