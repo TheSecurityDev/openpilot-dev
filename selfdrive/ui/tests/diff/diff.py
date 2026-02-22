@@ -102,7 +102,7 @@ def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path
 
 
 def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float) -> None:
-  """Create a single-frame PNG thumbnail at the given frame index."""
+  """Create a single-frame thumbnail at the given frame index. File format is determined by the output extension (e.g. .jpg or .png)."""
   t = frame / fps
   cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)]
   subprocess.run(cmd, capture_output=True, check=True)
