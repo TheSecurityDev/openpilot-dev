@@ -160,6 +160,7 @@
       const { srcs, loop } = scenes[idx];
       loopEnabled = loop;
 
+      // Update videos with new sources, show/hide as needed, and show placeholders until ready
       videos.forEach((v, vi) => {
         const src = srcs[vi];
         active[vi] = !!src;
@@ -168,14 +169,21 @@
         v.load();
         v.style.display = src ? '' : 'none';
         if (src) v.play().catch(() => {});
-        noVideoEls[vi].style.display = 'flex';  // Show placeholder until video is ready
-        noVideoEls[vi].innerHTML = src ? 'Loading…' : 'No video';
+        // Show placeholder until video is ready
+        noVideoEls[vi].style.display = 'flex';
+        noVideoEls[vi].innerText = src ? 'Loading…' : 'No video';
       });
 
+      // Update active nav button
       document.querySelectorAll('#nav button').forEach((b, j) => b.classList.toggle('active', j === idx));
+
+      // Update selected query param
       const newUrl = new URL(window.location);
       idx > 0 ? newUrl.searchParams.set('selected', idx) : newUrl.searchParams.delete('selected');
       history.replaceState(null, '', newUrl);
+
+      // Scroll to top (nicer on mobile)
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     const TYPE_NAV_CLASSES = { insert: 'type-insert', delete: 'type-delete' };
@@ -201,7 +209,7 @@
       });
     }
 
-    // On load: if ?selected=N is present, select that scene; otherwise default to 0.
+    // If 'selected' query param is present, use that scene; otherwise default to 0.
     const params = new URLSearchParams(window.location.search);
     const v = parseInt(params.get('selected') || '0', 10);
     const initial = (!Number.isNaN(v) && v >= 0 && v < scenes.length) ? v : 0;
