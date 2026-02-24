@@ -12,8 +12,8 @@ from openpilot.selfdrive.ui.tests.diff.replay import FPS, LayoutVariant
 from openpilot.system.updated.updated import parse_release_notes
 
 # Default frames to wait after events
-WAIT_SHORT = int(FPS * 0.5)
-WAIT_LONG = int(FPS * 1)
+WAIT_SHORT = FPS // 2
+WAIT_LONG = FPS
 
 # Direction vectors for drag gestures
 DIR_LEFT = (-1, 0)
@@ -193,12 +193,16 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   bottom = (width // 2, height * 9 // 10)
 
   DURATION = 5
-  SWIPE_WAIT = int(FPS * 0.75)
-  FAST_CLICK = int(FPS * 0.25)
+  SWIPE_WAIT = FPS * 3 // 4
+  FAST_CLICK = FPS // 4
 
   def click(times: int = 1, wait_after: int = FAST_CLICK):
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
+
+  def press(x: int, y: int, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
+    # simulate drag with no movement for a press gesture
+    script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
@@ -237,20 +241,46 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       swipe_left(*swipe_amount)
 
   def interact_toggles(i: int):
-    # test first and last toggles
+    # click first and last toggles
     if (i == 0 or i == 7):
       click(3 if i == 0 else 2)  # first toggle is personality, which has 3 states
 
-  def interact_keyboard():
-    swipe_left(duration_frames=FPS)  # drag on keys
-    click()  # click key
-    swipe_down()  # close keyboard
+  def interact_keyboard(i: int):
+    """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
+    SHIFT = (50, 210)
+    NUMBERS = (480, 210)
+    BACKSPACE = (490, 30)
+    CONFIRM = (50, 30)
+
+    swipe_left(duration_frames=FPS // 2)  # swipe to type
+    swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
+    press(*SHIFT)
+    # press key twice (uppercases first)
+    for _ in range(2):
+      press(*center)
+    # press shift twice for caps lock
+    for _ in range(2):
+      press(*SHIFT)
+    # press key twice (uppercase both due to caps lock)
+    for _ in range(2):
+      press(*center)
+    # numbers / symbols
+    press(*NUMBERS)
+    press(*center)
+    press(*SHIFT)  # symbols
+    # type three and then backspace once (need 8 min for password)
+    for _ in range(3):
+      press(*center)
+    press(*BACKSPACE)
+    # press confirm to close
+    press(*CONFIRM)
+
 
   def interact_network(i: int):
     if i == 3:
       # wifi password keyboard
       click()
-      interact_keyboard()
+      interact_keyboard(i)  # test various keyboard interactions (closes afterwards)
 
   def interact_device(i: int):
     match i:
@@ -297,7 +327,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     match i:
       case 1:
         click()  # SSH keys (open keyboard)
-        swipe_down()  # close keyboard
+        swipe_down()  # swipe back to close keyboard
       case 4:
         click(2)  # UI debug mode
 
