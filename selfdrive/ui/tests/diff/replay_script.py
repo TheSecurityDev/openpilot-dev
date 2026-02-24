@@ -252,33 +252,37 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     pass
 
   def interact_device(i: int):
-    if i < 3:
+    if i < 2:
       click()
+    elif i == 2:
+      click(wait_after=WAIT_SHORT)  # pairing
+      swipe_down()  # back
     elif i == 3:
       pass  # TODO: training guide
     elif i == 4:
-      click()  # preview camera
+      click(wait_after=WAIT_SHORT)  # preview camera
       swipe_down()  # back
     elif i == 5:
       click()  # reset calibration
-      swipe_left()  # confirm
+      swipe_left(width)  # confirm
     elif i == 6:
       click()  # uninstall
-      swipe_left()  # confirm
+      swipe_left(width)  # confirm
       swipe_down()  # back
     elif i == 7:
       # regulatory info
       click()
-      for _ in range(4):
+      for _ in range(3):
         swipe_up(height)
-      swipe_down(height * 4)
+      swipe_down(height * 3)  # back to top
+      swipe_down()  # back
     elif i == 8:
       # reboot & shutdown
       click()  # reboot
-      swipe_left()  # confirm
+      swipe_left(width)  # confirm
       swipe_down()  # back
       script.click(430, 120, wait_after=FAST_CLICK)  # shutdown
-      swipe_left()  # confirm
+      swipe_left(width)  # confirm
       swipe_down()  # back
 
   def interact_firehose():
