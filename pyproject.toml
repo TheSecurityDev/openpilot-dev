@@ -16,7 +16,6 @@ dependencies = [
   "sympy",        # rednose + friends
   "crcmod-plus",  # cars + qcomgpsd
   "tqdm",         # cars (fw_versions.py) on start + many one-off uses
-
   # core
   "cffi",
   "scons",
@@ -24,51 +23,40 @@ dependencies = [
   "Cython",
   "setuptools",
   "numpy >=2.0",
-
   # vendored native dependencies
   "capnproto @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=capnproto",
   "eigen @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=eigen",
   "ffmpeg @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=ffmpeg",
   "zeromq @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=zeromq",
   "git-lfs @ git+https://github.com/commaai/dependencies.git@releases#subdirectory=git-lfs",
-
   # body / webrtcd
   "av",
   "aiohttp",
   "aiortc",
-
   # panda
   "libusb1",
   "spidev; platform_system == 'Linux'",
-
   # logging
   "pyzmq",
   "sentry-sdk",
   "xattr",  # used in place of 'os.getxattr' for macOS compatibility
-
   # athena
   "PyJWT",
   "json-rpc",
   "websocket_client",
-
   # acados deps
   "casadi >=3.6.6",  # 3.12 fixed in 3.6.6
-
   # joystickd
   "inputs",
-
   # these should be removed
   "psutil",
   "pycryptodome", # used in updated/casync, panda, body, and a test
   "setproctitle",
-
   # logreader
   "zstandard",
-
-  # ui
-  "raylib > 5.5.0.3",
   "qrcode",
   "jeepney",
+  "raylib-drm>=5.5.0.4",
 ]
 
 [project.optional-dependencies]
@@ -166,6 +154,7 @@ lint.ignore = [
   "NPY002",  # new numpy random syntax is worse
   "UP045", "UP007",  # these don't play nice with raylib atm
 ]
+lint.flake8-implicit-str-concat.allow-multiline = false
 line-length = 160
 target-version ="py311"
 exclude = [
@@ -182,7 +171,6 @@ exclude = [
   "*.ipynb",
   "generated",
 ]
-lint.flake8-implicit-str-concat.allow-multiline = false
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "selfdrive".msg = "Use openpilot.selfdrive"
