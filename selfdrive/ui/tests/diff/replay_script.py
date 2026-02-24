@@ -242,7 +242,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_toggles(i: int):
     # click first and last toggles
-    if (i == 0 or i == 7):
+    if i == 0 or i == 7:
       click(3 if i == 0 else 2)  # first toggle is personality, which has 3 states
 
   def interact_keyboard(i: int):
@@ -274,7 +274,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     press(*BACKSPACE)
     # press confirm to close
     press(*CONFIRM)
-
 
   def interact_network(i: int):
     if i == 3:
