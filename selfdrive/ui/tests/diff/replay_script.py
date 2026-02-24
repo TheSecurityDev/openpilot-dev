@@ -223,22 +223,18 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
-  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, get_swipe_amount: Callable[[int], tuple[int, int]] | None = None):
+  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None):
     """Helper function to explore a panel with the given number of items by swiping through each one
     and optionally interacting with them using the provided callback.
-      If `get_swipe_amount` is provided, it will be called for each item index to determine the swipe distance and duration
-    for that item, allowing for variable spacing between items. Otherwise, a default swipe amount will be used for all items.
     """
-    SWIPE_AMOUNT = (210, 10)  # distance, duration
     # Scroll settings and back
     for i in range(item_count):
       # tests trying to scroll past the last item, so skip clicking again
       if i < item_count:
         if interact_fn:
           interact_fn(i)
-      # swipe to roughly the center of the next toggle (using the provided get_swipe_amount callback if necessary)
-      swipe_amount = (get_swipe_amount(i) or SWIPE_AMOUNT) if get_swipe_amount else SWIPE_AMOUNT
-      swipe_left(*swipe_amount)
+      # swipe to roughly the center of the next toggle
+      swipe_left(210, 10)
 
   def interact_toggles(i: int):
     # click first and last toggles
