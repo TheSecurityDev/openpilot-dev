@@ -33,6 +33,7 @@ BIG_UI = os.getenv("BIG", "0") == "1"
 ENABLE_VSYNC = os.getenv("ENABLE_VSYNC", "0") == "1"
 SHOW_FPS = os.getenv("SHOW_FPS") == "1"
 SHOW_TOUCHES = os.getenv("SHOW_TOUCHES") == "1"
+SHOW_MOUSE_COORDS = os.getenv("SHOW_MOUSE_COORDS") == "1"
 STRICT_MODE = os.getenv("STRICT_MODE") == "1"
 SCALE = float(os.getenv("SCALE", "1.0"))
 GRID_SIZE = int(os.getenv("GRID", "0"))
@@ -233,6 +234,7 @@ class GuiApplication:
     self._mouse_history: deque[MousePosWithTime] = deque(maxlen=MOUSE_THREAD_RATE)
     self._show_touches = SHOW_TOUCHES
     self._show_fps = SHOW_FPS
+    self._show_mouse_coords = SHOW_MOUSE_COORDS
     self._grid_size = GRID_SIZE
     self._profile_render_frames = PROFILE_RENDER
     self._render_profiler = None
@@ -247,6 +249,9 @@ class GuiApplication:
 
   def set_show_fps(self, show: bool):
     self._show_fps = show
+
+  def set_show_mouse_coords(self, show: bool):
+    self._show_mouse_coords = show
 
   @property
   def show_touches(self) -> bool:
@@ -587,6 +592,9 @@ class GuiApplication:
         if self._show_touches:
           self._draw_touch_points()
 
+        if self._show_mouse_coords:
+          self._draw_mouse_coordinates()
+
         if self._grid_size > 0:
           self._draw_grid()
 
@@ -724,6 +732,15 @@ class GuiApplication:
         perc = idx / len(self._mouse_history)
         color = rl.Color(min(int(255 * (1.5 - perc)), 255), int(min(255 * (perc + 0.5), 255)), 50, 255)
         rl.draw_circle(int(mouse_pos.x), int(mouse_pos.y), 5, color)
+
+  def _draw_mouse_coordinates(self):
+    mouse_pos = self._last_mouse_event.pos
+    text = f"X: {int(mouse_pos.x)}, Y: {int(mouse_pos.y)}"
+    font = self.font(FontWeight.NORMAL)
+    font_size = 12
+    text_width = rl.measure_text_ex(font, text, font_size, 0).x
+    position = rl.Vector2(self._scaled_width - text_width - 20, 5)
+    rl.draw_text_ex(font, text, position, font_size, 0, rl.GREEN)
 
   def _draw_grid(self):
     grid_color = rl.Color(60, 60, 60, 255)

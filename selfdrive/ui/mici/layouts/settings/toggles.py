@@ -54,6 +54,7 @@ class TogglesLayoutMici(NavWidget):
     if ui_state.params.get_bool("ShowDebugInfo"):
       gui_app.set_show_touches(True)
       gui_app.set_show_fps(True)
+      gui_app.set_show_mouse_coords(True)
 
     ui_state.add_engaged_transition_callback(self._update_toggles)
 
