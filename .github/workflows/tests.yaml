@@ -106,7 +106,6 @@ jobs:
     - name: Run unit tests
       timeout-minutes: ${{ contains(runner.name, 'nsc') && ((steps.setup-step.outputs.duration < 18) && 1 || 2) || 20 }}
       run: |
-        source selfdrive/test/setup_xvfb.sh
         # Pre-compile Python bytecode so each pytest worker doesn't need to
         pytest --collect-only -m 'not slow' -qq
         MAX_EXAMPLES=1 pytest -m 'not slow'
@@ -194,7 +193,6 @@ jobs:
     - name: Driving test
       timeout-minutes: ${{ (steps.setup-step.outputs.duration < 18) && 1 || 2 }}
       run: |
-        source selfdrive/test/setup_xvfb.sh
         pytest -s tools/sim/tests/test_metadrive_bridge.py
 
   create_ui_report:
@@ -214,7 +212,6 @@ jobs:
         run: scons -j$(nproc)
       - name: Create UI Report
         run: |
-          source selfdrive/test/setup_xvfb.sh
           python3 selfdrive/ui/tests/diff/replay.py
           python3 selfdrive/ui/tests/diff/replay.py --big
       - name: Upload UI Report
