@@ -317,7 +317,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda i: explore_panel(8, interact_toggles, swipe_back=True),  # toggles
     lambda i: explore_panel(4, interact_network),  # network
     lambda i: explore_panel(9, interact_device),  # device
-    lambda i: None,  # pairing
+    lambda i: script.wait(WAIT_SHORT),
     lambda i: interact_firehose(),  # firehose
     lambda i: explore_panel(5, interact_developer),  # developer
   ]
@@ -328,7 +328,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     swipe_down()  # go back
 
   # === Settings === #
-  click(wait_after=WAIT_LONG)  # Open settings
+  click(wait_after=WAIT_SHORT)  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
 
   swipe_down()  # back to home
