@@ -194,6 +194,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   DURATION = 5
   SWIPE_WAIT = int(FPS * 0.75)
+  FAST_CLICK = int(FPS * 0.25)
+
+  def click(wait_after: int = WAIT_SHORT):
+    script.click(*center, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
@@ -214,17 +218,40 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
+  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, get_swipe_amount: Callable[[int], tuple[int, int]] | None = None):
+    """Helper function to explore a panel with the given number of items by swiping through each one and
+    optionally interacting with them using the provided callback. If `get_swipe_amount` is provided, it will be called
+    for each item index to determine the swipe distance and duration for that item, allowing for variable spacing between items.
+    Otherwise, a default swipe amount will be used for all items. Swipes back to the beginning once completed.
+    """
+    SWIPE_AMOUNT: tuple[int, int] = (210, 10)  # distance, duration
+    total_distance = 0
+    # Scroll settings and back
+    for i in range(item_count):
+      # test trying to scroll past the last item, so skip clicking again
+      if (i < item_count):
+        if interact_fn:
+          interact_fn(i)
+      # swipe to roughly the center of the next toggle (using the provided get_swipe_amount callback if necessary)
+      swipe_amount = (get_swipe_amount(i) or SWIPE_AMOUNT) if get_swipe_amount else SWIPE_AMOUNT
+      total_distance += swipe_amount[0]
+      swipe_left(*swipe_amount)
+    swipe_right(SWIPE_AMOUNT[0] * item_count, SWIPE_AMOUNT[1])  # go back to beginning
+
+  def interact_toggles(i: int):
+    # go through all toggle states (first one is personality, which has 3 states)
+    for _ in range(3 if i == 0 else 2):
+      click(wait_after=FAST_CLICK)  # click through each toggle quickly
+
+  def interact_settings(i: int):
+    click()  # click each setting
+    if (i == 0):
+      explore_panel(8, interact_toggles)  # explore toggles
+    swipe_down()  # go back
+
   # === Settings === #
-  script.click(*center)  # Open settings
-  # Scroll settings and back
-  for i in range(6):
-    if (i < 6):
-      # click on each setting and go back
-      script.click(*center)  # click each setting
-      swipe_down()  # go back
-    # swipe to roughly the center of the next toggle
-    swipe_left(210, 10)
-  swipe_right(210 * 6, 10)  # go back to beginning
+  click()  # Open settings
+  explore_panel(6, interact_settings)  # Explore settings
 
   swipe_down() # back to home
 
