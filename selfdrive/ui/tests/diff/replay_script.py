@@ -239,7 +239,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def interact_toggles(i: int):
     # click first and last toggles
     if i == 0 or i == 7:
-      click(3 if i == 0 else 2)  # first toggle is personality, which has 3 states
+      click(times=3 if i == 0 else 2)  # first toggle is personality, which has 3 states
 
   def interact_keyboard(i: int):
     """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
@@ -324,7 +324,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         click()  # SSH keys (open keyboard)
         swipe_down()  # swipe back to close keyboard
       case 4:
-        click(2)  # UI debug mode
+        click(times=2)  # UI debug mode
 
   SETTINGS_CASES = [
     lambda i: explore_panel(8, interact_toggles),  # toggles
