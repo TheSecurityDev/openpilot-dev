@@ -200,9 +200,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
 
-  def press(x: int, y: int, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
-    # simulate drag with no movement for a press gesture
-    script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
+  def press(x: int, y: int, times: int = 1, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
+    for _ in range(times):
+      # simulate drag with no movement for a press gesture
+      script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
@@ -243,6 +244,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_keyboard(i: int):
     """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
+    KEY = (250, 160)  # key in the middle of the keyboard (e.g. 'G')
     SHIFT = (50, 210)
     NUMBERS = (480, 210)
     BACKSPACE = (490, 30)
@@ -252,21 +254,17 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
     press(*SHIFT)
     # press key twice (uppercases first)
-    for _ in range(2):
-      press(*center)
+    press(*KEY, times=2)
     # press shift twice for caps lock
-    for _ in range(2):
-      press(*SHIFT)
+    press(*SHIFT, times=2)
     # press key twice (uppercase both due to caps lock)
-    for _ in range(2):
-      press(*center)
+    press(*KEY, times=2)
     # numbers / symbols
     press(*NUMBERS)
-    press(*center)
+    press(*KEY)
     press(*SHIFT)  # symbols
-    # type three and then backspace once (need 8 min for password)
-    for _ in range(3):
-      press(*center)
+    # type thrice and then backspace once (need 8 min for password)
+    press(*KEY, times=3)
     press(*BACKSPACE)
     # press confirm to close
     press(*CONFIRM)
