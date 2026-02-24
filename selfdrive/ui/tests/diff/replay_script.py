@@ -189,15 +189,16 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   center = (width // 2, height // 2)
   right = (width * 4 // 5, height // 2)
   left = (width // 5, height // 2)
-  top = (width // 2, height // 4)
-  bottom = (width // 2, height * 3 // 4)
+  top = (width // 2, height // 10)
+  bottom = (width // 2, height * 9 // 10)
 
   DURATION = 5
   SWIPE_WAIT = int(FPS * 0.75)
   FAST_CLICK = int(FPS * 0.25)
 
-  def click(wait_after: int = WAIT_SHORT):
-    script.click(*center, wait_after=wait_after)
+  def click(times: int = 1, wait_after: int = FAST_CLICK):
+    for _ in range(times):
+      script.click(*center, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
@@ -240,18 +241,45 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_toggles(i: int):
     # go through all toggle states (first one is personality, which has 3 states)
-    for _ in range(3 if i == 0 else 2):
-      click(wait_after=FAST_CLICK)  # click through each toggle quickly
+    click(3 if i == 0 else 2, wait_after=FAST_CLICK)  # click through each toggle quickly
 
   def interact_network(i: int):
     pass
 
+  def interact_device(i: int):
+    pass
+
+  def interact_firehose():
+    for _ in range(3):
+      swipe_up(height)
+    swipe_down(height * 3)
+
+  def interact_developer(i: int):
+    match i:
+      case 0:  # ADB / SSH
+        pass
+      case 1:
+        click()  # SSH keys (open keyboard)
+        swipe_down()  # close keyboard
+      case 2:
+        click(2)  # joystick debug mode
+      case 3:
+        pass  # long maneuver mode (disabled)
+      case 4:
+        click(2)  # UI debug mode
+
+  SETTINGS_CASES = [
+    lambda i: explore_panel(8, interact_toggles), # toggles
+    lambda i: explore_panel(4, interact_network), # network
+    lambda i: explore_panel(8, interact_device), # device
+    lambda i: None,  # pairing (no interactions)
+    lambda i: interact_firehose(),  # firehose
+    lambda i: explore_panel(5, interact_developer) # developer
+  ]
+
   def interact_settings(i: int):
     click()  # click each setting
-    if (i == 0):
-      explore_panel(8, interact_toggles)  # explore toggles
-    elif (i == 1):
-      explore_panel(4, interact_network)  # explore network settings
+    SETTINGS_CASES[i](i)  # interact with the setting's panel
     swipe_down()  # go back
 
   # === Settings === #
