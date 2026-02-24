@@ -13,7 +13,13 @@ from openpilot.system.updated.updated import parse_release_notes
 
 # Default frames to wait after events
 WAIT_SHORT = int(FPS * 0.5)
-WAIT_LONG = int(FPS)
+WAIT_LONG = int(FPS * 1)
+
+# Direction vectors for drag gestures
+DIR_LEFT = (-1, 0)
+DIR_RIGHT = (1, 0)
+DIR_UP = (0, -1)
+DIR_DOWN = (0, 1)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -78,9 +84,17 @@ class Script:
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
     self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_after)
 
-  def drag(self, start_x: int, start_y: int, end_x: int, end_y: int, duration_frames: int = 10, wait_after: int = WAIT_LONG) -> None:
-    """Add a drag gesture to the script from start position to end position over the given number of frames."""
+  def drag(self, start_x: int, start_y: int, direction: tuple[int, int], distance: int, duration_frames: int, wait_after: int = WAIT_LONG) -> None:
+    """Add a drag gesture to the script from start position in the specified direction by the given distance over the given number of frames."""
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
+
+    # Calculate delta based on direction and distance
+    delta_x = direction[0] * distance
+    delta_y = direction[1] * distance
+
+    # Calculate end position based on delta
+    end_x = start_x + delta_x
+    end_y = start_y + delta_y
 
     # Mouse down at start
     mouse_down = MouseEvent(pos=MousePos(start_x, start_y), slot=0, left_pressed=True, left_released=False, left_down=True, t=self.get_frame_time())
@@ -89,8 +103,8 @@ class Script:
     # Interpolate positions over duration_frames
     for i in range(1, duration_frames):
       t = i / duration_frames
-      x = int(start_x + (end_x - start_x) * t)
-      y = int(start_y + (end_y - start_y) * t)
+      x = int(start_x + delta_x * t)
+      y = int(start_y + delta_y * t)
       mouse_move = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=self.get_frame_time())
       self.add(ScriptEvent(mouse_events=[mouse_move]), after=1)
 
@@ -171,12 +185,49 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   """Build the replay script for the mici layout."""
   from openpilot.system.ui.lib.application import gui_app
 
-  center = (gui_app.width // 2, gui_app.height // 2)
+  width, height = gui_app.width, gui_app.height
+  center = (width // 2, height // 2)
+  right = (width * 4 // 5, height // 2)
+  left = (width // 5, height // 2)
+  top = (width // 2, height // 4)
+  bottom = (width // 2, height * 3 // 4)
 
-  # TODO: Explore more
-  script.wait(FPS)
-  script.click(*center, FPS)  # Open settings
-  script.click(*center, FPS)  # Open toggles
+  DURATION = 5
+  SWIPE_WAIT = int(FPS * 0.75)
+
+  def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+    script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
+
+  def swipe_right(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+    script.drag(left[0], left[1], DIR_RIGHT, distance, duration_frames, wait_after)
+
+  def swipe_down(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+    script.drag(top[0], top[1], DIR_DOWN, distance, duration_frames, wait_after)
+
+  def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+    script.drag(bottom[0], bottom[1], DIR_UP, distance, duration_frames, wait_after)
+
+  # === Homescreen === #
+  script.wait(WAIT_SHORT)
+  swipe_right(width, wait_after=WAIT_SHORT)  # open alerts
+  swipe_left(width, wait_after=WAIT_SHORT)  # close alerts
+  swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
+  swipe_right(width, wait_after=WAIT_SHORT)  # back to home
+
+  # === Settings === #
+  script.click(*center)  # Open settings
+  # Scroll settings and back
+  for i in range(6):
+    if (i < 6):
+      # click on each setting and go back
+      script.click(*center)  # click each setting
+      swipe_down()  # go back
+    # swipe to roughly the center of the next toggle
+    swipe_left(210, 10)
+  swipe_right(210 * 6, 10)  # go back to beginning
+
+  swipe_down() # back to home
+
   script.end()
 
 
