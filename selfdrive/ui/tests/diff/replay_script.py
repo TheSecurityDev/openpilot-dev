@@ -219,18 +219,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
-  def explore_panel(item_count: int,
-    interact_fn: Callable[[int], None] | None = None,
-    get_swipe_amount: Callable[[int], tuple[int, int]] | None = None,
-    swipe_back = False
-  ):
+  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, get_swipe_amount: Callable[[int], tuple[int, int]] | None = None):
     """Helper function to explore a panel with the given number of items by swiping through each one
     and optionally interacting with them using the provided callback.
       If `get_swipe_amount` is provided, it will be called for each item index to determine the swipe distance and duration
     for that item, allowing for variable spacing between items. Otherwise, a default swipe amount will be used for all items.
     """
     SWIPE_AMOUNT = (210, 10)  # distance, duration
-    distance = 0  # track cumulative distance so we can swipe back
     # Scroll settings and back
     for i in range(item_count):
       # tests trying to scroll past the last item, so skip clicking again
@@ -239,14 +234,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
           interact_fn(i)
       # swipe to roughly the center of the next toggle (using the provided get_swipe_amount callback if necessary)
       swipe_amount = (get_swipe_amount(i) or SWIPE_AMOUNT) if get_swipe_amount else SWIPE_AMOUNT
-      distance += swipe_amount[0]
       swipe_left(*swipe_amount)
-    if swipe_back:
-      swipe_right(distance * item_count, SWIPE_AMOUNT[1])  # go back to beginning
 
   def interact_toggles(i: int):
-    # go through all toggle states (first one is personality, which has 3 states)
-    click(3 if i == 0 else 2, wait_after=FAST_CLICK)  # click through each toggle quickly
+    # test first and last toggles
+    if (i == 0 or i == 7):
+      click(3 if i == 0 else 2)  # first toggle is personality, which has 3 states
 
   def interact_keyboard():
     swipe_left(duration_frames=FPS)  # drag on keys
@@ -262,7 +255,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def interact_device(i: int):
     match i:
       case 1:
-        click()
+        click()  # update
       case 2:
         click(wait_after=WAIT_SHORT)  # pairing
         swipe_down()  # back
@@ -295,29 +288,24 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         swipe_down()  # back
 
   def interact_firehose():
+    # scroll down and back up
     for _ in range(3):
       swipe_up(height)
     swipe_down(height * 3)
 
   def interact_developer(i: int):
     match i:
-      case 0:  # ADB / SSH
-        pass
       case 1:
         click()  # SSH keys (open keyboard)
         swipe_down()  # close keyboard
-      case 2:
-        click(2)  # joystick debug mode
-      case 3:
-        pass  # long maneuver mode (disabled)
       case 4:
         click(2)  # UI debug mode
 
   SETTINGS_CASES = [
-    lambda i: explore_panel(8, interact_toggles, swipe_back=True),  # toggles
+    lambda i: explore_panel(8, interact_toggles),  # toggles
     lambda i: explore_panel(4, interact_network),  # network
     lambda i: explore_panel(9, interact_device),  # device
-    lambda i: script.wait(WAIT_SHORT),
+    lambda i: script.wait(WAIT_SHORT),  # pairing
     lambda i: interact_firehose(),  # firehose
     lambda i: explore_panel(5, interact_developer),  # developer
   ]
