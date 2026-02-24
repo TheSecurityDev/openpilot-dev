@@ -11,7 +11,9 @@ from openpilot.selfdrive.selfdrived.alertmanager import set_offroad_alert
 from openpilot.selfdrive.ui.tests.diff.replay import FPS, LayoutVariant
 from openpilot.system.updated.updated import parse_release_notes
 
-WAIT = int(FPS * 0.5)  # Default frames to wait after events
+# Default frames to wait after events
+WAIT_SHORT = int(FPS * 0.5)
+WAIT_LONG = int(FPS)
 
 AlertSize = log.SelfdriveState.AlertSize
 AlertStatus = log.SelfdriveState.AlertStatus
@@ -56,16 +58,16 @@ class Script:
     """Add a delay for the given number of frames followed by an empty event."""
     self.add(ScriptEvent(), before=frames)
 
-  def setup(self, fn: Callable, wait_after: int = WAIT) -> None:
+  def setup(self, fn: Callable, wait_after: int = WAIT_SHORT) -> None:
     """Add a setup function to be called immediately followed by a delay of the given number of frames."""
     self.add(ScriptEvent(setup=fn), after=wait_after)
 
-  def set_send(self, fn: Callable, wait_after: int = WAIT) -> None:
+  def set_send(self, fn: Callable, wait_after: int = WAIT_SHORT) -> None:
     """Set a new persistent send function to be called every frame."""
     self.add(ScriptEvent(send_fn=fn), after=wait_after)
 
-  # TODO: Also add more complex gestures, like swipe or drag
-  def click(self, x: int, y: int, wait_after: int = WAIT, wait_between: int = 2) -> None:
+  # TODO: Add more complex gestures if needed
+  def click(self, x: int, y: int, wait_after: int = WAIT_SHORT, wait_between: int = 2) -> None:
     """Add a click event to the script for the given position and specify frames to wait between mouse events or after the click."""
     # NOTE: By default we wait a couple frames between mouse events so pressed states will be rendered
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
@@ -74,6 +76,26 @@ class Script:
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=self.get_frame_time())
     self.add(ScriptEvent(mouse_events=[mouse_down]), after=wait_between)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
+    self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_after)
+
+  def drag(self, start_x: int, start_y: int, end_x: int, end_y: int, duration_frames: int = 10, wait_after: int = WAIT_LONG) -> None:
+    """Add a drag gesture to the script from start position to end position over the given number of frames."""
+    from openpilot.system.ui.lib.application import MouseEvent, MousePos
+
+    # Mouse down at start
+    mouse_down = MouseEvent(pos=MousePos(start_x, start_y), slot=0, left_pressed=True, left_released=False, left_down=True, t=self.get_frame_time())
+    self.add(ScriptEvent(mouse_events=[mouse_down]), after=1)
+
+    # Interpolate positions over duration_frames
+    for i in range(1, duration_frames):
+      t = i / duration_frames
+      x = int(start_x + (end_x - start_x) * t)
+      y = int(start_y + (end_y - start_y) * t)
+      mouse_move = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=self.get_frame_time())
+      self.add(ScriptEvent(mouse_events=[mouse_move]), after=1)
+
+    # Mouse up at end
+    mouse_up = MouseEvent(pos=MousePos(end_x, end_y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
     self.add(ScriptEvent(mouse_events=[mouse_up]), after=wait_after)
 
 
