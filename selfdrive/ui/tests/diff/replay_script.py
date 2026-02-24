@@ -249,7 +249,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     NUMBERS = (480, 210)
     BACKSPACE = (490, 30)
     CONFIRM = (50, 30)
-
+    # Begin interactions
     swipe_left(duration_frames=FPS // 2)  # swipe to type
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
     press(*SHIFT)
