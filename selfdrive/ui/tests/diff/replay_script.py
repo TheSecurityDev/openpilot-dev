@@ -219,7 +219,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
-  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, get_swipe_amount: Callable[[int], tuple[int, int]] | None = None):
+  def explore_panel(item_count: int,
+    interact_fn: Callable[[int], None] | None = None,
+    get_swipe_amount: Callable[[int], tuple[int, int]] | None = None,
+    swipe_back = False
+  ):
     """Helper function to explore a panel with the given number of items by swiping through each one
     and optionally interacting with them using the provided callback.
       If `get_swipe_amount` is provided, it will be called for each item index to determine the swipe distance and duration
@@ -230,14 +234,15 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # Scroll settings and back
     for i in range(item_count):
       # tests trying to scroll past the last item, so skip clicking again
-      if (i < item_count):
+      if i < item_count:
         if interact_fn:
           interact_fn(i)
       # swipe to roughly the center of the next toggle (using the provided get_swipe_amount callback if necessary)
       swipe_amount = (get_swipe_amount(i) or SWIPE_AMOUNT) if get_swipe_amount else SWIPE_AMOUNT
       distance += swipe_amount[0]
       swipe_left(*swipe_amount)
-    swipe_right(distance * item_count, SWIPE_AMOUNT[1])  # go back to beginning
+    if swipe_back:
+      swipe_right(distance * item_count, SWIPE_AMOUNT[1])  # go back to beginning
 
   def interact_toggles(i: int):
     # go through all toggle states (first one is personality, which has 3 states)
@@ -247,7 +252,34 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     pass
 
   def interact_device(i: int):
-    pass
+    if i < 3:
+      click()
+    elif i == 3:
+      pass  # TODO: training guide
+    elif i == 4:
+      click()  # preview camera
+      swipe_down()  # back
+    elif i == 5:
+      click()  # reset calibration
+      swipe_left()  # confirm
+    elif i == 6:
+      click()  # uninstall
+      swipe_left()  # confirm
+      swipe_down()  # back
+    elif i == 7:
+      # regulatory info
+      click()
+      for _ in range(4):
+        swipe_up(height)
+      swipe_down(height * 4)
+    elif i == 8:
+      # reboot & shutdown
+      click()  # reboot
+      swipe_left()  # confirm
+      swipe_down()  # back
+      script.click(430, 120, wait_after=FAST_CLICK)  # shutdown
+      swipe_left()  # confirm
+      swipe_down()  # back
 
   def interact_firehose():
     for _ in range(3):
@@ -269,12 +301,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         click(2)  # UI debug mode
 
   SETTINGS_CASES = [
-    lambda i: explore_panel(8, interact_toggles), # toggles
-    lambda i: explore_panel(4, interact_network), # network
-    lambda i: explore_panel(8, interact_device), # device
-    lambda i: None,  # pairing (no interactions)
+    lambda i: explore_panel(8, interact_toggles, swipe_back=True),  # toggles
+    lambda i: explore_panel(4, interact_network),  # network
+    lambda i: explore_panel(9, interact_device),  # device
+    lambda i: None,  # pairing
     lambda i: interact_firehose(),  # firehose
-    lambda i: explore_panel(5, interact_developer) # developer
+    lambda i: explore_panel(5, interact_developer),  # developer
   ]
 
   def interact_settings(i: int):
@@ -286,7 +318,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   click()  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
 
-  swipe_down() # back to home
+  swipe_down()  # back to home
 
   script.end()
 
