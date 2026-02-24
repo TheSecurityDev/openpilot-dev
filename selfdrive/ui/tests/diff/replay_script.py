@@ -248,8 +248,16 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # go through all toggle states (first one is personality, which has 3 states)
     click(3 if i == 0 else 2, wait_after=FAST_CLICK)  # click through each toggle quickly
 
+  def interact_keyboard():
+    swipe_left(duration_frames=FPS)  # drag on keys
+    click()  # click key
+    swipe_down()  # close keyboard
+
   def interact_network(i: int):
-    pass
+    if i == 3:
+      # wifi password keyboard
+      click()
+      interact_keyboard()
 
   def interact_device(i: int):
     match i:
@@ -320,7 +328,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     swipe_down()  # go back
 
   # === Settings === #
-  click()  # Open settings
+  click(wait_after=WAIT_LONG)  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
 
   swipe_down()  # back to home
