@@ -197,12 +197,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   FAST_CLICK = FPS // 4
 
   def click(times: int = 1, wait_after: int = FAST_CLICK):
+    """Helper function to click at the center of the screen for the given number of times with the specified wait after."""
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
 
   def press(x: int, y: int, times: int = 1, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
+    """Helper function to click and and hold at the given position for the specified duration, repeated for the given number of times."""
     for _ in range(times):
-      # simulate drag with no movement for a press gesture
       script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
@@ -225,9 +226,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
   def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None):
-    """Helper function to explore a panel with the given number of items by swiping through each one
-    and optionally interacting with them using the provided callback.
-    """
+    """Helper function to explore a panel with the given number of items by swiping through each one and interacting with them using the provided callback."""
     # Scroll settings and back
     for i in range(item_count):
       # tests trying to scroll past the last item, so skip clicking again
@@ -244,9 +243,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_keyboard(i: int):
     """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
-    KEY = (250, 160)  # key in the middle of the keyboard (e.g. 'G')
+    KEY = (250, 160)  # key in the middle of the keyboard ('G')
     SHIFT = (50, 210)
     NUMBERS = (480, 210)
+    SPACE = (500, 160)
     BACKSPACE = (490, 30)
     CONFIRM = (50, 30)
     # Begin interactions
@@ -259,13 +259,15 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     press(*SHIFT, times=2)
     # press key twice (uppercase both due to caps lock)
     press(*KEY, times=2)
+    # test space and backspace
+    press(*SPACE, times=2)
+    press(*BACKSPACE, times=2)
     # numbers / symbols
     press(*NUMBERS)
     press(*KEY)
+    press(*center)  # click a number
     press(*SHIFT)  # symbols
-    # type thrice and then backspace once (need 8 min for password)
-    press(*KEY, times=3)
-    press(*BACKSPACE)
+    press(*KEY, wait_after=FPS // 2)  # wait for confirm to enable
     # press confirm to close
     press(*CONFIRM)
 
