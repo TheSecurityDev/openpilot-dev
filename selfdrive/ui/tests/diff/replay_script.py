@@ -87,10 +87,8 @@ class Script:
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
     # Calculate delta and end position based on direction and distance
-    delta_x = direction[0] * distance
-    delta_y = direction[1] * distance
-    end_x = start_x + delta_x
-    end_y = start_y + delta_y
+    delta_x, delta_y = direction[0] * distance, direction[1] * distance
+    end_x, end_y = start_x + delta_x, start_y + delta_y
 
     # Mouse down at start
     mouse_down = MouseEvent(pos=MousePos(start_x, start_y), slot=0, left_pressed=True, left_released=False, left_down=True, t=self.get_frame_time())
@@ -99,8 +97,7 @@ class Script:
     # Interpolate positions over duration_frames
     for i in range(1, duration_frames):
       t = i / duration_frames
-      x = int(start_x + delta_x * t)
-      y = int(start_y + delta_y * t)
+      x, y = int(start_x + delta_x * t), int(start_y + delta_y * t)
       mouse_move = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=False, left_down=True, t=self.get_frame_time())
       self.add(ScriptEvent(mouse_events=[mouse_move]), after=1)
 
