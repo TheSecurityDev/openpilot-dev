@@ -309,9 +309,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_developer(i: int):
     match i:
+      case 0:
+        click(times=2)  # toggle ssh mode
       case 1:
         click(wait_after=WAIT_SHORT)  # SSH keys (open keyboard)
         swipe_down()  # swipe back to close keyboard
+      case 3:
+        click()  # test clicking disabled toggle (longitudinal maneuver mode)
       case 4:
         click(times=2)  # UI debug mode
 
