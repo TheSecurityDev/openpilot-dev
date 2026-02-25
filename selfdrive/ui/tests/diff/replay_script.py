@@ -235,21 +235,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # Begin interactions
     swipe_left(duration_frames=FPS // 2)  # swipe to type
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
-    press(*SHIFT)
-    # press key twice (uppercases first)
-    press(*KEY, times=2)
-    # press shift twice for caps lock
-    press(*SHIFT, times=2)
-    # press key twice (uppercase both due to caps lock)
-    press(*KEY, times=2)
-    # test space and backspace
-    press(*SPACE, times=2)
-    press(*BACKSPACE, times=2)
-    # numbers / symbols
-    press(*NUMBERS)
-    press(*KEY)
-    press(*center)  # press a number ('5')
-    press(*SHIFT)  # symbols
+    # press various keys to test different states:
+    for key in [
+      SHIFT, KEY, KEY, SHIFT, SHIFT, KEY, KEY,  # test casing (upper, lower, caps lock)
+      SPACE, SPACE, BACKSPACE, BACKSPACE,  # test multiple space and backspace
+      NUMBERS, KEY, center, SHIFT  # test numbers and symbols
+    ]:
+      press(*key)
     press(*KEY, wait_after=FPS // 2)  # wait for confirm to enable
     # press confirm to close
     press(*CONFIRM)
@@ -320,7 +312,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_settings(i: int):
     click()  # click each setting
-    SETTINGS_CASES[i](i)  # interact with the setting's panel
+    SETTINGS_CASES[i](i)  # explore/interact with each panel
     swipe_down()  # go back
 
   # === Homescreen === #
