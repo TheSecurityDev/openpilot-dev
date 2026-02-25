@@ -80,6 +80,12 @@ def create_diff_video(video1: Path, video2: Path, output: Path) -> None:
   cmd = ['ffmpeg', '-nostdin', '-i', str(video1), '-i', str(video2), '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(output)]
   subprocess.run(cmd, capture_output=True, check=True)
 
+def reencode_for_display(input_path: Path, output_path: Path) -> None:
+  """Re-encode video for HTML display."""
+  print(f"Re-encoding {input_path.name} for display...")
+  cmd = ['ffmpeg', '-nostdin', '-i', str(input_path), '-y', str(output_path)]
+  subprocess.run(cmd, capture_output=True, check=True)
+
 
 def get_video_fps(video_path: Path) -> float:
   """Return fps for a video file."""
@@ -265,8 +271,15 @@ def main():
   else:
     print("[4/5] No diff chunks found, skipping clip extraction.")
 
-  print("[5/5] Generating HTML report...")
-  html = generate_html_report((video1, video2), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
+  print("[5/5] Re-encoding videos with default compression to reduce size in HTML report...")
+  video1_display = DIFF_OUT_DIR / f"{video1.stem}_display.mp4"
+  video2_display = DIFF_OUT_DIR / f"{video2.stem}_display.mp4"
+  with ThreadPoolExecutor(max_workers=2) as executor:
+    executor.submit(reencode_for_display, video1, video1_display)
+    executor.submit(reencode_for_display, video2, video2_display)
+
+  print("Generating HTML report...")
+  html = generate_html_report((video1_display, video2_display), args.basedir, diff_frame_count, frame_counts, diff_video_name, clip_sets)
 
   output_path = DIFF_OUT_DIR / args.output
   with open(output_path, 'w') as f:
