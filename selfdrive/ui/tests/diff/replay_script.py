@@ -212,13 +212,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
   def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None):
-    """Helper function to explore a panel with the given number of items by swiping through each one and interacting with them using the provided callback."""
-    # Scroll settings and back
+    """Helper function to explore a panel with the given number of items/pages by swiping through and interacting with them using the provided callback."""
     for i in range(item_count):
-      # tests trying to scroll past the last item, so skip clicking again
-      if i < item_count:
-        if interact_fn:
-          interact_fn(i)
+      if interact_fn:
+        interact_fn(i)
       # swipe to roughly the center of the next toggle
       swipe_left(210, 10)
 
