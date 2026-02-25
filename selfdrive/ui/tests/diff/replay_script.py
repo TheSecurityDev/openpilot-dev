@@ -290,8 +290,8 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       case 7:
         # regulatory info
         click()
-        for _ in range(3):
-          swipe_up(height)
+        for _ in range(2):
+          swipe_up(height * 1.5)
         swipe_down(height * 3)  # back to top
         swipe_down()  # back
       case 8:
