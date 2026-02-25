@@ -282,7 +282,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         # swipe_down()  # back
       case 5:
         click()  # reset calibration
-        swipe_left(width)  # confirm
+        swipe_left(width)  # confirm (goes back automatically)
       case 6:
         click()  # uninstall
         swipe_left(width)  # confirm
@@ -358,6 +358,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   script.set_send(lambda: send_onroad(pm))
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   test_onroad_alerts(script, pm)
+  swipe_right()  # back to home
 
   script.end()
 
