@@ -350,7 +350,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   # === Settings === #
   click(wait_after=WAIT_SHORT)  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
-
   swipe_down()  # back to home
 
   # === Onroad ===
