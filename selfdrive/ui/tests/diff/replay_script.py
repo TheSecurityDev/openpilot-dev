@@ -288,11 +288,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         swipe_left(width)  # confirm
         swipe_down()  # back
       case 7:
-        # regulatory info
+        # regulatory info (scroll down and back up)
         click()
-        for _ in range(2):
-          swipe_up(height * 1.5)
-        swipe_down(height * 3)  # back to top
+        swipe_up(height * 3)
+        swipe_down(height * 3)
         swipe_down()  # back
       case 8:
         # reboot & shutdown
@@ -305,8 +304,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_firehose():
     # scroll down and back up
-    for _ in range(3):
-      swipe_up(height)
+    swipe_up(height * 3)
     swipe_down(height * 3)
 
   def interact_developer(i: int):
