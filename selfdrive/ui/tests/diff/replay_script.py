@@ -190,14 +190,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   FAST_CLICK = FPS // 4
 
   def click(times: int = 1, wait_after: int = FAST_CLICK):
-    """Helper function to click at the center of the screen for the given number of times with the specified wait after."""
+    """Helper function to click at the center of the screen the given number of times with the specified wait after."""
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
 
-  def press(x: int, y: int, times: int = 1, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
-    """Helper function to click and and hold at the given position for the specified duration, repeated for the given number of times."""
-    for _ in range(times):
-      script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
+  def press(x: int, y: int, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
+    """Helper function to click and and hold at the given position for the specified duration."""
+    script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(*right, DIR_LEFT, distance, duration_frames, wait_after)
