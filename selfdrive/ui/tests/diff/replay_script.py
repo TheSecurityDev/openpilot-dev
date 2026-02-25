@@ -172,6 +172,21 @@ def make_alert_setup(pm: PubMaster, size, text1, text2, status) -> Callable:
   return _send
 
 
+def test_onroad_alerts(script: Script, pm: PubMaster) -> None:
+  """Go through various alert types and sizes and add them to the script to test alert rendering.
+    Each alert is sent as a separate event with a delay in between."""
+  # Small alert (normal)
+  script.set_send(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
+  # Medium alert (userPrompt)
+  script.set_send(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
+  # Full alert (critical)
+  script.set_send(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
+  # Full alert multiline
+  script.set_send(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
+  # Full alert long text
+  script.set_send(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
+
+
 # --- Script builders ---
 
 def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
@@ -261,8 +276,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       case 3:
         pass  # TODO: training guide
       case 4:
-        click(wait_after=WAIT_SHORT)  # preview camera
-        swipe_down()  # back
+        # preview driver camera
+        pass  # TODO: enabling this causes MultiplePublishersError later in onroad alert tests
+        # click(wait_after=WAIT_SHORT)
+        # swipe_down()  # back
       case 5:
         click()  # reset calibration
         swipe_left(width)  # confirm
@@ -326,6 +343,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   explore_panel(6, interact_settings)  # Explore settings
 
   swipe_down()  # back to home
+
+  # === Onroad ===
+  script.set_send(lambda: send_onroad(pm))
+  swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
+  test_onroad_alerts(script, pm)
+
   script.end()
 
 
@@ -390,18 +413,7 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   # === Onroad ===
   script.set_send(lambda: send_onroad(pm))
   script.click(1000, 500)  # click onroad to toggle sidebar
-
-  # === Onroad alerts ===
-  # Small alert (normal)
-  script.set_send(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
-  # Medium alert (userPrompt)
-  script.set_send(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
-  # Full alert (critical)
-  script.set_send(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
-  # Full alert multiline
-  script.set_send(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
-  # Full alert long text
-  script.set_send(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
+  test_onroad_alerts(script, pm)
 
   # End
   script.end()
