@@ -211,13 +211,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
-  # === Homescreen === #
-  script.wait(WAIT_SHORT)
-  swipe_right(width, wait_after=WAIT_SHORT)  # open alerts
-  swipe_left(width, wait_after=WAIT_SHORT)  # close alerts
-  swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
-  swipe_right(width, wait_after=WAIT_SHORT)  # back to home
-
   def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None):
     """Helper function to explore a panel with the given number of items by swiping through each one and interacting with them using the provided callback."""
     # Scroll settings and back
@@ -333,12 +326,18 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     SETTINGS_CASES[i](i)  # interact with the setting's panel
     swipe_down()  # go back
 
+  # === Homescreen === #
+  script.wait(WAIT_SHORT)
+  swipe_right(width, wait_after=WAIT_SHORT)  # open alerts
+  swipe_left(width, wait_after=WAIT_SHORT)  # close alerts
+  swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
+  swipe_right(width, wait_after=WAIT_SHORT)  # back to home
+
   # === Settings === #
   click(wait_after=WAIT_SHORT)  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
 
   swipe_down()  # back to home
-
   script.end()
 
 
