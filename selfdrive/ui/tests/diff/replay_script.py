@@ -225,13 +225,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
-  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None):
+  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, swipe_wait: int = SWIPE_WAIT):
     """Helper function to explore a panel with the given number of items/pages by swiping through and interacting with them using the provided callback."""
     for i in range(item_count):
       if interact_fn:
         interact_fn(i)
       # swipe to roughly the center of the next toggle
-      swipe_left(210, 10)
+      swipe_left(210, 10, wait_after=swipe_wait)
 
   def interact_toggles(i: int):
     # click first and last toggles
@@ -333,6 +333,15 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     SETTINGS_CASES[i](i)  # explore/interact with each panel
     swipe_down()  # go back
 
+  def check_settings_onroad(i: int):
+    """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
+    if i == 3 or i == 4:
+      return  # skip pairing and firehose
+    click()  # click each setting
+    for _ in range(2):
+      swipe_left(width, wait_after=WAIT_SHORT)
+    swipe_down()  # go back
+
   # === Homescreen === #
   script.wait(WAIT_SHORT)
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
@@ -359,6 +368,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   test_onroad_alerts(script, pm)
   swipe_right()  # back to home
+
+  # === Settings (Onroad) === #
+  click(wait_after=WAIT_SHORT)  # Open settings
+  explore_panel(6, check_settings_onroad, swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
+  swipe_down()  # back to home
 
   script.end()
 
