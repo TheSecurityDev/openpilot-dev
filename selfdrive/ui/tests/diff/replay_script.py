@@ -200,16 +200,16 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
   def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
-    script.drag(right[0], right[1], DIR_LEFT, distance, duration_frames, wait_after)
+    script.drag(*right, DIR_LEFT, distance, duration_frames, wait_after)
 
   def swipe_right(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
-    script.drag(left[0], left[1], DIR_RIGHT, distance, duration_frames, wait_after)
+    script.drag(*left, DIR_RIGHT, distance, duration_frames, wait_after)
 
   def swipe_down(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
-    script.drag(top[0], top[1], DIR_DOWN, distance, duration_frames, wait_after)
+    script.drag(*top, DIR_DOWN, distance, duration_frames, wait_after)
 
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
-    script.drag(bottom[0], bottom[1], DIR_UP, distance, duration_frames, wait_after)
+    script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
   # === Homescreen === #
   script.wait(WAIT_SHORT)
@@ -258,7 +258,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # numbers / symbols
     press(*NUMBERS)
     press(*KEY)
-    press(*center)  # click a number
+    press(*center)  # press a number ('5')
     press(*SHIFT)  # symbols
     press(*KEY, wait_after=FPS // 2)  # wait for confirm to enable
     # press confirm to close
