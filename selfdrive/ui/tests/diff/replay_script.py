@@ -72,13 +72,11 @@ class Script:
     """Set a new persistent send function to be called every frame."""
     self.add(ScriptEvent(send_fn=fn), after=wait_after)
 
-  # TODO: Add more complex gestures if needed
   def click(self, x: int, y: int, wait_after: int = WAIT_SHORT, wait_between: int = 2) -> None:
     """Add a click event to the script for the given position and specify frames to wait between mouse events or after the click."""
     # NOTE: By default we wait a couple frames between mouse events so pressed states will be rendered
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
-    # TODO: Add support for long press (left_down=True)
     mouse_down = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=True, left_released=False, left_down=False, t=self.get_frame_time())
     self.add(ScriptEvent(mouse_events=[mouse_down]), after=wait_between)
     mouse_up = MouseEvent(pos=MousePos(x, y), slot=0, left_pressed=False, left_released=True, left_down=False, t=self.get_frame_time())
@@ -88,11 +86,9 @@ class Script:
     """Add a drag gesture to the script from start position in the specified direction by the given distance over the given number of frames."""
     from openpilot.system.ui.lib.application import MouseEvent, MousePos
 
-    # Calculate delta based on direction and distance
+    # Calculate delta and end position based on direction and distance
     delta_x = direction[0] * distance
     delta_y = direction[1] * distance
-
-    # Calculate end position based on delta
     end_x = start_x + delta_x
     end_y = start_y + delta_y
 
