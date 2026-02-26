@@ -416,11 +416,11 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   script.click(1200, 280)  # experimental mode description
 
   # === Settings - Software ===
-  script.setup(lambda: setup_update_available(False), wait_after=0)
+  script.setup(lambda: setup_update_available(False), wait_after=0)  # start with no update available
   script.click(278, 720)  # software
   for _ in range(2):
     script.click(720, 120)  # toggle current release notes
-  script.setup(setup_update_available)
+  script.setup(setup_update_available)  # set update available
   for _ in range(2):
     script.click(720, 450)  # toggle new release notes
 
