@@ -348,13 +348,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
   # === Offroad Alerts ===
-  def _setup_offroad_alerts_and_refresh():
+  def setup_offroad_alerts_and_refresh():
     """Setup function to trigger offroad alerts and force a refresh on the alerts layout."""
     setup_offroad_alerts()
     main_layout._alerts_layout.refresh()
 
   swipe_right(width, wait_after=WAIT_SHORT)  # open alerts
-  script.setup(_setup_offroad_alerts_and_refresh)  # show alerts
+  script.setup(setup_offroad_alerts_and_refresh)  # show alerts
   swipe_up(height)  # scroll alerts
   swipe_left(width, wait_after=WAIT_SHORT)  # close alerts
 
