@@ -161,7 +161,6 @@ def make_network_state_setup(pm: PubMaster, network_type) -> Callable:
 
 def make_alert_setup(pm: PubMaster, size, text1, text2, status) -> Callable:
   def _send() -> None:
-    send_onroad(pm)
     alert = messaging.new_message('selfdriveState')
     ss = alert.selfdriveState
     ss.alertSize = size
