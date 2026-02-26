@@ -108,26 +108,34 @@ class Script:
 
 # --- Setup functions ---
 
-def put_update_params(params: Params | None = None) -> None:
-  if params is None:
-    params = Params()
-  params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
-  params.put("UpdaterNewReleaseNotes", parse_release_notes(BASEDIR))
-  params.put("UpdaterTargetBranch", BRANCH_NAME)
-
 
 def setup_offroad_alerts() -> None:
-  put_update_params(Params())
   set_offroad_alert("Offroad_TemperatureTooHigh", True, extra_text='99C')
   set_offroad_alert("Offroad_ExcessiveActuation", True, extra_text='longitudinal')
   set_offroad_alert("Offroad_IsTakingSnapshot", True)
 
 
-def setup_update_available() -> None:
+def _put_update_params(params: Params) -> None:
+  params.put("UpdaterCurrentReleaseNotes", parse_release_notes(BASEDIR))
+  params.put("UpdaterNewReleaseNotes", parse_release_notes(BASEDIR))
+  params.put("UpdaterTargetBranch", BRANCH_NAME)
+
+
+def _clear_update_params(params: Params) -> None:
+  params.remove("UpdaterCurrentReleaseNotes")
+  params.remove("UpdaterNewReleaseNotes")
+  params.remove("UpdaterTargetBranch")
+
+
+def setup_update_available(available: bool = True) -> None:
   params = Params()
-  params.put_bool("UpdateAvailable", True)
-  params.put("UpdaterNewDescription", f"0.10.2 / {BRANCH_NAME} / 0a1b2c3 / Jan 01")
-  put_update_params(params)
+  params.put_bool("UpdateAvailable", available)
+  if available:
+    params.put("UpdaterNewDescription", f"0.10.2 / {BRANCH_NAME} / 0a1b2c3 / Jan 01")
+    _put_update_params(params)
+  else:
+    params.remove("UpdaterNewDescription")
+    _clear_update_params(params)
 
 
 def setup_developer_params() -> None:
@@ -394,11 +402,11 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   # === Homescreen ===
   script.set_send(make_network_state_setup(pm, log.DeviceState.NetworkType.wifi))
 
-  # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
-  script.setup(make_home_refresh_setup(setup_offroad_alerts))
-
   # === Update Available (auto-transitions via HomeLayout refresh) ===
   script.setup(make_home_refresh_setup(setup_update_available))
+
+  # === Offroad Alerts (auto-transitions via HomeLayout refresh, overrides update) ===
+  script.setup(make_home_refresh_setup(setup_offroad_alerts))
 
   # === Settings - Device (click sidebar settings button) ===
   script.click(150, 90)
@@ -417,8 +425,9 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   script.click(1200, 280)  # experimental mode description
 
   # === Settings - Software ===
-  script.setup(put_update_params, wait_after=0)
+  script.setup(lambda: setup_update_available(False), wait_after=0)
   script.click(278, 720)
+  script.setup(setup_update_available)
 
   # === Settings - Firehose ===
   script.click(278, 845)
