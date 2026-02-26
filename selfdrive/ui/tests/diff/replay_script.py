@@ -262,7 +262,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   def interact_network(i: int):
     if i == 3:
-      # wifi password keyboard
+      # tether password keyboard
       click()
       interact_keyboard(i)  # test various keyboard interactions (closes afterwards)
 
