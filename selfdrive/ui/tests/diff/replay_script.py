@@ -407,6 +407,7 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   # === Offroad Alerts (auto-transitions via HomeLayout refresh, overrides update) ===
   script.setup(make_home_refresh_setup(setup_offroad_alerts))
+  script.click(620, 950)  # close alerts
 
   # === Settings - Device (click sidebar settings button) ===
   script.click(150, 90)
