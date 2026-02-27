@@ -12,8 +12,9 @@ from openpilot.selfdrive.ui.tests.diff.replay import FPS, LayoutVariant
 from openpilot.system.updated.updated import parse_release_notes
 
 # Default frames to wait after events
-WAIT_SHORT = FPS // 2
 WAIT_LONG = FPS
+WAIT_SHORT = FPS // 2
+FAST_CLICK = FPS // 6
 
 # Direction vectors for drag gestures
 DIR_LEFT = (-1, 0)
@@ -201,9 +202,8 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   DURATION = 5
   SWIPE_WAIT = FPS * 3 // 4
-  FAST_CLICK = FPS // 4
 
-  def click(times: int = 1, wait_after: int = FAST_CLICK):
+  def click(times: int = 1, wait_after: int = WAIT_SHORT):
     """Helper function to click at the center of the screen the given number of times with the specified wait after."""
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
@@ -235,10 +235,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def interact_toggles(i: int):
     # click first and last toggles
     if i == 0 or i == 7:
-      click(times=3 if i == 0 else 2)  # first toggle is personality, which has 3 states
+      click(times=3 if i == 0 else 2, wait_after=FAST_CLICK)  # first toggle is personality, which has 3 states
 
   def interact_keyboard(i: int):
-    """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
+    """Interact with the keyboard in various ways to test different actions and states.
+    Assumes it's a password keyboard with 8 characters required. Closes by pressing confirm at the end."""
     KEY = (250, 160)  # key in the middle of the keyboard ('G')
     SHIFT = (50, 210)
     NUMBERS = (480, 210)
@@ -246,6 +247,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     BACKSPACE = (490, 30)
     CONFIRM = (50, 30)
     # Begin interactions
+    press(*CONFIRM)  # confirm while disabled should do nothing
     swipe_left(duration_frames=FPS // 2)  # swipe to type
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
     # press various keys to test different states:
@@ -270,7 +272,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       case 1:
         click()  # update
       case 2:
-        click(wait_after=WAIT_SHORT)  # pairing
+        click()  # pairing
         swipe_down()  # back
       case 3:
         pass  # TODO: training guide
@@ -297,7 +299,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         click()  # reboot
         swipe_left(width)  # confirm
         swipe_down()  # back
-        script.click(430, 120, wait_after=FAST_CLICK)  # shutdown
+        script.click(430, 120)  # shutdown
         swipe_left(width)  # confirm
         swipe_down()  # back
 
@@ -309,14 +311,14 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def interact_developer(i: int):
     match i:
       case 0:
-        click(times=2)  # toggle ssh mode
+        click(times=2, wait_after=FAST_CLICK)  # toggle ssh mode
       case 1:
-        click(wait_after=WAIT_SHORT)  # SSH keys (open keyboard)
+        click()  # SSH keys (open keyboard)
         swipe_down()  # swipe back to close keyboard
       case 3:
-        click()  # test clicking disabled toggle (longitudinal maneuver mode)
+        click(wait_after=FAST_CLICK)  # test clicking disabled toggle (longitudinal maneuver mode)
       case 4:
-        click(times=2)  # UI debug mode
+        click(times=2, wait_after=FAST_CLICK)  # UI debug mode
 
   SETTINGS_CASES = [
     lambda i: explore_panel(8, interact_toggles),  # toggles
@@ -358,7 +360,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # close alerts
 
   # === Settings === #
-  click(wait_after=WAIT_SHORT)  # Open settings
+  click()  # Open settings
   explore_panel(6, interact_settings)  # Explore settings
   swipe_down()  # back to home
 
@@ -369,7 +371,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_right()  # back to home
 
   # === Settings (Onroad) === #
-  click(wait_after=WAIT_SHORT)  # Open settings
+  click()  # Open settings
   explore_panel(6, check_settings_onroad, swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
   swipe_down()  # back to home
 
