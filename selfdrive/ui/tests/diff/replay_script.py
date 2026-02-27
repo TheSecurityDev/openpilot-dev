@@ -12,8 +12,9 @@ from openpilot.selfdrive.ui.tests.diff.replay import FPS, LayoutVariant
 from openpilot.system.updated.updated import parse_release_notes
 
 # Default frames to wait after events
-WAIT_SHORT = FPS // 2
 WAIT_LONG = FPS
+WAIT_SHORT = FPS // 2
+FAST_CLICK = FPS // 4
 
 # Direction vectors for drag gestures
 DIR_LEFT = (-1, 0)
@@ -199,7 +200,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   DURATION = 5
   SWIPE_WAIT = FPS * 3 // 4
-  FAST_CLICK = FPS // 4
 
   def click(times: int = 1, wait_after: int = FAST_CLICK):
     """Helper function to click at the center of the screen the given number of times with the specified wait after."""
@@ -236,7 +236,8 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       click(times=3 if i == 0 else 2)  # first toggle is personality, which has 3 states
 
   def interact_keyboard(i: int):
-    """Interact with the keyboard in various ways to test different actions and states. Closes by pressing confirm at the end."""
+    """Interact with the keyboard in various ways to test different actions and states.
+    Assumes it's a password keyboard with 8 characters required. Closes by pressing confirm at the end."""
     KEY = (250, 160)  # key in the middle of the keyboard ('G')
     SHIFT = (50, 210)
     NUMBERS = (480, 210)
@@ -244,6 +245,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     BACKSPACE = (490, 30)
     CONFIRM = (50, 30)
     # Begin interactions
+    press(*CONFIRM)  # confirm while disabled should do nothing
     swipe_left(duration_frames=FPS // 2)  # swipe to type
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
     # press various keys to test different states:
@@ -387,6 +389,20 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
 
     return setup
 
+  def type_keyboard():
+    """Types 8 characters using the big keyboard to test different layouts and interactions."""
+    KEY1 = (150, 430)  # e.g. 'Q' key
+    SHIFT = (150, 750)  # also symbols key in number mode
+    NUMBERS = (150, 950)
+    SPACE = (1060, 950)
+    BACKSPACE = (2000, 780)
+    for key in [
+      SHIFT, KEY1, KEY1, SHIFT, SHIFT, KEY1, KEY1,  # test casing (upper, lower, caps lock)
+      SPACE, SPACE, BACKSPACE, BACKSPACE,  # test multiple space and backspace
+      NUMBERS, KEY1, KEY1, SHIFT, KEY1, KEY1  # test numbers and symbols
+    ]:
+      script.click(*key, wait_after=FAST_CLICK)
+
   # TODO: Better way of organizing the events
 
   # === Homescreen ===
@@ -409,7 +425,17 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   # === Settings - Network ===
   script.click(278, 450)
   script.click(1880, 100)  # advanced network settings
-  script.click(630, 80)  # back
+
+  # Keyboard (tethering password)
+  script.click(2000, 420)  # open tether password keyboard
+  script.click(2000, 950)  # click confirm (disabled, should not close)
+  script.click(2000, 115)  # cancel (close without typing)
+  script.click(2000, 420)  # open keyboard again
+  type_keyboard()  # test various keyboard layouts and interactions
+  script.click(2050, 250)  # toggle show/hide password
+  script.click(2000, 950)  # confirm (close keyboard)
+
+  script.click(630, 80)    # back from advanced network
 
   # === Settings - Toggles ===
   script.click(278, 600)
