@@ -401,7 +401,7 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
       SPACE, SPACE, BACKSPACE, BACKSPACE,  # test multiple space and backspace
       NUMBERS, KEY1, KEY1, SHIFT, KEY1, KEY1  # test numbers and symbols
     ]:
-      script.click(*key, wait_after=FAST_CLICK)
+      script.click(*key, wait_after=10)
 
   # TODO: Better way of organizing the events
 
