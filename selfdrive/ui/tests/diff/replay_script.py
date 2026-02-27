@@ -435,7 +435,7 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
   script.click(2050, 250)  # toggle show/hide password
   script.click(2000, 950)  # confirm (close keyboard)
 
-  script.click(630, 80)    # back from advanced network
+  script.click(630, 80)  # back from advanced network
 
   # === Settings - Toggles ===
   script.click(278, 600)
