@@ -203,7 +203,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   DURATION = 5
   SWIPE_WAIT = FPS * 3 // 4
 
-  def click(times: int = 1, wait_after: int = WAIT_SHORT):
+  def click(times: int = 1, wait_after: int = WAIT_SHORT) -> None:
     """Helper function to click at the center of the screen the given number of times with the specified wait after."""
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
@@ -212,19 +212,19 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     """Perform a drag with no movement to simulate a long press at the given position for the specified duration and wait after."""
     script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
-  def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+  def swipe_left(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*right, DIR_LEFT, distance, duration_frames, wait_after)
 
-  def swipe_right(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+  def swipe_right(distance: int = right[0] - left[0], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*left, DIR_RIGHT, distance, duration_frames, wait_after)
 
-  def swipe_down(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+  def swipe_down(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*top, DIR_DOWN, distance, duration_frames, wait_after)
 
-  def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT):
+  def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
-  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, swipe_wait: int = SWIPE_WAIT):
+  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, swipe_wait: int = SWIPE_WAIT) -> None:
     """Helper function to explore a panel with the given number of items/pages by swiping through and interacting with them using the provided callback."""
     for i in range(item_count):
       if interact_fn:
@@ -232,12 +232,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
       # swipe to roughly the center of the next toggle
       swipe_left(210, 10, wait_after=swipe_wait)
 
-  def interact_toggles(i: int):
+  def interact_toggles(i: int) -> None:
     # click first and last toggles
     if i == 0 or i == 7:
       click(times=3 if i == 0 else 2, wait_after=FAST_CLICK)  # first toggle is personality, which has 3 states
 
-  def interact_keyboard(i: int):
+  def interact_keyboard(i: int) -> None:
     """Interact with the keyboard in various ways to test different actions and states.
     Assumes it's a password keyboard with 8 characters required. Closes by pressing confirm at the end."""
     KEY = (250, 160)  # key in the middle of the keyboard ('G')
@@ -261,13 +261,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # press confirm to close
     press(*CONFIRM)
 
-  def interact_network(i: int):
+  def interact_network(i: int) -> None:
     if i == 3:
       # tether password keyboard
       click()
       interact_keyboard(i)  # test various keyboard interactions (closes afterwards)
 
-  def interact_device(i: int):
+  def interact_device(i: int) -> None:
     match i:
       case 1:
         click()  # update
@@ -303,12 +303,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         swipe_left(width)  # confirm
         swipe_down()  # back
 
-  def interact_firehose():
+  def interact_firehose() -> None:
     # scroll down and back up
     swipe_up(height * 3)
     swipe_down(height * 3)
 
-  def interact_developer(i: int):
+  def interact_developer(i: int) -> None:
     match i:
       case 0:
         click(times=2, wait_after=FAST_CLICK)  # toggle ssh mode
@@ -329,12 +329,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda i: explore_panel(5, interact_developer),  # developer
   ]
 
-  def interact_settings(i: int):
+  def interact_settings(i: int) -> None:
     click()  # click each setting
     SETTINGS_CASES[i](i)  # explore/interact with each panel
     swipe_down()  # go back
 
-  def check_settings_onroad(i: int):
+  def check_settings_onroad(i: int) -> None:
     """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
     if i == 3 or i == 4:
       return  # skip pairing and firehose
@@ -349,7 +349,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_right(width, wait_after=WAIT_SHORT)  # back to home
 
   # === Offroad Alerts ===
-  def setup_offroad_alerts_and_refresh():
+  def setup_offroad_alerts_and_refresh() -> None:
     """Setup function to trigger offroad alerts and force a refresh on the alerts layout."""
     setup_offroad_alerts()
     main_layout._alerts_layout.refresh()
