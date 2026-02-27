@@ -206,7 +206,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     for _ in range(times):
       script.click(*center, wait_after=wait_after)
 
-  def press(x: int, y: int, duration_frames: int = DURATION, wait_after: int = FAST_CLICK):
+  def press(x: int, y: int, duration_frames: int = DURATION, wait_after: int = WAIT_SHORT) -> None:
     """Perform a drag with no movement to simulate a long press at the given position for the specified duration and wait after."""
     script.drag(x, y, (0, 0), 0, duration_frames, wait_after=wait_after)
 
@@ -245,18 +245,18 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     BACKSPACE = (490, 30)
     CONFIRM = (50, 30)
     # Begin interactions
-    press(*CONFIRM)  # confirm while disabled should do nothing
+    press(*CONFIRM, wait_after=FAST_CLICK)  # confirm while disabled should do nothing
     swipe_left(duration_frames=FPS // 2)  # swipe to type
     swipe_up(duration_frames=FPS // 2)  # swipe out of keyboard (nothing typed)
     # press various keys to test different states:
     for key in [
       SHIFT, KEY, KEY, SHIFT, SHIFT, KEY, KEY,  # test casing (upper, lower, caps lock)
       SPACE, SPACE, BACKSPACE, BACKSPACE,  # test multiple space and backspace
-      NUMBERS, KEY, center, SHIFT  # test numbers and symbols
+      NUMBERS, KEY, center, SHIFT, KEY  # test numbers and symbols
     ]:
-      press(*key)
-    press(*KEY, wait_after=FPS // 2)  # wait for confirm to enable
+      press(*key, wait_after=FAST_CLICK)
     # press confirm to close
+    script.wait(WAIT_SHORT)  # wait for confirm to enable
     press(*CONFIRM)
 
   def interact_network(i: int) -> None:
