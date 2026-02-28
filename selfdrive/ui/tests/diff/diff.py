@@ -4,6 +4,7 @@ import sys
 import subprocess
 import webbrowser
 import argparse
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from openpilot.common.basedir import BASEDIR
 
@@ -29,6 +30,13 @@ def create_diff_video(video1, video2, output_path):
   """Create a diff video using ffmpeg blend filter with difference mode."""
   print("Creating diff video...")
   cmd = ['ffmpeg', '-i', video1, '-i', video2, '-filter_complex', '[0:v]blend=all_mode=difference', '-vsync', '0', '-y', output_path]
+  subprocess.run(cmd, capture_output=True, check=True)
+
+
+def reencode_video(input_path: Path, output_path: Path) -> None:
+  """Re-encode video with default settings (e.g. compression)."""
+  print(f"Re-encoding {input_path.name} for display...")
+  cmd = ['ffmpeg', '-nostdin', '-i', str(input_path), '-y', str(output_path)]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -99,6 +107,8 @@ def main():
   if not args.output.lower().endswith('.html'):
     args.output += '.html'
 
+  video1, video2 = Path(args.video1), Path(args.video2)
+
   os.makedirs(DIFF_OUT_DIR, exist_ok=True)
 
   print("=" * 60)
@@ -119,9 +129,16 @@ def main():
   if different_frames is None:
     sys.exit(1)
 
+  # Re-encode original videos for display in the HTML report (original recordings are lossless, so this makes them much smaller by adding compression)
+  video1_display = DIFF_OUT_DIR / f"{video1.stem}_display.mp4"
+  video2_display = DIFF_OUT_DIR / f"{video2.stem}_display.mp4"
+  with ThreadPoolExecutor(max_workers=2) as executor:
+    executor.submit(reencode_video, video1, video1_display)
+    executor.submit(reencode_video, video2, video2_display)
+
   print()
   print("Generating HTML report...")
-  html = generate_html_report((args.video1, args.video2), args.basedir, different_frames, frame_counts, diff_video_name)
+  html = generate_html_report((str(args.video1), str(args.video2)), args.basedir, different_frames, frame_counts, diff_video_name)
 
   with open(DIFF_OUT_DIR / args.output, 'w') as f:
     f.write(html)
