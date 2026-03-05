@@ -1,5 +1,6 @@
 import ctypes
 import functools
+import math
 import multiprocessing
 import numpy as np
 import time
@@ -9,7 +10,7 @@ from multiprocessing import Pipe, Array
 from openpilot.tools.sim.bridge.common import QueueMessage, QueueMessageType
 from openpilot.tools.sim.bridge.metadrive.metadrive_process import (metadrive_process, metadrive_simulation_state,
                                                                     metadrive_vehicle_state)
-from openpilot.tools.sim.lib.common import SimulatorState, World
+from openpilot.tools.sim.lib.common import SimulatorState, World, vec3
 from openpilot.tools.sim.lib.camerad import W, H
 
 
@@ -89,6 +90,9 @@ class MetaDriveWorld(World):
       state.bearing = md_vehicle.bearing
       state.steering_angle = md_vehicle.steering_angle
       state.gps.from_xy(curr_pos)
+      # angular_velocity is yaw rate in rad/s (positive = counterclockwise/left turn)
+      # meas[2] = -gyroscope.x in locationd, needs to match camera odometry z-rotation
+      state.imu.gyroscope = vec3(-md_vehicle.angular_velocity, 0, 0)
       state.valid = True
 
       is_engaged = state.is_engaged

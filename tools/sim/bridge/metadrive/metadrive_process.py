@@ -22,7 +22,7 @@ C3_HPR = Vec3(0, 0,0)
 
 
 metadrive_simulation_state = namedtuple("metadrive_simulation_state", ["running", "done", "done_info"])
-metadrive_vehicle_state = namedtuple("metadrive_vehicle_state", ["velocity", "position", "bearing", "steering_angle"])
+metadrive_vehicle_state = namedtuple("metadrive_vehicle_state", ["velocity", "position", "bearing", "steering_angle", "angular_velocity"])
 
 def apply_metadrive_patches(arrive_dest_done=True):
   # By default, metadrive won't try to use cuda images unless it's used as a sensor for vehicles, so patch that in
@@ -103,12 +103,17 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
   steer_ratio = 8
   vc = [0,0]
 
+  angular_velocity = 0.0
+  prev_heading_theta = env.vehicle.heading_theta
+  prev_physics_time = time.monotonic()
+
   while not exit_event.is_set():
     vehicle_state = metadrive_vehicle_state(
       velocity=vec3(x=float(env.vehicle.velocity[0]), y=float(env.vehicle.velocity[1]), z=0),
       position=env.vehicle.position,
       bearing=float(math.degrees(env.vehicle.heading_theta)),
-      steering_angle=env.vehicle.steering * env.vehicle.MAX_STEERING
+      steering_angle=env.vehicle.steering * env.vehicle.MAX_STEERING,
+      angular_velocity=angular_velocity
     )
     vehicle_state_send.send(vehicle_state)
 
@@ -131,6 +136,15 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
 
     if rk.frame % 5 == 0:
       _, _, terminated, _, _ = env.step(vc)
+      current_time = time.monotonic()
+      current_heading = env.vehicle.heading_theta
+      dt = current_time - prev_physics_time
+      if dt > 0:
+        heading_diff = current_heading - prev_heading_theta
+        heading_diff = (heading_diff + np.pi) % (2 * np.pi) - np.pi  # wrap to [-pi, pi]
+        angular_velocity = heading_diff / dt
+      prev_heading_theta = current_heading
+      prev_physics_time = current_time
       timeout = True if start_time is not None and time.monotonic() - start_time >= test_duration else False
       lane_idx_curr, on_lane = get_current_lane_info(env.vehicle)
       out_of_lane = lane_idx_curr != lane_idx_prev or not on_lane
