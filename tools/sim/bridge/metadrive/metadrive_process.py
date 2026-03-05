@@ -100,7 +100,7 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
 
   rk = Ratekeeper(100, None)
 
-  steer_ratio = 8
+  steer_ratio = 15
   vc = [0,0]
 
   angular_velocity = 0.0
