@@ -6,6 +6,19 @@ USBGPU = "USBGPU" in os.environ
 if USBGPU:
   os.environ['DEV'] = 'AMD'
   os.environ['AMD_IFACE'] = 'USB'
+WSL_CUDA = "WSL_CUDA" in os.environ
+if WSL_CUDA:
+  import pathlib, subprocess
+  _cuda_home = pathlib.Path('/tmp/wsl_cuda_home')
+  _cuda_home.mkdir(exist_ok=True)
+  for _name, _target in [('libcuda.so', '/usr/lib/wsl/lib/libcuda.so.1'),
+                          ('libcuda.so.1', '/usr/lib/wsl/lib/libcuda.so.1'),
+                          ('include', '/usr/local/cuda/include')]:
+    _link = _cuda_home / _name
+    if not _link.exists() or (_link.is_symlink() and str(_link.resolve()) != str(pathlib.Path(_target).resolve())):
+      subprocess.run(['ln', '-sfn', _target, str(_link)], check=True)
+  os.environ['DEV'] = 'CUDA'
+  os.environ['CUDA_PATH'] = str(_cuda_home)
 from tinygrad.tensor import Tensor
 import time
 import pickle
@@ -166,8 +179,10 @@ class ModelState:
       self.full_input_queues.update_dtypes_and_shapes({k: self.numpy_inputs[k].dtype}, {k: self.numpy_inputs[k].shape})
     self.full_input_queues.reset()
 
-    self.img_queues = {'img': Tensor.zeros(IMG_QUEUE_SHAPE, dtype='uint8').contiguous().realize(),
-                       'big_img': Tensor.zeros(IMG_QUEUE_SHAPE, dtype='uint8').contiguous().realize()}
+    # img_queues and frame blobs must stay on CPU: warp pkl is CPU-compiled and from_blob
+    # requires host pointers (which CUDA can't dereference as device pointers)
+    self.img_queues = {'img': Tensor.zeros(IMG_QUEUE_SHAPE, dtype='uint8', device='CPU').contiguous().realize(),
+                       'big_img': Tensor.zeros(IMG_QUEUE_SHAPE, dtype='uint8', device='CPU').contiguous().realize()}
     self.full_frames : dict[str, Tensor] = {}
     self._blob_cache : dict[int, Tensor] = {}
     self.transforms_np = {k: np.zeros((3,3), dtype=np.float32) for k in self.img_queues}
@@ -205,7 +220,7 @@ class ModelState:
       # There is a ringbuffer of imgs, just cache tensors pointing to all of them
       cache_key = (key, ptr)
       if cache_key not in self._blob_cache:
-        self._blob_cache[cache_key] = Tensor.from_blob(ptr, (yuv_size,), dtype='uint8')
+        self._blob_cache[cache_key] = Tensor.from_blob(ptr, (yuv_size,), dtype='uint8', device='CPU')
       self.full_frames[key] = self._blob_cache[cache_key]
     for key in bufs.keys():
       self.transforms_np[key][:,:] = transforms[key][:,:]
@@ -214,6 +229,9 @@ class ModelState:
                            self.img_queues['big_img'], self.full_frames['big_img'], self.transforms['big_img'])
     self.img_queues['img'], self.img_queues['big_img'] = out[0].realize(), out[2].realize()
     vision_inputs = {'img': out[1], 'big_img': out[3]}
+    if WSL_CUDA:
+      # Warp runs on CPU; copy processed image tensors to CUDA for the vision model
+      vision_inputs = {k: Tensor(v.numpy(), device='CUDA').realize() for k, v in vision_inputs.items()}
 
     if prepare_only:
       return None

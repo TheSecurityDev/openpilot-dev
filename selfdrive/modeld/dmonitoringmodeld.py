@@ -2,6 +2,9 @@
 import os
 from openpilot.system.hardware import TICI
 os.environ['DEV'] = 'QCOM' if TICI else 'CPU'
+if "WSL_CUDA" in os.environ:
+  os.environ['DEV'] = 'CUDA'
+  os.environ['CUDA_PATH'] = '/tmp/wsl_cuda_home'
 from tinygrad.tensor import Tensor
 import time
 import pickle
