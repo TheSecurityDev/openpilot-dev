@@ -1,37 +1,33 @@
+import cv2
 import numpy as np
 
 from msgq.visionipc import VisionIpcServer, VisionStreamType
 from cereal import messaging
 
 from openpilot.tools.sim.lib.common import W, H
+from openpilot.system.camerad.cameras.nv12_info import get_nv12_info
+
+_nv12_stride, _nv12_y_height, _nv12_uv_height, _nv12_buf_size = get_nv12_info(W, H)
+_nv12_uv_offset = _nv12_stride * _nv12_y_height
 
 
-def rgb_to_nv12(rgb):
-  """Convert RGB image to NV12 (YUV420) format using BT.601 coefficients."""
+def rgb_to_nv12(rgb, out=None):
+  """Convert RGB image to VENUS-aligned NV12 (YUV420) using cv2.
+  The warp model reads NV12 with VENUS stride and uv_offset from get_nv12_info,
+  so the buffer layout must match (stride-padded rows, UV at uv_offset)."""
   h, w = rgb.shape[:2]
-  r = rgb[:, :, 0].astype(np.int32)
-  g = rgb[:, :, 1].astype(np.int32)
-  b = rgb[:, :, 2].astype(np.int32)
-
-  # Y plane - BT.601 coefficients (matches original OpenCL kernel)
-  y = (((b * 13 + g * 65 + r * 33) + 64) >> 7) + 16
-  y = np.clip(y, 0, 255).astype(np.uint8)
-
-  # Subsample RGB for UV (2x2 box filter)
-  r_sub = (r[0::2, 0::2] + r[0::2, 1::2] + r[1::2, 0::2] + r[1::2, 1::2] + 2) >> 2
-  g_sub = (g[0::2, 0::2] + g[0::2, 1::2] + g[1::2, 0::2] + g[1::2, 1::2] + 2) >> 2
-  b_sub = (b[0::2, 0::2] + b[0::2, 1::2] + b[1::2, 0::2] + b[1::2, 1::2] + 2) >> 2
-
-  # U and V planes
-  u = np.clip((b_sub * 56 - g_sub * 37 - r_sub * 19 + 0x8080) >> 8, 0, 255).astype(np.uint8)
-  v = np.clip((r_sub * 56 - g_sub * 47 - b_sub * 9 + 0x8080) >> 8, 0, 255).astype(np.uint8)
-
-  # Interleave UV for NV12 format
-  uv = np.empty((h // 2, w), dtype=np.uint8)
-  uv[:, 0::2] = u
-  uv[:, 1::2] = v
-
-  return np.concatenate([y.ravel(), uv.ravel()]).tobytes()
+  if out is None:
+    out = np.zeros(_nv12_buf_size, dtype=np.uint8)
+  # cv2 outputs I420 (planar): [Y: h*w] [U: h/2*w/2] [V: h/2*w/2]
+  flat = cv2.cvtColor(rgb, cv2.COLOR_RGB2YUV_I420).ravel()
+  y_size = h * w
+  uv_size = h // 2 * w // 2
+  y_plane = out[:_nv12_y_height * _nv12_stride].reshape(_nv12_y_height, _nv12_stride)
+  y_plane[:h, :w] = flat[:y_size].reshape(h, w)
+  uv_plane = out[_nv12_uv_offset:_nv12_uv_offset + _nv12_uv_height * _nv12_stride].reshape(_nv12_uv_height, _nv12_stride)
+  uv_plane[:h // 2, :w:2] = flat[y_size:y_size + uv_size].reshape(h // 2, w // 2)
+  uv_plane[:h // 2, 1:w:2] = flat[y_size + uv_size:].reshape(h // 2, w // 2)
+  return out
 
 
 class Camerad:
@@ -43,11 +39,17 @@ class Camerad:
     self.frame_wide_id = 0
     self.vipc_server = VisionIpcServer("camerad")
 
-    self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_ROAD, 5, W, H)
+    self.vipc_server.create_buffers_with_sizes(VisionStreamType.VISION_STREAM_ROAD, 5, W, H,
+                                               _nv12_buf_size, _nv12_stride, _nv12_uv_offset)
     if dual_camera:
-      self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_WIDE_ROAD, 5, W, H)
+      self.vipc_server.create_buffers_with_sizes(VisionStreamType.VISION_STREAM_WIDE_ROAD, 5, W, H,
+                                                 _nv12_buf_size, _nv12_stride, _nv12_uv_offset)
 
     self.vipc_server.start_listener()
+
+    # Preallocated VENUS-aligned NV12 buffers to avoid per-frame allocation
+    self._nv12_road = np.zeros(_nv12_buf_size, dtype=np.uint8)
+    self._nv12_wide = np.zeros(_nv12_buf_size, dtype=np.uint8) if dual_camera else None
 
   def cam_send_yuv_road(self, yuv):
     self._send_yuv(yuv, self.frame_road_id, 'roadCameraState', VisionStreamType.VISION_STREAM_ROAD)
@@ -57,11 +59,11 @@ class Camerad:
     self._send_yuv(yuv, self.frame_wide_id, 'wideRoadCameraState', VisionStreamType.VISION_STREAM_WIDE_ROAD)
     self.frame_wide_id += 1
 
-  def rgb_to_yuv(self, rgb):
+  def rgb_to_yuv(self, rgb, buf=None):
     """Convert RGB to NV12 YUV format."""
     assert rgb.shape == (H, W, 3), f"{rgb.shape}"
     assert rgb.dtype == np.uint8
-    return rgb_to_nv12(rgb)
+    return rgb_to_nv12(rgb, buf)
 
   def _send_yuv(self, yuv, frame_id, pub_type, yuv_type):
     eof = int(frame_id * 0.05 * 1e9)
