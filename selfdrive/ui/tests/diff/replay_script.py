@@ -224,19 +224,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
+  Cases = list[Callable[[], None] | None]
+
   def run_actions(*actions: Callable[[], None]) -> None:
     for action in actions:
       action()
-
-  Cases = list[Callable[[], None] | None]
-
-  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
-    """Helper function to explore a panel by walking through the ordered interaction callbacks for each item/page."""
-    for case in cases:
-      if case is not None:
-        case()
-      # swipe to roughly the center of the next toggle
-      swipe_left(210, 10, wait_after=swipe_wait)
 
   def interact_keyboard() -> None:
     """Interact with the keyboard in various ways to test different actions and states.
@@ -261,18 +253,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     # press confirm to close
     script.wait(WAIT_SHORT)  # wait for confirm to enable
     press(*CONFIRM)
-
-
-  def open_setting(case: Callable[[], None]) -> None:
-    """Helper function to open a settings item, run the given interaction case, and go back."""
-    click()  # open setting
-    case()
-    swipe_down()  # go back
-
-  def quick_onroad_settings_check() -> None:
-    """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
-    for _ in range(2):
-      swipe_left(width, wait_after=WAIT_SHORT)
 
   toggle_cases: Cases = [
     lambda: click(times=3, wait_after=FAST_CLICK),  # first toggle is personality, which has 3 states
@@ -310,6 +290,14 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda: click(times=2, wait_after=FAST_CLICK),  # toggle UI debug mode
   ]
 
+  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
+    """Helper function to explore a panel by walking through the ordered interaction callbacks for each item/page."""
+    for case in cases:
+      if case is not None:
+        case()
+      # swipe to roughly the center of the next toggle
+      swipe_left(210, 10, wait_after=swipe_wait)
+
   settings_cases: Cases = [
     lambda: explore_cases(toggle_cases),
     lambda: explore_cases(network_cases),
@@ -319,6 +307,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda: explore_cases(developer_cases),
   ]
 
+  def quick_onroad_settings_check() -> None:
+    """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
+    for _ in range(2):
+      swipe_left(width, wait_after=WAIT_SHORT)
+
   settings_onroad_cases: Cases = [
     quick_onroad_settings_check,
     quick_onroad_settings_check,
@@ -326,6 +319,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     None, None,  # skip pairing and firehose
     quick_onroad_settings_check,
   ]
+
+  def open_setting(case: Callable[[], None]) -> None:
+    """Helper function to open a settings item, run the given interaction case, and go back."""
+    click()  # open setting
+    case()
+    swipe_down()  # go back
 
   # === Homescreen === #
   script.wait(WAIT_SHORT)
