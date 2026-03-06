@@ -224,20 +224,21 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
-  def explore_panel(item_count: int, interact_fn: Callable[[int], None] | None = None, swipe_wait: int = SWIPE_WAIT) -> None:
-    """Helper function to explore a panel with the given number of items/pages by swiping through and interacting with them using the provided callback."""
-    for i in range(item_count):
-      if interact_fn:
-        interact_fn(i)
+  def run_actions(*actions: Callable[[], None]) -> None:
+    for action in actions:
+      action()
+
+  Cases = list[Callable[[], None] | None]
+
+  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
+    """Helper function to explore a panel by walking through the ordered interaction callbacks for each item/page."""
+    for case in cases:
+      if case is not None:
+        case()
       # swipe to roughly the center of the next toggle
       swipe_left(210, 10, wait_after=swipe_wait)
 
-  def interact_toggles(i: int) -> None:
-    # click first and last toggles
-    if i == 0 or i == 7:
-      click(times=3 if i == 0 else 2, wait_after=FAST_CLICK)  # first toggle is personality, which has 3 states
-
-  def interact_keyboard(i: int) -> None:
+  def interact_keyboard() -> None:
     """Interact with the keyboard in various ways to test different actions and states.
     Assumes it's a password keyboard with 8 characters required. Closes by pressing confirm at the end."""
     KEY = (250, 160)  # key in the middle of the keyboard ('G')
@@ -261,91 +262,70 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     script.wait(WAIT_SHORT)  # wait for confirm to enable
     press(*CONFIRM)
 
-  def interact_network(i: int) -> None:
-    if i == 3:
-      # tether password keyboard
-      click()
-      interact_keyboard(i)  # test various keyboard interactions (closes afterwards)
 
-  def interact_device(i: int) -> None:
-    match i:
-      case 1:
-        click()  # update
-      case 2:
-        click()  # pairing
-        swipe_down()  # back
-      case 3:
-        pass  # TODO: training guide
-      case 4:
-        # preview driver camera
-        pass  # TODO: enabling this causes MultiplePublishersError later in onroad alert tests
-        # click(wait_after=WAIT_SHORT)
-        # swipe_down()  # back
-      case 5:
-        click()  # terms & conditions
-        swipe_left()  # view QR code
-        swipe_down()  # back
-      case 6:
-        # regulatory info (scroll down and back up)
-        click()
-        swipe_up(height * 3)
-        swipe_down(height * 3)
-        swipe_down()  # back
-      case 7:
-        click()  # reset calibration
-        swipe_left(width)  # confirm (goes back automatically)
-      case 8:
-        click()  # uninstall
-        swipe_left(width)  # confirm
-        swipe_down()  # back
-      case 9:
-        # reboot & shutdown
-        click()  # reboot
-        swipe_left(width)  # confirm
-        swipe_down()  # back
-        script.click(430, 120)  # shutdown
-        swipe_left(width)  # confirm
-        swipe_down()  # back
-
-  def interact_firehose() -> None:
-    # scroll down and back up
-    swipe_up(height * 3)
-    swipe_down(height * 3)
-
-  def interact_developer(i: int) -> None:
-    match i:
-      case 0:
-        click(times=2, wait_after=FAST_CLICK)  # toggle ssh mode
-      case 1:
-        click()  # SSH keys (open keyboard)
-        swipe_down()  # swipe back to close keyboard
-      case 3:
-        click(wait_after=FAST_CLICK)  # test clicking disabled toggle (longitudinal maneuver mode)
-      case 4:
-        click(times=2, wait_after=FAST_CLICK)  # UI debug mode
-
-  SETTINGS_CASES = [
-    lambda i: explore_panel(8, interact_toggles),  # toggles
-    lambda i: explore_panel(4, interact_network),  # network
-    lambda i: explore_panel(10, interact_device),  # device
-    lambda i: script.wait(WAIT_SHORT),  # pairing
-    lambda i: interact_firehose(),  # firehose
-    lambda i: explore_panel(5, interact_developer),  # developer
-  ]
-
-  def interact_settings(i: int) -> None:
-    click()  # click each setting
-    SETTINGS_CASES[i](i)  # explore/interact with each panel
+  def open_setting(case: Callable[[], None]) -> None:
+    """Helper function to open a settings item, run the given interaction case, and go back."""
+    click()  # open setting
+    case()
     swipe_down()  # go back
 
-  def check_settings_onroad(i: int) -> None:
+  def quick_onroad_settings_check() -> None:
     """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
-    if i == 3 or i == 4:
-      return  # skip pairing and firehose
-    click()  # click each setting
     for _ in range(2):
       swipe_left(width, wait_after=WAIT_SHORT)
-    swipe_down()  # go back
+
+  toggle_cases: Cases = [
+    lambda: click(times=3, wait_after=FAST_CLICK),  # first toggle is personality, which has 3 states
+    None, None, None, None, None, None,  # skip other toggles to save time
+    lambda: click(times=2, wait_after=FAST_CLICK),  # test final toggle (enable openpilot)
+  ]
+
+  network_cases: Cases = [
+    None,  # TODO: Select network (mock available networks)
+    None, None,
+    lambda: run_actions(click, interact_keyboard),  # tether password keyboard
+  ]
+
+  device_cases: Cases = [
+    None,
+    click,  # update
+    lambda: run_actions(click, swipe_down),  # pairing
+    None,  # TODO: training guide
+    None,  # TODO: preview driver camera; enabling this causes MultiplePublishersError later in onroad alert tests
+    lambda: run_actions(click, swipe_left, swipe_down),  # terms & conditions -> QR code -> back
+    lambda: run_actions(click, lambda: swipe_up(height * 3), lambda: swipe_down(height * 3), swipe_down),  # regulatory info
+    lambda: run_actions(click, lambda: swipe_left(width)),  # reset calibration confirm
+    lambda: run_actions(click, lambda: swipe_left(width), swipe_down),  # uninstall
+    lambda: run_actions(
+      click, lambda: swipe_left(width), swipe_down,  # reboot
+      lambda: script.click(430, 120), lambda: swipe_left(width), swipe_down,  # shutdown
+    ),
+  ]
+
+  developer_cases: Cases = [
+    lambda: click(times=2, wait_after=FAST_CLICK),  # toggle ssh mode
+    lambda: run_actions(click, swipe_down),  # SSH keys keyboard
+    None,  # joystick mode
+    lambda: click(wait_after=FAST_CLICK),  # longitudinal maneuver mode (disabled; should do nothing)
+    lambda: click(times=2, wait_after=FAST_CLICK),  # toggle UI debug mode
+  ]
+
+  settings_cases: Cases = [
+    lambda: explore_cases(toggle_cases),
+    lambda: explore_cases(network_cases),
+    lambda: explore_cases(device_cases),
+    lambda: script.wait(WAIT_SHORT),  # pairing
+    lambda: run_actions(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # firehose (scroll down and back up)
+    lambda: explore_cases(developer_cases),
+  ]
+
+  settings_onroad_cases: Cases = [
+    quick_onroad_settings_check,
+    quick_onroad_settings_check,
+    quick_onroad_settings_check,
+    None, None,  # skip pairing and firehose
+    quick_onroad_settings_check,
+  ]
 
   # === Homescreen === #
   script.wait(WAIT_SHORT)
@@ -365,7 +345,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   # === Settings === #
   click()  # Open settings
-  explore_panel(6, interact_settings)  # Explore settings
+  explore_cases([lambda case=case: open_setting(case) for case in settings_cases])  # Explore settings
   swipe_down()  # back to home
 
   # === Onroad ===
@@ -376,7 +356,9 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   # === Settings (Onroad) === #
   click()  # Open settings
-  explore_panel(6, check_settings_onroad, swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
+  explore_cases([
+    None if case is None else (lambda case=case: open_setting(case)) for case in settings_onroad_cases
+  ], swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
   swipe_down()  # back to home
 
   script.end()
