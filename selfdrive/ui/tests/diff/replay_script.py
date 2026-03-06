@@ -227,8 +227,23 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   Cases = list[Callable[[], None] | None]
 
   def run_actions(*actions: Callable[[], None]) -> None:
+    """Helper function to run a sequence of actions in order for interaction tests."""
     for action in actions:
       action()
+
+  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
+    """Helper function to explore a panel by calling the interaction callbacks for each item/page before swiping to the next one."""
+    for case in cases:
+      if case is not None:
+        case()
+      # swipe to roughly the center of the next toggle
+      swipe_left(210, 10, wait_after=swipe_wait)
+
+  def explore_setting(interact: Callable[[], None]) -> None:
+    """Helper function to open a settings item, run the given interaction function, and go back."""
+    click()  # open setting
+    interact()
+    swipe_down()  # go back
 
   def interact_keyboard() -> None:
     """Interact with the keyboard in various ways to test different actions and states.
@@ -290,14 +305,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda: click(times=2, wait_after=FAST_CLICK),  # toggle UI debug mode
   ]
 
-  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
-    """Helper function to explore a panel by walking through the ordered interaction callbacks for each item/page."""
-    for case in cases:
-      if case is not None:
-        case()
-      # swipe to roughly the center of the next toggle
-      swipe_left(210, 10, wait_after=swipe_wait)
-
   settings_cases: Cases = [
     lambda: explore_cases(toggle_cases),
     lambda: explore_cases(network_cases),
@@ -306,12 +313,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda: run_actions(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # firehose (scroll down and back up)
     lambda: explore_cases(developer_cases),
   ]
-
-  def explore_setting(interact: Callable[[], None]) -> None:
-    """Helper function to open a settings item, run the given interaction function, and go back."""
-    click()  # open setting
-    interact()
-    swipe_down()  # go back
 
   # === Homescreen === #
   script.wait(WAIT_SHORT)
