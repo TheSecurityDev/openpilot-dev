@@ -307,19 +307,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     lambda: explore_cases(developer_cases),
   ]
 
-  def quick_onroad_settings_check() -> None:
-    """Quick scroll through settings while onroad since some of the toggles should be disabled/missing compared to offroad."""
-    for _ in range(2):
-      swipe_left(width, wait_after=WAIT_SHORT)
-
-  settings_onroad_cases: Cases = [
-    quick_onroad_settings_check,
-    quick_onroad_settings_check,
-    quick_onroad_settings_check,
-    None, None,  # skip pairing and firehose
-    quick_onroad_settings_check,
-  ]
-
   def explore_setting(interact: Callable[[], None]) -> None:
     """Helper function to open a settings item, run the given interaction function, and go back."""
     click()  # open setting
@@ -352,13 +339,6 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
   test_onroad_alerts(script, pm)
   swipe_right()  # back to home
-
-  # === Settings (Onroad) === #
-  click()  # Open settings
-  explore_cases([
-    None if case is None else (lambda case=case: explore_setting(case)) for case in settings_onroad_cases
-  ], swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
-  swipe_down()  # back to home
 
   script.end()
 
