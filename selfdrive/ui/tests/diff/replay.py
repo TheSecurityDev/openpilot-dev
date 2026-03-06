@@ -25,7 +25,13 @@ def setup_state():
   params.put("HasAcceptedTerms", terms_version)
   params.put("CompletedTrainingVersion", training_version)
   params.put("DongleId", "test123456789")
+  # Combined description for layouts that still use it (BIG home, settings/software)
   params.put("UpdaterCurrentDescription", "0.10.1 / test-branch / abc1234 / Nov 30")
+  # Params for mici home
+  params.put("Version", "0.10.1")
+  params.put("GitBranch", "test-branch")
+  params.put("GitCommit", "abc12340ff9131237ba23a1d0fbd8edf9c80e87")
+  params.put("GitCommitDate", "'1732924800 2024-11-30 00:00:00 +0000'")
 
   # Patch Api.get_token to return a fixed token so the pairing QR code is deterministic across runs
   Api.get_token = lambda self, payload_extra=None, expiry_hours=0: "test_token"
