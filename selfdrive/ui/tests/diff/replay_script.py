@@ -320,10 +320,10 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     quick_onroad_settings_check,
   ]
 
-  def open_setting(case: Callable[[], None]) -> None:
-    """Helper function to open a settings item, run the given interaction case, and go back."""
+  def explore_setting(interact: Callable[[], None]) -> None:
+    """Helper function to open a settings item, run the given interaction function, and go back."""
     click()  # open setting
-    case()
+    interact()
     swipe_down()  # go back
 
   # === Homescreen === #
@@ -344,7 +344,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   # === Settings === #
   click()  # Open settings
-  explore_cases([lambda case=case: open_setting(case) for case in settings_cases])  # Explore settings
+  explore_cases([lambda case=case: explore_setting(case) for case in settings_cases])  # Explore settings
   swipe_down()  # back to home
 
   # === Onroad ===
@@ -356,7 +356,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   # === Settings (Onroad) === #
   click()  # Open settings
   explore_cases([
-    None if case is None else (lambda case=case: open_setting(case)) for case in settings_onroad_cases
+    None if case is None else (lambda case=case: explore_setting(case)) for case in settings_onroad_cases
   ], swipe_wait=WAIT_SHORT)  # Quick check of settings while onroad
   swipe_down()  # back to home
 
