@@ -226,14 +226,15 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   Cases = list[Callable[[], None] | None]
 
-  def run_actions(*actions: Callable[[], None]) -> None:
+  def run_actions(*actions: Callable[[], None] | None) -> None:
     """Helper function to run a sequence of actions in order for interaction tests."""
     for action in actions:
-      action()
+      if action is not None:
+        action()
 
-  def explore_setting(interact: Callable[[], None]) -> None:
-    """Helper function to open a settings item, run the given interaction function, and go back."""
-    run_actions(click, interact, swipe_down)  # open, interact, go back
+  def explore_setting(*actions: Callable[[], None]) -> None:
+    """Helper function to open a settings item, run the given actions, and go back."""
+    run_actions(click, *actions, swipe_down)  # open, interact, go back
 
   def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
     """Helper function to explore a panel by calling the interaction callbacks for each item/page before swiping to the next one."""
@@ -282,22 +283,22 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   device_cases: Cases = [
     None,
     click,  # update
-    lambda: run_actions(click, swipe_down),  # pairing
+    explore_setting,  # pairing (just open and close)
     None,  # TODO: training guide
     None,  # TODO: preview driver camera; enabling this causes MultiplePublishersError later in onroad alert tests
-    lambda: run_actions(click, swipe_left, swipe_down),  # terms & conditions -> QR code -> back
-    lambda: run_actions(click, lambda: swipe_up(height * 3), lambda: swipe_down(height * 3), swipe_down),  # regulatory info
-    lambda: run_actions(click, lambda: swipe_left(width)),  # reset calibration confirm
-    lambda: run_actions(click, lambda: swipe_left(width), swipe_down),  # uninstall
+    lambda: explore_setting(swipe_left),  # terms & conditions (swipe to view QR code)
+    lambda: explore_setting(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # regulatory info
+    lambda: run_actions(click, lambda: swipe_left(width)),  # reset calibration confirm (goes back automatically)
+    lambda: explore_setting(lambda: swipe_left(width)),  # uninstall
     lambda: run_actions(
-      click, lambda: swipe_left(width), swipe_down,  # reboot
+      lambda: explore_setting(lambda: swipe_left(width)),  # reboot
       lambda: script.click(430, 120), lambda: swipe_left(width), swipe_down,  # shutdown
     ),
   ]
 
   developer_cases: Cases = [
     lambda: click(times=2, wait_after=FAST_CLICK),  # toggle ssh mode
-    lambda: run_actions(click, swipe_down),  # SSH keys keyboard
+    explore_setting,  # SSH keys keyboard (just open and close)
     None,  # joystick mode
     lambda: click(wait_after=FAST_CLICK),  # longitudinal maneuver mode (disabled; should do nothing)
     lambda: click(times=2, wait_after=FAST_CLICK),  # toggle UI debug mode
