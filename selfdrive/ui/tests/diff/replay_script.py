@@ -282,19 +282,23 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
         # click(wait_after=WAIT_SHORT)
         # swipe_down()  # back
       case 5:
-        click()  # reset calibration
-        swipe_left(width)  # confirm (goes back automatically)
-      case 6:
-        click()  # uninstall
-        swipe_left(width)  # confirm
+        click()  # terms & conditions
+        swipe_left()  # view QR code
         swipe_down()  # back
-      case 7:
+      case 6:
         # regulatory info (scroll down and back up)
         click()
         swipe_up(height * 3)
         swipe_down(height * 3)
         swipe_down()  # back
+      case 7:
+        click()  # reset calibration
+        swipe_left(width)  # confirm (goes back automatically)
       case 8:
+        click()  # uninstall
+        swipe_left(width)  # confirm
+        swipe_down()  # back
+      case 9:
         # reboot & shutdown
         click()  # reboot
         swipe_left(width)  # confirm
@@ -323,7 +327,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   SETTINGS_CASES = [
     lambda i: explore_panel(8, interact_toggles),  # toggles
     lambda i: explore_panel(4, interact_network),  # network
-    lambda i: explore_panel(9, interact_device),  # device
+    lambda i: explore_panel(10, interact_device),  # device
     lambda i: script.wait(WAIT_SHORT),  # pairing
     lambda i: interact_firehose(),  # firehose
     lambda i: explore_panel(5, interact_developer),  # developer
