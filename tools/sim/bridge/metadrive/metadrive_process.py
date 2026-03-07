@@ -1,6 +1,7 @@
 import math
 import time
 import numpy as np
+import os
 
 from collections import namedtuple
 from panda3d.core import Vec3
@@ -51,6 +52,10 @@ def apply_metadrive_patches(arrive_dest_done=True):
 def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera_array, image_lock,
                       controls_recv: Connection, simulation_state_send: Connection, vehicle_state_send: Connection,
                       exit_event, op_engaged, test_duration, test_run):
+  if os.path.exists('/dev/dxg'):
+    # WSL2: Force Mesa to use D3D12 Gallium driver instead of llvmpipe for hardware acceleration (https://github.com/microsoft/wslg/issues/1332)
+    os.environ.setdefault('GALLIUM_DRIVER', 'd3d12')
+
   arrive_dest_done = config.pop("arrive_dest_done", True)
   apply_metadrive_patches(arrive_dest_done)
 
