@@ -88,6 +88,7 @@ class MetaDriveWorld(World):
 
       state.velocity = md_vehicle.velocity
       state.bearing = md_vehicle.bearing
+      state.imu.bearing = md_vehicle.bearing
       state.steering_angle = md_vehicle.steering_angle
       state.gps.from_xy(curr_pos)
       # angular_velocity is yaw rate in rad/s (positive = counterclockwise/left turn)

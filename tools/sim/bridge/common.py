@@ -41,6 +41,7 @@ class SimulatorBridge(ABC):
     set_params_enabled()
     self.params = Params()
     self.params.put_bool("AlphaLongitudinalEnabled", True)
+    self.params.remove("LiveParametersV2")
 
     self.rk = Ratekeeper(100, None)
 
