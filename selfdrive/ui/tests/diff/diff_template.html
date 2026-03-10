@@ -29,18 +29,20 @@
   <p><strong>Results:</strong> $RESULT_TEXT</p>
   <script>
     const videoDefs = [
-      { id: 'video1', title: 'Video 1', src: '$VIDEO1_SRC', sync: true },
-      { id: 'video2', title: 'Video 2', src: '$VIDEO2_SRC', sync: true },
-      { id: 'diffVideo', title: 'Pixel Diff', src: '$DIFF_SRC', sync: false },
+      { id: 'video1', title: 'Video 1', src: '$VIDEO1_SRC', sync: true, track: '$VIDEO1_TRACK' },
+      { id: 'video2', title: 'Video 2', src: '$VIDEO2_SRC', sync: true, track: '$VIDEO2_TRACK' },
+      { id: 'diffVideo', title: 'Pixel Diff', src: '$DIFF_SRC', sync: false, track: '' },
     ];
 
     const row = document.getElementById('videoTable').insertRow();
-    videoDefs.forEach(({ id, title, src, sync }) => {
+    videoDefs.forEach(({ id, title, src, sync, track }) => {
       const td = row.insertCell();
       td.width = '33%';
+      const trackTag = track ? `<track kind="captions" src="${track}" label="Groups" default>` : '';
       td.innerHTML = `<h4>${title}</h4>
         <video id='${id}' width='100%' autoplay muted ${sync ? "onplay='syncVideos()'" : ''}>
           <source src='${src}' type='video/mp4'>
+          ${trackTag}
           Your browser does not support the video tag.
         </video>`;
     });

@@ -4,7 +4,7 @@ import argparse
 import coverage
 import pyray as rl
 
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 from collections.abc import Callable
 from cereal.messaging import PubMaster
 from openpilot.common.params import Params
@@ -12,10 +12,56 @@ from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
 from openpilot.system.version import terms_version, training_version
 
+if TYPE_CHECKING:
+  from openpilot.selfdrive.ui.tests.diff.replay_script import Script
+
 LayoutVariant = Literal["mici", "tizi"]
 
 FPS = 60
 HEADLESS = os.getenv("WINDOWED", "0") != "1"
+
+
+def _format_vtt_time(seconds: float) -> str:
+  h = int(seconds // 3600)
+  m = int((seconds % 3600) // 60)
+  s = int(seconds % 60)
+  ms = int((seconds % 1) * 1000)
+  return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
+
+
+def write_vtt(script: 'Script', path: str) -> None:
+  """Write a WebVTT subtitle file showing the deepest active group at each point in time."""
+  boundaries = sorted({g.start_frame for g in script.groups} | {g.end_frame for g in script.groups})
+
+  cues: list[tuple[int, int, str]] = []
+  for i in range(len(boundaries) - 1):
+    start, end = boundaries[i], boundaries[i + 1]
+    if start >= end:
+      continue
+    # Find the deepest group active at this interval
+    deepest = None
+    deepest_depth = -1
+    for g in script.groups:
+      if g.start_frame <= start < g.end_frame:
+        depth = g.label_path.count(" > ")
+        if depth > deepest_depth:
+          deepest = g
+          deepest_depth = depth
+    if deepest is None:
+      continue
+    label = deepest.label_path
+    # Merge with previous cue if same label and contiguous
+    if cues and cues[-1][2] == label and cues[-1][1] == start:
+      cues[-1] = (cues[-1][0], end, label)
+    else:
+      cues.append((start, end, label))
+
+  with open(path, 'w') as f:
+    f.write("WEBVTT\n\n")
+    for start_frame, end_frame, label in cues:
+      start_t = _format_vtt_time(start_frame / script.fps)
+      end_t = _format_vtt_time(end_frame / script.fps)
+      f.write(f"{start_t} --> {end_t}\n{label}\n\n")
 
 
 def setup_state():
@@ -56,6 +102,7 @@ def run_replay(variant: LayoutVariant) -> None:
 
   pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
   script = build_script(pm, main_layout, variant)
+  entries = script.entries
   script_index = 0
 
   send_fn: Callable | None = None
@@ -67,8 +114,8 @@ def run_replay(variant: LayoutVariant) -> None:
   # Main loop to replay events and render frames
   for _ in gui_app.render():
     # Handle all events for the current frame
-    while script_index < len(script) and script[script_index][0] == frame:
-      _, event = script[script_index]
+    while script_index < len(entries) and entries[script_index][0] == frame:
+      _, event = entries[script_index]
       # Call setup function, if any
       if event.setup:
         event.setup()
@@ -90,13 +137,21 @@ def run_replay(variant: LayoutVariant) -> None:
 
     frame += 1
 
-    if script_index >= len(script):
+    if script_index >= len(entries):
       break
 
   gui_app.close()
 
   print(f"Total frames: {frame}")
-  print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
+
+  record_output = os.environ.get('RECORD_OUTPUT', '')
+  if record_output:
+    print(f"Video saved to: {record_output}")
+
+    if script.groups:
+      vtt_path = record_output.rsplit('.', 1)[0] + '.vtt'
+      write_vtt(script, vtt_path)
+      print(f"Subtitles saved to: {vtt_path}")
 
 
 def main():

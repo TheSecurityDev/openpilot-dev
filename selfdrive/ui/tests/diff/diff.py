@@ -72,12 +72,24 @@ def generate_html_report(videos: tuple[str, str], basedir: str, different_frames
     + (f" Video {'2' if frame_delta > 0 else '1'} is longer by {abs(frame_delta)} frames." if frame_delta != 0 else "")
   )
 
+  # Embed VTT subtitle content as data URIs (avoids CORS issues with file:// URLs)
+  def vtt_for(video_path):
+    import base64
+    vtt = video_path.rsplit('.', 1)[0] + '.vtt'
+    if os.path.exists(vtt):
+      with open(vtt, 'rb') as f:
+        encoded = base64.b64encode(f.read()).decode('ascii')
+      return f"data:text/vtt;base64,{encoded}"
+    return ""
+
   # Load HTML template and replace placeholders
   html = HTML_TEMPLATE_PATH.read_text()
   placeholders = {
     "VIDEO1_SRC": os.path.join(basedir, os.path.basename(videos[0])),
     "VIDEO2_SRC": os.path.join(basedir, os.path.basename(videos[1])),
     "DIFF_SRC": os.path.join(basedir, diff_video_name),
+    "VIDEO1_TRACK": vtt_for(videos[0]),
+    "VIDEO2_TRACK": vtt_for(videos[1]),
     "RESULT_TEXT": result_text,
   }
   for key, value in placeholders.items():

@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 from collections.abc import Callable
-from dataclasses import dataclass
+from contextlib import contextmanager
+from dataclasses import dataclass, field
 
 from cereal import car, log, messaging
 from cereal.messaging import PubMaster
@@ -33,14 +34,57 @@ class ScriptEvent:
 ScriptEntry = tuple[int, ScriptEvent]  # (frame, event)
 
 
+@dataclass
+class ScriptGroup:
+  """A labeled group of script events with a frame range. Groups can nest."""
+  label: str
+  start_frame: int
+  end_frame: int = 0
+  parent: ScriptGroup | None = None
+  children: list[ScriptGroup] = field(default_factory=list)
+
+  @property
+  def label_path(self) -> str:
+    """Full label path from root to this group, e.g. 'Settings > Device'."""
+    parts = []
+    node = self
+    while node is not None:
+      parts.append(node.label)
+      node = node.parent
+    return " > ".join(reversed(parts))
+
+  def start_time(self, fps: int) -> float:
+    return self.start_frame / fps
+
+  def end_time(self, fps: int) -> float:
+    return self.end_frame / fps
+
+
 class Script:
   def __init__(self, fps: int) -> None:
     self.fps = fps
     self.frame = 0
     self.entries: list[ScriptEntry] = []
+    self.groups: list[ScriptGroup] = []
+    self._group_stack: list[ScriptGroup] = []
 
   def get_frame_time(self) -> float:
     return self.frame / self.fps
+
+  @contextmanager
+  def group(self, label: str):
+    """Context manager to group script events under a label. Groups can nest."""
+    parent = self._group_stack[-1] if self._group_stack else None
+    g = ScriptGroup(label=label, start_frame=self.frame, parent=parent)
+    if parent is not None:
+      parent.children.append(g)
+    self.groups.append(g)
+    self._group_stack.append(g)
+    try:
+      yield g
+    finally:
+      g.end_frame = self.frame
+      self._group_stack.pop()
 
   def add(self, event: ScriptEvent, before: int = 0, after: int = 0) -> None:
     """Add event to the script, optionally with the given number of frames to wait before or after the event."""
@@ -171,79 +215,79 @@ def build_tizi_script(pm: PubMaster, main_layout, script: Script) -> None:
 
     return setup
 
-  # TODO: Better way of organizing the events
+  with script.group("Homescreen"):
+    script.set_send(make_network_state_setup(pm, log.DeviceState.NetworkType.wifi))
 
-  # === Homescreen ===
-  script.set_send(make_network_state_setup(pm, log.DeviceState.NetworkType.wifi))
+  with script.group("Offroad Alerts"):
+    script.setup(make_home_refresh_setup(setup_offroad_alerts))
 
-  # === Offroad Alerts (auto-transitions via HomeLayout refresh) ===
-  script.setup(make_home_refresh_setup(setup_offroad_alerts))
+  with script.group("Update Available"):
+    script.setup(make_home_refresh_setup(setup_update_available))
 
-  # === Update Available (auto-transitions via HomeLayout refresh) ===
-  script.setup(make_home_refresh_setup(setup_update_available))
+  with script.group("Settings"):
+    with script.group("Device"):
+      script.click(150, 90)
+      script.click(1985, 790)  # reset calibration confirmation
+      script.click(650, 750)  # cancel
 
-  # === Settings - Device (click sidebar settings button) ===
-  script.click(150, 90)
-  script.click(1985, 790)  # reset calibration confirmation
-  script.click(650, 750)  # cancel
+    with script.group("Network"):
+      script.click(278, 450)
+      script.click(1880, 100)  # advanced network settings
+      script.click(630, 80)  # back
 
-  # === Settings - Network ===
-  script.click(278, 450)
-  script.click(1880, 100)  # advanced network settings
-  script.click(630, 80)  # back
+    with script.group("Toggles"):
+      script.click(278, 600)
+      script.click(1200, 280)  # experimental mode description
 
-  # === Settings - Toggles ===
-  script.click(278, 600)
-  script.click(1200, 280)  # experimental mode description
+    with script.group("Software"):
+      script.setup(put_update_params, wait_after=0)
+      script.click(278, 720)
 
-  # === Settings - Software ===
-  script.setup(put_update_params, wait_after=0)
-  script.click(278, 720)
+    with script.group("Firehose"):
+      script.click(278, 845)
 
-  # === Settings - Firehose ===
-  script.click(278, 845)
+    with script.group("Developer"):
+      script.setup(setup_developer_params, wait_after=0)
+      script.click(278, 950)
+      script.click(2000, 960)  # toggle alpha long
+      script.click(1500, 875)  # confirm
 
-  # === Settings - Developer (set CarParamsPersistent first) ===
-  script.setup(setup_developer_params, wait_after=0)
-  script.click(278, 950)
-  script.click(2000, 960)  # toggle alpha long
-  script.click(1500, 875)  # confirm
+    with script.group("Keyboard Modal"):
+      script.click(1930, 470)  # click SSH keys
+      script.click(1930, 115)  # click cancel on keyboard
 
-  # === Keyboard modal (SSH keys button in developer panel) ===
-  script.click(1930, 470)  # click SSH keys
-  script.click(1930, 115)  # click cancel on keyboard
+    with script.group("Close"):
+      script.click(250, 160)
 
-  # === Close settings ===
-  script.click(250, 160)
+  with script.group("Onroad"):
+    script.set_send(lambda: send_onroad(pm))
+    script.click(1000, 500)  # click onroad to toggle sidebar
 
-  # === Onroad ===
-  script.set_send(lambda: send_onroad(pm))
-  script.click(1000, 500)  # click onroad to toggle sidebar
+    with script.group("Alerts"):
+      with script.group("Small Alert"):
+        script.set_send(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
+      with script.group("Medium Alert"):
+        script.set_send(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
+      with script.group("Critical Alert"):
+        script.set_send(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
+      with script.group("Multiline Alert"):
+        script.set_send(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
+      with script.group("Long Text Alert"):
+        script.set_send(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY",
+                                         "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
 
-  # === Onroad alerts ===
-  # Small alert (normal)
-  script.set_send(make_alert_setup(pm, AlertSize.small, "Small Alert", "This is a small alert", AlertStatus.normal))
-  # Medium alert (userPrompt)
-  script.set_send(make_alert_setup(pm, AlertSize.mid, "Medium Alert", "This is a medium alert", AlertStatus.userPrompt))
-  # Full alert (critical)
-  script.set_send(make_alert_setup(pm, AlertSize.full, "DISENGAGE IMMEDIATELY", "Driver Distracted", AlertStatus.critical))
-  # Full alert multiline
-  script.set_send(make_alert_setup(pm, AlertSize.full, "Reverse\nGear", "", AlertStatus.normal))
-  # Full alert long text
-  script.set_send(make_alert_setup(pm, AlertSize.full, "TAKE CONTROL IMMEDIATELY", "Calibration Invalid: Remount Device & Recalibrate", AlertStatus.userPrompt))
-
-  # End
   script.end()
 
 
-def build_script(pm: PubMaster, main_layout, variant: LayoutVariant) -> list[ScriptEntry]:
-  """Build the replay script for the appropriate layout variant and return list of script entries."""
+def build_script(pm: PubMaster, main_layout, variant: LayoutVariant) -> Script:
+  """Build the replay script for the appropriate layout variant and return the Script object."""
   print(f"Building {variant} replay script...")
 
   script = Script(FPS)
   builder = build_tizi_script if variant == 'tizi' else build_mici_script
   builder(pm, main_layout, script)
 
-  print(f"Built replay script with {len(script.entries)} events and {script.frame} frames ({script.get_frame_time():.2f} seconds)")
+  n_events, n_groups, n_frames = len(script.entries), len(script.groups), script.frame
+  print(f"Built replay script with {n_events} events, {n_groups} groups, and {n_frames} frames ({script.get_frame_time():.2f} seconds)")
 
-  return script.entries
+  return script
