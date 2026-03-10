@@ -283,7 +283,11 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     None,
     click,  # update
     explore_setting,  # pairing (just open and close)
-    None,  # TODO: training guide
+    lambda: explore_setting(
+      # training guide
+      lambda: swipe_left(width * 2), click,  # first page, click next
+      lambda: swipe_left(width * 2), swipe_down  # second page, go back (TODO: make driver cam preview work)
+    ),
     None,  # TODO: preview driver camera; enabling this causes MultiplePublishersError later in onroad alert tests
     lambda: explore_setting(swipe_left),  # terms & conditions (swipe to view QR code)
     lambda: explore_setting(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # regulatory info
