@@ -237,13 +237,13 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     """Helper function to open a settings item, run the given actions, and go back."""
     run_actions(click, *actions, swipe_down)  # open, interact, go back
 
-  def explore_cases(cases: Cases, swipe_wait: int = SWIPE_WAIT) -> None:
+  def explore_cases(cases: Cases) -> None:
     """Helper function to explore a panel by calling the interaction callbacks for each item/page before swiping to the next one."""
     for case in cases:
       if case is not None:
         case()
       # swipe to roughly the center of the next toggle
-      swipe_left(210, 10, wait_after=swipe_wait)
+      swipe_left(210, 10)
 
   def interact_keyboard() -> None:
     """Interact with the keyboard in various ways to test different actions and states.
