@@ -224,15 +224,16 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   def swipe_up(distance: int = bottom[1] - top[1], duration_frames: int = DURATION, wait_after: int = SWIPE_WAIT) -> None:
     script.drag(*bottom, DIR_UP, distance, duration_frames, wait_after)
 
-  Cases = list[Callable[[], None] | None]
+  ActionFn = Callable[[], None] | None
+  Cases = list[ActionFn]
 
-  def run_actions(*actions: Callable[[], None] | None) -> None:
+  def run_actions(*actions: ActionFn) -> None:
     """Helper function to run a sequence of actions in order for interaction tests."""
     for action in actions:
       if action is not None:
         action()
 
-  def explore_setting(*actions: Callable[[], None]) -> None:
+  def explore_setting(*actions: ActionFn) -> None:
     """Helper function to open a settings item, run the given actions, and go back."""
     run_actions(click, *actions, swipe_down)  # open, interact, go back
 
