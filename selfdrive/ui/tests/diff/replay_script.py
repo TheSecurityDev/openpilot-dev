@@ -227,23 +227,21 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   ActionFn = Callable[[], None] | None
   Cases = list[ActionFn]
 
-  def run_actions(*actions: ActionFn) -> None:
-    """Helper function to run a sequence of actions in order for interaction tests."""
+  def run_actions(*actions: ActionFn, after_each: ActionFn = None) -> None:
+    """Helper function to run a sequence of actions in order for interaction tests, calling after_each callback after each action if provided."""
     for action in actions:
       if action is not None:
         action()
+      if after_each is not None:
+        after_each()
 
   def explore_setting(*actions: ActionFn) -> None:
     """Helper function to open a settings item, run the given actions, and go back."""
     run_actions(click, *actions, swipe_down)  # open, interact, go back
 
-  def explore_cases(cases: Cases) -> None:
+  def scroll_through_cases(cases: Cases) -> None:
     """Helper function to explore a panel by calling the interaction callbacks for each item/page before swiping to the next one."""
-    for case in cases:
-      if case is not None:
-        case()
-      # swipe to roughly the center of the next toggle
-      swipe_left(210, 10)
+    run_actions(*cases, after_each=lambda: swipe_left(210, 10))  # swipe to roughly the center of the next toggle after each case
 
   def interact_keyboard() -> None:
     """Interact with the keyboard in various ways to test different actions and states.
@@ -306,12 +304,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   ]
 
   settings_cases: Cases = [
-    lambda: explore_cases(toggle_cases),
-    lambda: explore_cases(network_cases),
-    lambda: explore_cases(device_cases),
+    lambda: scroll_through_cases(toggle_cases),
+    lambda: scroll_through_cases(network_cases),
+    lambda: scroll_through_cases(device_cases),
     lambda: script.wait(WAIT_SHORT),  # pairing
     lambda: run_actions(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # firehose (scroll down and back up)
-    lambda: explore_cases(developer_cases),
+    lambda: scroll_through_cases(developer_cases),
   ]
 
   # === Homescreen === #
@@ -332,7 +330,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
 
   # === Settings === #
   click()  # Open settings
-  explore_cases([lambda case=case: explore_setting(case) for case in settings_cases])  # Explore settings
+  scroll_through_cases([lambda case=case: explore_setting(case) for case in settings_cases])  # Explore settings
   swipe_down()  # back to home
 
   # === Onroad ===
