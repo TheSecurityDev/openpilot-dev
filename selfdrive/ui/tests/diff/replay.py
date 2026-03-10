@@ -58,7 +58,7 @@ def run_replay(variant: LayoutVariant) -> None:
     from openpilot.selfdrive.ui.layouts.main import MainLayout
   main_layout = MainLayout()
 
-  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "selfdriveState"])
+  pm = PubMaster(["deviceState", "pandaStates", "driverStateV2", "driverMonitoringState"])  # selfdriveState PM is created lazily during replay after driver camera dialog PMs are cleaned up to avoid MultiplePublishersError
   script = build_script(pm, main_layout, variant)
   script_index = 0
 

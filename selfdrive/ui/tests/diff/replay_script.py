@@ -160,6 +160,48 @@ def make_network_state_setup(pm: PubMaster, network_type) -> Callable:
   return _send
 
 
+def send_mock_driver_state(pm: PubMaster) -> None:
+  """Send mock driver monitoring and driver state messages with a detected face looking center."""
+  dm = messaging.new_message('driverMonitoringState')
+  dm.driverMonitoringState.faceDetected = True
+  dm.driverMonitoringState.isActiveMode = True
+  pm.send('driverMonitoringState', dm)
+
+  ds = messaging.new_message('driverStateV2')
+  ds.driverStateV2.leftDriverData.faceOrientation = [0.0, 0.0, 0.0]
+  ds.driverStateV2.leftDriverData.faceOrientationStd = [0.01, 0.01, 0.01]
+  ds.driverStateV2.leftDriverData.facePosition = [0.0, 0.0]
+  ds.driverStateV2.leftDriverData.faceProb = 0.99
+  pm.send('driverStateV2', ds)
+
+
+def mock_camera_frame() -> None:
+  """Mock the camera view frame so the DM tutorial renders buttons without a real camera."""
+  from openpilot.system.ui.lib.application import gui_app
+  active = gui_app.get_active_widget()
+  if hasattr(active, '_dialog') and hasattr(active._dialog, '_camera_view'):
+    camera_view = active._dialog._camera_view
+    camera_view._ensure_connection = lambda: False
+    camera_view.frame = True
+
+
+def advance_dm_tutorial() -> None:
+  """Directly advance past the DM tutorial by invoking the good button callback."""
+  from openpilot.system.ui.lib.application import gui_app
+  active = gui_app.get_active_widget()
+  if hasattr(active, '_good_button'):
+    active._good_button._click_callback()
+
+
+class _LazyPM:
+  """Wrapper for a PubMaster that's created lazily during replay via a list container."""
+  def __init__(self, container: list):
+    self._container = container
+
+  def send(self, service, msg):
+    self._container[0].send(service, msg)
+
+
 def make_alert_setup(pm: PubMaster, size, text1, text2, status) -> Callable:
   def _send() -> None:
     alert = messaging.new_message('selfdriveState')
@@ -284,11 +326,17 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
     click,  # update
     explore_setting,  # pairing (just open and close)
     lambda: explore_setting(
-      # training guide
-      lambda: swipe_left(width * 2), click,  # first page, click next
-      lambda: swipe_left(width * 2), swipe_down  # second page, go back (TODO: make driver cam preview work)
+      # training guide: attention notice → pre-DM tutorial → DM tutorial → record front
+      lambda: swipe_left(width * 2), click,  # attention notice, click next (pushes PreDMTutorial)
+      lambda: swipe_left(width * 2), click,  # pre-DM tutorial, click next (pushes DMTutorial)
+      lambda: script.setup(mock_camera_frame, wait_after=0),  # mock camera frame for DM tutorial
+      lambda: script.set_send(lambda: send_mock_driver_state(pm), wait_after=FPS * 5),  # send mock driver state, wait for progress
+      lambda: script.setup(advance_dm_tutorial),  # advance past DM tutorial (pushes RecordFront)
+      lambda: swipe_left(width * 2),  # scroll through RecordFront (TODO: Click accept/reject)
+      swipe_down, swipe_down, swipe_down,  # pop RecordFront, DMTutorial, PreDMTutorial back to ReviewTrainingGuide
+      # explore_setting's swipe_down pops ReviewTrainingGuide
     ),
-    None,  # TODO: preview driver camera; enabling this causes MultiplePublishersError later in onroad alert tests
+    explore_setting,  # preview driver camera (opens and closes; PM cleaned up on close)
     lambda: explore_setting(swipe_left),  # terms & conditions (swipe to view QR code)
     lambda: explore_setting(lambda: swipe_up(height * 3), lambda: swipe_down(height * 3)),  # regulatory info
     lambda: run_actions(click, lambda: swipe_left(width)),  # reset calibration confirm (goes back automatically)
@@ -338,9 +386,12 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   swipe_down()  # back to home
 
   # === Onroad ===
+  # Create selfdriveState PM lazily (after driver camera dialog PMs are cleaned up)
+  alert_pm = []
+  script.setup(lambda: alert_pm.append(PubMaster(["selfdriveState"])), wait_after=0)
   script.set_send(lambda: send_onroad(pm))
   swipe_left(width, wait_after=WAIT_SHORT)  # onroad screen
-  test_onroad_alerts(script, pm)
+  test_onroad_alerts(script, _LazyPM(alert_pm))
   swipe_right()  # back to home
 
   script.end()
