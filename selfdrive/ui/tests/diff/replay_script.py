@@ -276,7 +276,7 @@ def build_mici_script(pm: PubMaster, main_layout, script: Script) -> None:
   ]
 
   network_cases: Cases = [
-    None,  # TODO: Select network (mock available networks)
+    explore_setting,  # select wifi (just open and close)
     None, None,
     lambda: run_actions(click, interact_keyboard),  # tether password keyboard
   ]
