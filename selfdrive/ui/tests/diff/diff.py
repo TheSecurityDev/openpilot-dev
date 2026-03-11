@@ -28,17 +28,16 @@ def embed_framehashes(video_path: Path, hashes: list[str]) -> None:
   subprocess.run([
     'ffmpeg', '-v', 'warning', '-i', video_path, '-f', 'ffmetadata', '-i', meta_path,
     '-map_metadata', '1', '-c', 'copy', '-movflags', '+use_metadata_tags', '-y', tmp_video
-  ], check=True)
+    ], check=True)
   meta_path.unlink()  # clean up metadata file
   os.replace(tmp_video, video_path)  # replace original with new video containing metadata
 
 
 def extract_framehashes(video_path: Path) -> list[str]:
   """Extract pre-computed frame hashes from MP4 metadata."""
-  result = subprocess.run(
-    ['ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
-    capture_output=True, text=True
-  )
+  result = subprocess.run([
+    'ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path
+    ], capture_output=True, text=True)
   value = result.stdout.strip()
   if result.returncode != 0 or not value:
     print(f"WARNING: No framehashes found in metadata of {video_path}")
