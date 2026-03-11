@@ -128,7 +128,7 @@ def run_replay(variant: LayoutVariant) -> None:
   ], check=True)
   os.replace(tmp_path, video_path)
 
-  print(f"Total frames: {frame}")
+  print(f"Total frames: {frame - 1}")
   print(f"Video saved to: {video_path}")
 
 
