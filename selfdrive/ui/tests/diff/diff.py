@@ -19,23 +19,29 @@ def create_diff_video(video1, video2, output_path):
 
 
 def embed_framehashes(video_path: Path, hashes: list[str]) -> None:
-  """Embed frame hashes into MP4 custom metadata via stream copy with temp file."""
-  # We can't read/write the file simultaneously, so write to a temp file and then replace the original
-  tmp_path = video_path.with_suffix('.tmp.mp4')
-  hash_str = "\n".join(hashes)
+  """Embed frame hashes into MP4 metadata."""
+  tmp_video = video_path.with_suffix('.tmp.mp4')  # we can't edit in place, so write to a temp file first
+  meta_path = video_path.with_suffix('.ffmeta')  # write metadata to a temporary file for ffmpeg input
+  hashes_str = ",".join(hashes)
+  meta_path.write_text(f";FFMETADATA1\nframehashes={hashes_str}\n")
   print(f"Embedding {len(hashes)} frame hashes into {video_path}...")
-  cmd = ['ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy', '-movflags', '+use_metadata_tags', '-metadata', f'framehashes={hash_str}', '-y', tmp_path]
-  subprocess.run(cmd, check=True)
-  os.replace(tmp_path, video_path)
+  subprocess.run([
+    'ffmpeg', '-v', 'warning', '-i', video_path, '-f', 'ffmetadata', '-i', meta_path,
+    '-map_metadata', '1', '-c', 'copy', '-movflags', '+use_metadata_tags', '-y', tmp_video
+  ], check=True)
+  meta_path.unlink()  # clean up metadata file
+  os.replace(tmp_video, video_path)  # replace original with new video containing metadata
 
 
-def extract_framehashes(video_path) -> list[str]:
-  """Extract pre-computed frame hashes from custom MP4 metadata."""
-  cmd = ['ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path]
-  result = subprocess.run(cmd, capture_output=True, text=True)
+def extract_framehashes(video_path: Path) -> list[str]:
+  """Extract pre-computed frame hashes from MP4 metadata."""
+  result = subprocess.run(
+    ['ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path],
+    capture_output=True, text=True
+  )
   value = result.stdout.strip()
   if result.returncode != 0 or not value:
-    print(f"WARNING: No framehashes metadata found in {video_path}")
+    print(f"WARNING: No framehashes found in metadata of {video_path}")
     return []
   hashes = value.splitlines()
   print(f"Loaded {len(hashes)} frame hashes from {video_path}")
