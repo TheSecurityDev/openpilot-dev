@@ -13,6 +13,7 @@ from openpilot.system.ui.mici_setup import GreyBigButton, BigPillButton
 from openpilot.system.ui.widgets.label import gui_label
 from openpilot.system.ui.lib.multilang import tr
 from openpilot.system.version import terms_version, training_version
+from openpilot.system.hardware import PC
 from openpilot.selfdrive.ui.ui_state import ui_state, device
 from openpilot.selfdrive.ui.mici.widgets.dialog import BigConfirmationCircleButton
 from openpilot.selfdrive.ui.mici.onroad.driver_state import DriverStateRenderer
@@ -123,6 +124,11 @@ class TrainingGuideDMTutorial(NavWidget):
     if device.awake and not ui_state.params.get_bool("IsDriverViewEnabled"):
       ui_state.params.put_bool_nonblocking("IsDriverViewEnabled", True)
 
+    # On PC without camera, allow skipping this step
+    if PC and not self._dialog._camera_view.frame:
+      self._good_button.set_enabled(True)
+      return
+
     sm = ui_state.sm
     if sm.recv_frame.get("driverMonitoringState", 0) == 0:
       return
@@ -189,7 +195,7 @@ class TrainingGuideDMTutorial(NavWidget):
       ring_color,
     )
 
-    if self._dialog._camera_view.frame:
+    if self._dialog._camera_view.frame or PC:
       self._back_button.render(rl.Rectangle(
         self._rect.x + 8,
         self._rect.y + self._rect.height - self._back_button.rect.height,
