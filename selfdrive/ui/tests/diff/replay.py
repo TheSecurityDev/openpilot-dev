@@ -116,11 +116,10 @@ def run_replay(variant: LayoutVariant) -> None:
 
   gui_app.close()
 
-  # Embed raw frame hashes into the MP4 as custom metadata so the diff tool can compare
-  # pre-encode pixel data without needing a separate sidecar file
+  # Embed raw frame hashes into the MP4 as custom metadata so the diff tool can compare them later
   video_path = os.environ['RECORD_OUTPUT']
   tmp_path = video_path + ".tmp.mp4"
-  hash_str = ",".join(frame_hashes)
+  hash_str = "\n".join(frame_hashes)
   subprocess.run([
     'ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy', '-movflags',
     '+use_metadata_tags', '-metadata', f'framehashes={hash_str}', '-y', tmp_path

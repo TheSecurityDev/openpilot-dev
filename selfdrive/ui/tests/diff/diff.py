@@ -39,7 +39,7 @@ def extract_metadata_framehashes(video_path) -> list[str] | None:
   value = result.stdout.strip()
   if result.returncode != 0 or not value:
     return None
-  hashes = value.split(",")
+  hashes = value.splitlines()
   print(f"Loaded {len(hashes)} pre-computed frame hashes from {video_path} metadata")
   return hashes
 
