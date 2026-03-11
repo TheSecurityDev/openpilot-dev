@@ -32,12 +32,28 @@ def create_diff_video(video1, video2, output_path):
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
-  print(f"Hashing frames from {video1}...")
-  hashes1 = extract_framehashes(video1)
+def load_framehash_file(video_path) -> list[str] | None:
+  """Load pre-computed frame hashes from a .framehash file if it exists."""
+  hashfile = Path(video_path).with_suffix(".framehash")
+  if not hashfile.exists():
+    return None
+  hashes = [line.strip() for line in hashfile.read_text().splitlines() if line.strip()]
+  print(f"Loaded {len(hashes)} pre-computed frame hashes from {hashfile}")
+  return hashes
 
-  print(f"Hashing frames from {video2}...")
-  hashes2 = extract_framehashes(video2)
+
+def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
+  # Use pre-computed raw frame hashes when available (deterministic across machines),
+  # falling back to extracting hashes from the compressed video
+  hashes1 = load_framehash_file(video1)
+  if hashes1 is None:
+    print(f"Hashing frames from {video1}...")
+    hashes1 = extract_framehashes(video1)
+
+  hashes2 = load_framehash_file(video2)
+  if hashes2 is None:
+    print(f"Hashing frames from {video2}...")
+    hashes2 = extract_framehashes(video2)
 
   print(f"Comparing {len(hashes1)} frames...")
   different_frames = []

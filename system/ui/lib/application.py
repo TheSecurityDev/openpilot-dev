@@ -215,6 +215,7 @@ class GuiApplication:
     self._ffmpeg_thread: threading.Thread | None = None
     self._ffmpeg_stop_event: threading.Event | None = None
     self._textures: dict[str, rl.Texture] = {}
+    self._frame_data_callback: Callable[[bytes], None] | None = None
     self._target_fps: int = _DEFAULT_FPS
     self._last_fps_log_time: float = time.monotonic()
     self._frame = 0
@@ -241,6 +242,9 @@ class GuiApplication:
   @property
   def frame(self):
     return self._frame
+
+  def set_frame_data_callback(self, callback: Callable[[bytes], None]):
+    self._frame_data_callback = callback
 
   def set_show_touches(self, show: bool):
     self._show_touches = show
@@ -628,6 +632,8 @@ class GuiApplication:
           image = rl.load_image_from_texture(self._render_texture.texture)
           data_size = image.width * image.height * 4
           data = bytes(rl.ffi.buffer(image.data, data_size))
+          if self._frame_data_callback:
+            self._frame_data_callback(data)
           self._ffmpeg_queue.put(data)  # Async write via background thread
           rl.unload_image(image)
 

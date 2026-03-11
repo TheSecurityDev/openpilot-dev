@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
+import hashlib
 import os
 import argparse
 import coverage
 import pyray as rl
 
+from pathlib import Path
 from tqdm import tqdm
 from typing import Literal
 from collections.abc import Callable
@@ -51,6 +53,13 @@ def run_replay(variant: LayoutVariant) -> None:
   from openpilot.selfdrive.ui.ui_state import ui_state, device  # Import within OpenpilotPrefix context so param values are setup correctly
   from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
   from openpilot.selfdrive.ui.tests.diff.replay_script import build_script
+
+  # Write per-frame MD5 hashes of raw pixel data for deterministic diff comparison.
+  # This allows the video itself to use lossy encoding (smaller files) while still
+  # detecting exact frame differences across machines with different codec behavior.
+  framehash_path = Path(os.environ['RECORD_OUTPUT']).with_suffix(".framehash")
+  framehash_file = open(framehash_path, 'w')
+  gui_app.set_frame_data_callback(lambda data: framehash_file.write(hashlib.md5(data).hexdigest() + '\n'))
 
   gui_app.init_window("ui diff test", fps=FPS)
 
@@ -107,9 +116,11 @@ def run_replay(variant: LayoutVariant) -> None:
         break
 
   gui_app.close()
+  framehash_file.close()
 
   print(f"Total frames: {frame}")
   print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
+  print(f"Frame hashes saved to: {framehash_path}")
 
 
 def main():
@@ -122,7 +133,6 @@ def main():
   if args.big:
     os.environ["BIG"] = "1"
   os.environ["RECORD"] = "1"
-  os.environ["RECORD_QUALITY"] = "0"  # Use CRF 0 ("lossless" encode) for deterministic output across different machines
   os.environ["RECORD_OUTPUT"] = os.path.join(DIFF_OUT_DIR, os.environ.get("RECORD_OUTPUT", f"{variant}_ui_replay.mp4"))
 
   print(f"Running {variant} UI replay...")
