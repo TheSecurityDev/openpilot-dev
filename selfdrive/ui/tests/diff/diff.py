@@ -18,6 +18,20 @@ def create_diff_video(video1, video2, output_path):
   subprocess.run(cmd, capture_output=True, check=True)
 
 
+def embed_framehashes(video_path: Path, hashes: list[str]) -> None:
+  """Embed frame hashes into MP4 custom metadata via stream copy with temp file."""
+  # We can't read/write the file simultaneously, so write to a temp file and then replace the original
+  tmp_path = video_path.with_suffix('.tmp.mp4')
+  hash_str = "\n".join(hashes)
+  cmd = [
+    'ffmpeg', '-v', 'warning', '-i', str(video_path), '-c', 'copy',
+    '-movflags', '+use_metadata_tags', '-metadata', f'framehashes={hash_str}',
+    '-y', str(tmp_path)
+  ]
+  subprocess.run(cmd, check=True)
+  os.replace(tmp_path, video_path)
+
+
 def extract_framehashes(video_path) -> list[str]:
   """Extract pre-computed frame hashes from custom MP4 metadata."""
   cmd = ['ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path]

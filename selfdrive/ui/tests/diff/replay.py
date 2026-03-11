@@ -2,10 +2,10 @@
 import hashlib
 import os
 import argparse
-import subprocess
 import coverage
 import pyray as rl
 
+from pathlib import Path
 from tqdm import tqdm
 from typing import Literal
 from collections.abc import Callable
@@ -14,7 +14,7 @@ from openpilot.common.api import Api
 from openpilot.common.basedir import BASEDIR
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
-from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR
+from openpilot.selfdrive.ui.tests.diff.diff import DIFF_OUT_DIR, embed_framehashes
 from openpilot.system.updated.updated import parse_release_notes
 from openpilot.system.version import terms_version, training_version
 
@@ -116,17 +116,9 @@ def run_replay(variant: LayoutVariant) -> None:
 
   gui_app.close()
 
+  video_path = Path(os.environ['RECORD_OUTPUT'])
   # Embed raw frame hashes into the MP4 as custom metadata so the diff tool can compare them later
-  video_path = os.environ['RECORD_OUTPUT']
-  tmp_path = video_path + ".tmp.mp4"
-  hash_str = "\n".join(frame_hashes)
-  print(f"Embedding {len(frame_hashes)} raw frame hashes into video metadata...")
-  # We can't read/write the file simultaneously, so write to a temp file (without reencoding) and then replace the original
-  subprocess.run([
-    'ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy', '-movflags',
-    '+use_metadata_tags', '-metadata', f'framehashes={hash_str}', '-y', tmp_path
-  ], check=True)
-  os.replace(tmp_path, video_path)
+  embed_framehashes(video_path, frame_hashes)
 
   print(f"Total frames: {frame - 1}")
   print(f"Video saved to: {video_path}")
