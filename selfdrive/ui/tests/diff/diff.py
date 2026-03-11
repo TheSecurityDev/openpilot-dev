@@ -13,7 +13,7 @@ HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
 
 def extract_framehashes(video_path: Path) -> list[str]:
-  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
+  cmd = ['ffmpeg', '-nostdin', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   hashes = []
   for line in result.stdout.splitlines():
@@ -39,7 +39,7 @@ def get_video_frame_hashes(video1: Path, video2: Path) -> tuple[list[str], list[
 
 def create_diff_video(video1: Path, video2: Path, output: Path) -> None:
   """Create a diff video of two clips using ffmpeg blend filter with difference mode."""
-  cmd = ['ffmpeg', '-nostdin', '-i', str(video1), '-i', str(video2), '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', str(output)]
+  cmd = ['ffmpeg', '-nostdin', '-i', video1, '-i', video2, '-filter_complex', 'blend=all_mode=difference', '-vsync', '0', '-y', output]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
@@ -93,7 +93,7 @@ def main():
     args.output += '.html'
 
   video1, video2 = Path(args.video1), Path(args.video2)
-  missing = [str(p) for p in (video1, video2) if not p.exists()]
+  missing = [str(p) for p in (video1, video2) if not p.is_file()]
   if missing:
     parser.error(f"Video file(s) not found: {', '.join(missing)}")
 
