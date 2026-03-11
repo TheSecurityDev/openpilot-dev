@@ -91,7 +91,6 @@ jobs:
             git config user.name "GitHub Actions Bot"
             git config user.email "<>"
             cp "${{ github.workspace }}/pr_ui/${video}.mp4" .
-            cp "${{ github.workspace }}/pr_ui/${video}.framehash" . 2>/dev/null || true
             git add .
             git commit -m "${name} video for commit ${{ env.SHA }}"
             git push origin "$branch" --force
@@ -113,9 +112,7 @@ jobs:
             diff_name="${name}_diff"
 
             mv "${{ github.workspace }}/pr_ui/${video}.mp4" "${{ github.workspace }}/pr_ui/${video}_proposed.mp4"
-            mv "${{ github.workspace }}/pr_ui/${video}.framehash" "${{ github.workspace }}/pr_ui/${video}_proposed.framehash" 2>/dev/null || true
             cp "${{ github.workspace }}/master_${name}/${video}.mp4" "${{ github.workspace }}/pr_ui/${video}_master.mp4"
-            cp "${{ github.workspace }}/master_${name}/${video}.framehash" "${{ github.workspace }}/pr_ui/${video}_master.framehash" 2>/dev/null || true
 
             diff_exit_code=0
             python3 ${{ github.workspace }}/selfdrive/ui/tests/diff/diff.py \

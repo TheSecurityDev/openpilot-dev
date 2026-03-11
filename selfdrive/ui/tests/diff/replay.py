@@ -2,10 +2,10 @@
 import hashlib
 import os
 import argparse
+import subprocess
 import coverage
 import pyray as rl
 
-from pathlib import Path
 from tqdm import tqdm
 from typing import Literal
 from collections.abc import Callable
@@ -54,12 +54,11 @@ def run_replay(variant: LayoutVariant) -> None:
   from openpilot.system.ui.lib.application import gui_app  # Import here for accurate coverage
   from openpilot.selfdrive.ui.tests.diff.replay_script import build_script
 
-  # Write per-frame MD5 hashes of raw pixel data for deterministic diff comparison.
-  # This allows the video itself to use lossy encoding (smaller files) while still
-  # detecting exact frame differences across machines with different codec behavior.
-  framehash_path = Path(os.environ['RECORD_OUTPUT']).with_suffix(".framehash")
-  framehash_file = open(framehash_path, 'w')
-  gui_app.set_frame_data_callback(lambda data: framehash_file.write(hashlib.md5(data).hexdigest() + '\n'))
+  # Collect per-frame MD5 hashes of raw pixel data for deterministic diff comparison.
+  # These are embedded in the MP4 metadata after recording, so the video itself can use lossy encoding (smaller files)
+  # while still detecting exact frame differences across machines with different codec behavior.
+  frame_hashes: list[str] = []
+  gui_app.set_frame_data_callback(lambda data: frame_hashes.append(hashlib.md5(data).hexdigest()))
 
   gui_app.init_window("ui diff test", fps=FPS)
 
@@ -116,11 +115,20 @@ def run_replay(variant: LayoutVariant) -> None:
         break
 
   gui_app.close()
-  framehash_file.close()
+
+  # Embed raw frame hashes into the MP4 as custom metadata so the diff tool can compare
+  # pre-encode pixel data without needing a separate sidecar file
+  video_path = os.environ['RECORD_OUTPUT']
+  tmp_path = video_path + ".tmp.mp4"
+  hash_str = ",".join(frame_hashes)
+  subprocess.run([
+    'ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy', '-movflags',
+    '+use_metadata_tags', '-metadata', f'framehashes={hash_str}', '-y', tmp_path
+  ], check=True)
+  os.replace(tmp_path, video_path)
 
   print(f"Total frames: {frame}")
-  print(f"Video saved to: {os.environ['RECORD_OUTPUT']}")
-  print(f"Frame hashes saved to: {framehash_path}")
+  print(f"Video saved to: {video_path}")
 
 
 def main():
