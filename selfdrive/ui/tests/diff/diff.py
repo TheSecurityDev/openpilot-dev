@@ -11,20 +11,6 @@ DIFF_OUT_DIR = Path(BASEDIR) / "selfdrive" / "ui" / "tests" / "diff" / "report"
 HTML_TEMPLATE_PATH = Path(__file__).with_name("diff_template.html")
 
 
-def extract_framehashes(video_path):
-  cmd = ['ffmpeg', '-i', video_path, '-map', '0:v:0', '-vsync', '0', '-f', 'framehash', '-hash', 'md5', '-']
-  result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-  hashes = []
-  for line in result.stdout.splitlines():
-    if not line or line.startswith('#'):
-      continue
-    parts = line.split(',')
-    if len(parts) < 4:
-      continue
-    hashes.append(parts[-1].strip())
-  return hashes
-
-
 def create_diff_video(video1, video2, output_path):
   """Create a diff video using ffmpeg blend filter with difference mode."""
   print("Creating diff video...")
@@ -32,30 +18,22 @@ def create_diff_video(video1, video2, output_path):
   subprocess.run(cmd, capture_output=True, check=True)
 
 
-def extract_metadata_framehashes(video_path) -> list[str] | None:
-  """Extract pre-computed frame hashes from custom MP4 metadata, if present."""
+def extract_framehashes(video_path) -> list[str]:
+  """Extract pre-computed frame hashes from custom MP4 metadata."""
   cmd = ['ffprobe', '-v', 'quiet', '-show_entries', 'format_tags=framehashes', '-of', 'default=noprint_wrappers=1:nokey=1', video_path]
   result = subprocess.run(cmd, capture_output=True, text=True)
   value = result.stdout.strip()
   if result.returncode != 0 or not value:
-    return None
+    print(f"WARNING: No framehashes metadata found in {video_path}")
+    return []
   hashes = value.splitlines()
   print(f"Loaded {len(hashes)} pre-computed frame hashes from {video_path} metadata")
   return hashes
 
 
 def find_differences(video1, video2) -> tuple[list[int], tuple[int, int]]:
-  # Use pre-computed raw frame hashes from MP4 metadata when available (deterministic
-  # across machines), falling back to extracting hashes from the compressed video
-  hashes1 = extract_metadata_framehashes(video1)
-  if hashes1 is None:
-    print(f"Hashing frames from {video1}...")
-    hashes1 = extract_framehashes(video1)
-
-  hashes2 = extract_metadata_framehashes(video2)
-  if hashes2 is None:
-    print(f"Hashing frames from {video2}...")
-    hashes2 = extract_framehashes(video2)
+  hashes1 = extract_framehashes(video1)
+  hashes2 = extract_framehashes(video2)
 
   print(f"Comparing {len(hashes1)} frames...")
   different_frames = []
