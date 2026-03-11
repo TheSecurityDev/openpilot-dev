@@ -23,10 +23,11 @@ def embed_framehashes(video_path: Path, hashes: list[str]) -> None:
   # We can't read/write the file simultaneously, so write to a temp file and then replace the original
   tmp_path = video_path.with_suffix('.tmp.mp4')
   hash_str = "\n".join(hashes)
+  print(f"Embedding {len(hashes)} frame hashes into {video_path}...")
   cmd = [
-    'ffmpeg', '-v', 'warning', '-i', str(video_path), '-c', 'copy',
+    'ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy',
     '-movflags', '+use_metadata_tags', '-metadata', f'framehashes={hash_str}',
-    '-y', str(tmp_path)
+    '-y', tmp_path
   ]
   subprocess.run(cmd, check=True)
   os.replace(tmp_path, video_path)
