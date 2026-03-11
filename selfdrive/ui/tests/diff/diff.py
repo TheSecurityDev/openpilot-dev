@@ -82,7 +82,7 @@ def create_diff_video(video1: Path, video2: Path, output: Path) -> None:
 
 def get_video_fps(video_path: Path) -> float:
   """Return fps for a video file."""
-  cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'json', str(video_path)]
+  cmd = ['ffprobe', '-select_streams', 'v:0', '-show_entries', 'stream=r_frame_rate', '-of', 'json', video_path]
   result = subprocess.run(cmd, capture_output=True, text=True, check=True)
   info = json.loads(result.stdout)['streams'][0]
   num, den = info['r_frame_rate'].split('/')
@@ -95,7 +95,7 @@ def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path
   padding_before = start_frame - padded_start
   total_frames = (end_frame - start_frame + 1) + padding_before + CHUNK_PADDING_AFTER
   start_time = padded_start / fps
-  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-ss', f"{start_time:.6f}", '-frames:v', str(total_frames), '-vsync', '0', '-y', str(output_path)]
+  cmd = ['ffmpeg', '-nostdin', '-i', video_path, '-ss', f"{start_time:.6f}", '-frames:v', total_frames, '-vsync', '0', '-y', output_path]
   subprocess.run(cmd, capture_output=True, check=True)
   return total_frames
 
@@ -103,7 +103,7 @@ def extract_clip(video_path: Path, start_frame: int, end_frame: int, output_path
 def generate_thumbnail(video_path: Path, frame: int, out_path: Path, fps: float) -> None:
   """Create a single-frame thumbnail at the given frame index. File format is determined by the output extension (e.g. .jpg or .png)."""
   t = frame / fps
-  cmd = ['ffmpeg', '-nostdin', '-i', str(video_path), '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', str(out_path)]
+  cmd = ['ffmpeg', '-nostdin', '-i', video_path, '-ss', f"{t:.6f}", '-frames:v', '1', '-vsync', '0', '-y', out_path]
   subprocess.run(cmd, capture_output=True, check=True)
 
 
