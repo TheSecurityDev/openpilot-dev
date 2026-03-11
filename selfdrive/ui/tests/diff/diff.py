@@ -27,7 +27,7 @@ def extract_framehashes(video_path) -> list[str]:
     print(f"WARNING: No framehashes metadata found in {video_path}")
     return []
   hashes = value.splitlines()
-  print(f"Loaded {len(hashes)} pre-computed frame hashes from {video_path} metadata")
+  print(f"Loaded {len(hashes)} frame hashes from {video_path}")
   return hashes
 
 
