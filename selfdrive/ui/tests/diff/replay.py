@@ -120,6 +120,7 @@ def run_replay(variant: LayoutVariant) -> None:
   video_path = os.environ['RECORD_OUTPUT']
   tmp_path = video_path + ".tmp.mp4"
   hash_str = "\n".join(frame_hashes)
+  print(f"Embedding {len(frame_hashes)} raw frame hashes into video metadata...")
   # We can't read/write the file simultaneously, so write to a temp file (without reencoding) and then replace the original
   subprocess.run([
     'ffmpeg', '-v', 'warning', '-i', video_path, '-c', 'copy', '-movflags',
