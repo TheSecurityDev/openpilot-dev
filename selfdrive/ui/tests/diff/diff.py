@@ -25,10 +25,8 @@ def embed_framehashes(video_path: Path, hashes: list[str]) -> None:
   hashes_str = ",".join(hashes)
   meta_path.write_text(f";FFMETADATA1\nframehashes={hashes_str}\n")
   print(f"Embedding {len(hashes)} frame hashes into {video_path}...")
-  cmd = [
-    'ffmpeg', '-v', 'warning', '-i', video_path, '-f', 'ffmetadata', '-i', meta_path,
-    '-map_metadata', '1', '-c', 'copy', '-movflags', '+use_metadata_tags', '-y', tmp_video
-  ]
+  cmd = ['ffmpeg', '-v', 'warning', '-i', video_path, '-f', 'ffmetadata', '-i', meta_path,
+    '-map_metadata', '1', '-c', 'copy', '-movflags', '+use_metadata_tags', '-y', tmp_video]
   subprocess.run(cmd, check=True)
   meta_path.unlink()  # clean up metadata file
   os.replace(tmp_video, video_path)  # replace original with new video containing metadata
